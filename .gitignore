@@ -1,0 +1,54 @@
+# ============================
+# Android / Gradle
+# ============================
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# App build outputs
+app/build/
+app/release/
+
+# Keystore (NUNCA subir a git)
+*.jks
+*.keystore
+keystore.properties
+
+# Gradle wrapper (opcional, muchos sí lo incluyen)
+# !gradle/wrapper/gradle-wrapper.jar
+
+# ============================
+# IntelliJ / Android Studio
+# ============================
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries/
+.idea/libraries/
+.idea/caches/
+.idea/modules.xml
+*.iws
+out/
+
+# ============================
+# Documentación interna (no subir a git)
+# ============================
+Lecturameter_documentacion.md
+
+# ============================
+# OS
+# ============================
+.DS_Store
+Thumbs.db
+desktop.ini

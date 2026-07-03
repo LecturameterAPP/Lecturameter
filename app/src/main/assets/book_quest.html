@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>Book Quest — Lecturameter</title>
+    <style>
+        /* ─── TOKENS ─────────────────────────────────────────── */
+        :root{
+          --bg:#09110a; --bg2:#0f1a10; --bg3:#161e14;
+          --gold:#d4a04a; --gold2:#e6c37a; --golddim:rgba(212,160,74,.18);
+          --text:#f0e8d0; --textd:#7a8e72; --textm:#4a5a42;
+          --brd:rgba(212,160,74,.15); --brd2:rgba(212,160,74,.4);
+          --panel:rgba(255,255,255,.03);
+          --green:#4ade80; --red:#f87171; --yellow:#facc15;
+          --blue:#60a5fa; --purple:#c084fc; --cyan:#22d3ee;
+          --blk:#93c5fd;
+          --r:16px; --rl:22px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-tap-highlight-color:transparent}
+        html,body{height:100%;background:var(--bg);color:var(--text);font-family:Georgia,'Times New Roman',serif;overflow-x:hidden}
+        .hidden{display:none!important}
+        button{font-family:Georgia,'Times New Roman',serif;cursor:pointer;border:none;transition:.15s}
+
+        /* ─── INTRO ──────────────────────────────────────────── */
+        #s-intro{
+          position:fixed;inset:0;z-index:100;overflow-y:auto;
+          display:flex;flex-direction:column;align-items:center;
+          justify-content:flex-start;padding:14px;gap:10px;text-align:center;
+          background:var(--bg);
+        }
+        .i-logo{font-size:44px;filter:drop-shadow(0 0 20px rgba(212,160,74,.45));margin-top:4px}
+        .i-title{font-size:clamp(24px,6vw,38px);color:var(--gold);text-shadow:0 0 24px rgba(212,160,74,.5);letter-spacing:.06em}
+        .i-sub{font-size:9px;color:var(--textm);letter-spacing:.25em;text-transform:uppercase}
+        .i-box{
+          background:#151c13;border-radius:12px;padding:14px;
+          width:90%;max-width:500px;font-size:.78rem;line-height:1.55;
+          display:flex;flex-direction:column;gap:5px;
+          border:1px solid var(--brd);text-align:center;
+        }
+        .i-cols{display:flex;gap:10px;width:90%;max-width:520px}
+        .i-col{
+          flex:1;background:rgba(255,255,255,.02);
+          border:1px solid var(--brd2);border-radius:12px;
+          padding:10px;text-align:left;
+        }
+        .i-col-title{font-size:.8rem;font-weight:700;margin-bottom:7px;color:var(--gold2)}
+        .i-col ul{list-style:none;font-size:10px;line-height:1.45}
+        .i-col li{margin-bottom:5px}
+        .i-btns{display:flex;flex-direction:column;gap:8px;margin-top:2px;width:90%;max-width:320px}
+        .i-btns button{border-radius:999px;padding:11px 20px;font-size:12px;letter-spacing:.04em}
+        #btn-import{
+          background:rgba(212,160,74,.1);border:1px solid rgba(212,160,74,.35);
+          color:var(--gold);animation:pulse 1.3s infinite;
+        }
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.82;box-shadow:0 0 18px rgba(212,160,74,.4)}}
+
+        /* ─── IMPORT ─────────────────────────────────────────── */
+        #s-import{
+          position:fixed;inset:0;z-index:100;overflow-y:auto;
+          display:flex;flex-direction:column;align-items:center;
+          padding:24px 16px;gap:14px;background:var(--bg);
+        }
+        .imp-box{width:90%;max-width:500px;display:flex;flex-direction:column;gap:12px;text-align:center}
+        .imp-box h2{color:var(--gold);font-size:22px}
+        .imp-box p{font-size:12px;color:var(--textd);line-height:1.6}
+        #imp-ta{
+          width:100%;height:140px;background:#111811;border:1px solid var(--brd);
+          border-radius:12px;padding:12px;color:var(--text);font-size:11px;
+          font-family:monospace;resize:vertical;user-select:text;outline:none;
+        }
+        .imp-btns{display:flex;gap:8px}
+        .imp-btns button{flex:1;padding:11px;border-radius:999px;font-size:12px}
+        #btn-back{background:transparent;border:1px solid var(--brd);color:var(--textd)}
+        #btn-load{background:rgba(212,160,74,.1);border:1px solid var(--brd2);color:var(--gold)}
+        #btn-file{background:rgba(99,180,99,.08);border:1px solid rgba(99,180,99,.35);color:#7ecf7e;width:100%;padding:11px;border-radius:12px;font-size:12px}
+        .imp-err{font-size:11px;padding:8px 12px;border-radius:8px;
+          background:rgba(248,113,113,.1);color:var(--red);text-align:center}
+
+        /* ─── GAME ───────────────────────────────────────────── */
+        #s-game{
+          display:flex;flex-direction:column;
+          width:100%;max-width:520px;margin:0 auto;
+          padding:6px 8px 14px;gap:8px;min-height:100vh;
+        }
+        .g-top{display:flex;justify-content:space-between;align-items:center}
+        .g-top-btn{
+          background:#171d15;border:1px solid var(--brd);color:var(--gold);
+          padding:5px 11px;border-radius:999px;font-size:11px;
+        }
+        /* Toast message */
+        #toast{
+          position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+          background:rgba(248,113,113,.18);border:1px solid rgba(248,113,113,.45);
+          color:#fca5a5;padding:8px 18px;border-radius:999px;
+          font-size:12px;font-weight:700;letter-spacing:.04em;
+          pointer-events:none;z-index:600;
+          animation:toastIn .18s ease;
+        }
+        @keyframes toastIn{from{opacity:0;transform:translate(-50%,-56%)}to{opacity:1;transform:translate(-50%,-50%)}}
+        #run-prog{display:flex;align-items:center;gap:0}
+        .rp-node{
+          display:flex;flex-direction:column;align-items:center;gap:3px;
+          position:relative;
+        }
+        .rp-icon{
+          width:22px;height:22px;border-radius:50%;
+          border:1.5px solid var(--brd);background:var(--bg2);
+          display:flex;align-items:center;justify-content:center;
+          font-size:9px;color:var(--textd);transition:.3s;
+        }
+        .rp-icon.done{
+          background:var(--gold);border-color:var(--gold);color:#1a0e00;
+        }
+        .rp-icon.active{
+          background:transparent;border-color:var(--gold);color:var(--gold);
+          box-shadow:0 0 8px rgba(212,160,74,.5);
+        }
+        .rp-lbl{font-size:7px;letter-spacing:.1em;text-transform:uppercase;color:var(--textm)}
+        .rp-lbl.done{color:var(--gold)}
+        .rp-lbl.active{color:var(--gold2)}
+        .rp-line{
+          width:22px;height:1.5px;background:var(--brd);margin-bottom:11px;
+          transition:.3s;flex-shrink:0;
+        }
+        .rp-line.done{background:var(--gold)}
+
+        /* Combat panels */
+        .cpanel{
+          background:var(--panel);border:1px solid var(--brd);
+          border-radius:var(--rl);padding:13px;position:relative;
+          transition:box-shadow .3s;
+        }
+        .cpanel.boss{border-color:rgba(248,113,113,.35);box-shadow:0 0 20px rgba(248,113,113,.12)}
+
+        /* Intent badge — inline below enemy name */
+        .intent{
+          display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+          padding:3px 10px;border-radius:999px;font-size:10px;
+          border:1px solid var(--brd2);background:#1a2718;
+          margin-top:5px;margin-bottom:2px;
+          transition:background .3s;
+        }
+        .intent.atk{background:rgba(248,113,113,.2);border-color:rgba(248,113,113,.5)}
+        .intent.dfn{background:rgba(147,197,253,.15);border-color:rgba(147,197,253,.4)}
+        .intent.dbf{background:rgba(192,132,252,.2);border-color:rgba(192,132,252,.4)}
+        .intent.stun{background:rgba(192,132,252,.15);border-color:rgba(192,132,252,.4)}
+
+        .ph{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+        .ename{font-size:.88rem;font-weight:700;letter-spacing:.04em}
+        .eemoji{font-size:28px}
+
+        .sr{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+        .sb{font-size:10px;padding:2px 8px;border-radius:999px;border:1px solid}
+        .sb.stun{background:rgba(192,132,252,.15);border-color:rgba(192,132,252,.4);color:var(--purple)}
+        .sb.weak{background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4);color:var(--red)}
+        .sb.conf{background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4);color:var(--blue)}
+
+        .hp-row{display:flex;align-items:center;gap:8px}
+        .hp-wrap{flex:1;height:8px;background:#1a2718;border-radius:999px;overflow:hidden}
+        .hp-fill{height:100%;border-radius:999px;background:var(--green);transition:width .3s,background .3s}
+        .hp-txt{font-size:.78rem;font-weight:700;min-width:42px;text-align:right}
+        .blk-badge{
+          font-size:12px;padding:2px 8px;border-radius:999px;
+          background:rgba(147,197,253,.15);border:1px solid rgba(147,197,253,.4);
+          color:var(--blk);white-space:nowrap;
+        }
+
+        .e-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+        .e-pips{display:flex;gap:4px}
+        .e-pip{
+          width:13px;height:13px;border-radius:50%;
+          background:#1a2718;border:1px solid rgba(212,160,74,.2);
+          transition:background .2s,box-shadow .2s;
+        }
+        .e-pip.on{background:var(--gold);box-shadow:0 0 7px rgba(212,160,74,.5)}
+        .e-txt{font-size:.78rem;font-weight:700;color:var(--gold2)}
+
+        /* Battle area */
+        .battle{height:36px;position:relative;pointer-events:none}
+
+        /* Hand */
+        .hand-hdr{display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+        .hand-lbl{font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--textm)}
+        .deck-cnt{font-size:.65rem;color:var(--textd)}
+        #btn-end{
+          background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.35);
+          color:var(--green);padding:7px 14px;border-radius:999px;font-size:11px;
+        }
+        #btn-end:disabled{opacity:.45;cursor:default}
+        #btn-end.enemy-turn{
+          background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.3);
+          color:var(--red);
+        }
+
+        #hand{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:4px 0}
+
+        /* Cards */
+        .card{
+          width:88px;border-radius:13px;overflow:hidden;
+          background:#141b12;cursor:pointer;position:relative;
+          box-shadow:0 4px 14px rgba(0,0,0,.5);
+          border:1px solid rgba(255,255,255,.07);
+          transition:transform .15s,box-shadow .15s,border-color .15s;
+          display:flex;flex-direction:column;
+        }
+        .card:hover:not(.no-play){
+          transform:translateY(-9px) scale(1.04);
+          box-shadow:0 14px 30px rgba(0,0,0,.7),0 0 0 1.5px rgba(212,160,74,.55);
+          border-color:rgba(212,160,74,.45);z-index:5;
+        }
+        .card.no-play{opacity:.45;cursor:not-allowed}
+        .card.playing{
+          transform:translateY(-20px) scale(.85);opacity:0;
+          transition:transform .2s,opacity .2s;
+        }
+        .cost-c{
+          position:absolute;top:6px;left:6px;width:21px;height:21px;
+          border-radius:50%;background:#5e3a10;border:1px solid var(--gold);
+          color:#f8e9c8;font-size:11px;font-weight:700;
+          display:flex;align-items:center;justify-content:center;z-index:3;
+        }
+        .cost-c.cheap{border-color:var(--green);color:var(--green);background:rgba(74,222,128,.15)}
+        .card-cov{
+          height:100px;
+          background-color:#1a2718;
+          position:relative;overflow:hidden;
+          display:flex;align-items:center;justify-content:center;
+          font-size:26px;
+        }
+        .card-cov img{
+          position:absolute;inset:0;width:100%;height:100%;
+          object-fit:cover;display:block;
+        }
+        .card-cov .cov-fb{
+          width:100%;height:100%;
+          align-items:center;justify-content:center;
+          font-size:30px;
+        }
+        .card-body{padding:6px;display:flex;flex-direction:column;gap:3px;flex:1}
+        .card-ttl{
+          font-size:.59rem;font-weight:700;line-height:1.2;
+          height:28px;overflow:hidden;
+          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+        }
+        .card-atk{font-size:.66rem;color:var(--gold2);height:14px}
+        .card-spc{
+          font-size:.54rem;line-height:1.25;padding:4px 5px;border-radius:7px;
+          background:rgba(212,160,74,.09);border:1px solid var(--golddim);
+          color:var(--textd);margin-top:auto;
+          min-height:40px;overflow:hidden;
+          display:flex;flex-direction:column;justify-content:center;gap:2px;
+        }
+        .card-spc b{
+          font-weight:700;font-size:.56rem;line-height:1.2;
+          display:block;word-break:break-word;
+        }
+        .card-spc-desc-inline{
+          font-size:.48rem;opacity:0.75;line-height:1.2;word-break:break-word;
+          display:block;
+        }
+        .card-spc-name{
+          font-weight:700;font-size:.6rem;line-height:1.2;
+          word-break:break-word;max-width:100%;
+          display:-webkit-box;-webkit-line-clamp:2;
+          -webkit-box-orient:vertical;overflow:hidden;
+        }
+        .card-spc-name.long{ font-size:.48rem; }
+        .card-spc-desc{
+          font-size:.45rem;opacity:0.7;line-height:1.2;word-break:break-word;
+        }
+
+        /* Turn banner */
+        #turn-banner{
+          position:fixed;top:50%;left:50%;
+          transform:translate(-50%,-50%);z-index:200;
+          background:rgba(9,17,10,.93);
+          border:1.5px solid var(--golddim);border-radius:14px;
+          padding:14px 32px;font-size:17px;font-weight:700;
+          letter-spacing:.1em;text-align:center;pointer-events:none;
+          animation:bpop .3s ease-out;
+        }
+        #turn-banner.enemy{color:var(--red);border-color:rgba(248,113,113,.35)}
+        #turn-banner.player{color:var(--green);border-color:rgba(74,222,128,.35)}
+        @keyframes bpop{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+        /* Floating numbers */
+        .flt{
+          position:fixed;font-size:18px;font-weight:700;
+          pointer-events:none;z-index:300;white-space:nowrap;
+          transform:translateX(-50%);
+          text-shadow:0 2px 7px rgba(0,0,0,.9);
+          animation:fup .95s ease-out forwards;
+        }
+        @keyframes fup{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-56px)}}
+
+        /* Shake */
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+        .shaking{animation:shake .3s ease-out}
+
+        /* Quote toast */
+        #quote{
+          position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+          background:rgba(14,9,3,.96);border:1px solid rgba(212,160,74,.3);
+          border-radius:11px;padding:9px 15px;
+          max-width:min(390px,88vw);font-size:.77rem;font-style:italic;
+          text-align:center;z-index:500;color:var(--gold2);
+          animation:fadeIn .25s ease;
+        }
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+        /* Result overlays */
+        .r-ov{
+          position:fixed;inset:0;z-index:400;
+          display:flex;align-items:center;justify-content:center;
+          background:rgba(9,17,10,.92);backdrop-filter:blur(5px);
+        }
+        .r-box{
+          text-align:center;padding:32px;
+          display:flex;flex-direction:column;align-items:center;gap:12px;
+        }
+        .r-emoji{font-size:58px}
+        .r-title{font-size:30px;letter-spacing:.1em}
+        .r-title.gold{color:var(--gold)}
+        .r-title.red{color:var(--red)}
+        .r-sub{font-size:13px;color:var(--textd);max-width:280px;line-height:1.5}
+        .r-btn{
+          margin-top:6px;background:rgba(212,160,74,.1);
+          border:1px solid rgba(212,160,74,.4);color:var(--gold);
+          padding:12px 28px;border-radius:999px;font-size:13px;
+        }
+
+        /* Heal flash */
+        @keyframes healFlash{0%,100%{box-shadow:none}50%{box-shadow:0 0 16px rgba(74,222,128,.5)}}
+        .healing{animation:healFlash .4s}
+
+        /* Enemy transition overlay */
+        #enemy-tr{
+          position:fixed;inset:0;z-index:350;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          gap:14px;text-align:center;
+          background:rgba(9,17,10,.97);backdrop-filter:blur(6px);
+          animation:fadeIn .3s ease;
+        }
+        #enemy-tr .et-defeated{font-size:.9rem;letter-spacing:.18em;text-transform:uppercase;color:var(--green)}
+        #enemy-tr .et-next-lbl{font-size:.75rem;color:var(--textd);letter-spacing:.1em;text-transform:uppercase}
+        #enemy-tr .et-next-name{font-size:1.5rem;font-weight:700;color:var(--gold);letter-spacing:.04em}
+        #enemy-tr .et-ico{font-size:52px}
+        #enemy-tr .et-heal{font-size:.8rem;color:var(--green)}
+        /* Easter egg Hoid */
+        @keyframes hoidIn  { from { opacity:0; transform:scale(.8) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        @keyframes hoidOut { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(.85) translateY(-8px); } }
+        .hoid-in  > div { animation: hoidIn  .28s cubic-bezier(.34,1.56,.64,1) forwards; }
+        .hoid-out > div { animation: hoidOut .32s ease-in forwards; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA INTRO
+══════════════════════════════════════════ -->
+<div id="s-intro">
+    <div class="i-logo">📖</div>
+    <h1 class="i-title">BOOK QUEST</h1>
+    <p class="i-sub" data-i18n="bqSubtitle">DUELO DE ESTANTERÍAS · LECTURAMETER</p>
+
+    <div class="i-box">
+        <div><strong data-i18n="bqRuleTap">Toca una carta para jugarla.</strong></div>
+        <div data-i18n="bqRuleStats">⚡ 5 energía · ❤️ 30 HP · curación +3 tras combate 1 y +5 tras combate 2</div>
+        <div data-i18n="bqRuleAttack">⚔️ Ataque = Páginas ÷100 &nbsp;(mín 4, máx 7)</div>
+        <div data-i18n="bqRuleDefense">🛡️ Defensa = valor fijo por género</div>
+        <div style="font-size:.72rem;color:var(--textd)" data-i18n="bqRuleHint">Toca la intención del enemigo o un estado para ver qué hace. Las cartas no jugadas se conservan al terminar el turno.</div>
+    </div>
+
+    <div class="i-cols">
+        <div class="i-col">
+            <div class="i-col-title" data-i18n="bqColAttacksTitle">⚔️ Ataques</div>
+            <ul>
+                <li data-i18n-html="bqAtk1">✨ <b>Augurio</b> (Fantasía/Grimdark) Ataca y +1⚡.</li>
+                <li data-i18n-html="bqAtk2">😨 <b>Miedo</b> (Terror) Ataca + aturde 1T.</li>
+                <li data-i18n-html="bqAtk3">📖 <b>Deducción</b> (Misterio) Ataca y robas 1 carta.</li>
+                <li data-i18n-html="bqAtk4">⚡ <b>Golpe rápido</b> (Aventura/Manga) Ataca con +3 daño extra.</li>
+                <li data-i18n-html="bqAtk5">🛡️ <b>Escudo refractor</b> (Ci. Ficción) Ataca y +6🛡️.</li>
+            </ul>
+        </div>
+        <div class="i-col">
+            <div class="i-col-title" data-i18n="bqColDefensesTitle">🛡️ Defensas</div>
+            <ul>
+                <li data-i18n-html="bqDef1">❤️ <b>Inspiración</b> (Romance) +7🛡️ y +2❤️.</li>
+                <li data-i18n-html="bqDef2">💰 <b>Sabiduría</b> (No ficción) +6🛡️ y -1⚡ a próx. carta.</li>
+                <li data-i18n-html="bqDef3">🎯 <b>Agudeza</b> (Thriller) +8🛡️ — defensa firme.</li>
+                <li data-i18n-html="bqDef4">📜 <b>Estrategia</b> (Histórica/Costumbrismo) +6🛡️ y robas 1 carta.</li>
+                <li data-i18n-html="bqDef5">🛡️ <b>Bloqueo</b> Absorbe daño. Se pierde al terminar turno.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="i-opt" style="display:flex;flex-direction:column;gap:8px;margin:14px 0;padding:12px 16px;background:var(--surf);border-radius:12px;border:1px solid var(--brd)">
+        <label style="display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="chk-elite" style="width:16px;height:16px;accent-color:var(--acc)">
+            <span data-i18n="bqOptElite">⭐ Solo bestias</span> <span style="color:var(--textd);font-size:.78rem" data-i18n="bqOptEliteHint">(rating &gt; 7)</span>
+        </label>
+        <span style="color:var(--textd);font-size:.72rem;margin-left:26px" data-i18n="bqOptEliteUnavailable">No disponible al jugar con clásicos</span>
+        <label style="display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--text);cursor:pointer">
+            <input type="checkbox" id="chk-turbo" style="width:16px;height:16px;accent-color:var(--acc)">
+            <span data-i18n="bqOptTurbo">⚡ Modo Turbo</span> <span style="color:var(--textd);font-size:.78rem" data-i18n="bqOptTurboHint">(animaciones rápidas)</span>
+        </label>
+    </div>
+
+    <div class="i-btns">
+        <div id="library-status" style="margin-bottom:8px;padding:6px 14px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:13px;color:var(--textd);text-align:center">
+            <span id="book-count-text">0 libros disponibles</span>
+            <span id="library-warning" style="color:#f59e0b;display:none" data-i18n="bqMinBooksWarning"> (mínimo 10 para jugar)</span>
+        </div>
+        <button id="btn-play-saved" class="hidden" data-i18n="bqBtnPlaySaved">📖 Jugar con mi biblioteca</button>
+        <button id="btn-play-classics" onclick="startGame(window.LECTURAMETER_BOOKS, true)" style="padding:12px 24px;background:#f59e0b;border:none;border-radius:999px;color:#000;font-weight:700;cursor:pointer;font-size:.85rem;letter-spacing:.04em" data-i18n="bqBtnPlayClassics">📚 Jugar con clásicos</button>
+        <button id="btn-import" data-i18n="bqBtnImport">📥 Importar y jugar</button>
+        <button id="btn-reimport" class="hidden" style="font-size:10px;background:transparent;border:1px solid var(--brd);color:var(--textd);padding:7px 16px" data-i18n="bqBtnReimport">🔄 Actualizar biblioteca</button>
+        <button id="btn-exit-game" style="font-size:10px;background:transparent;border:1px solid rgba(248,113,113,.25);color:var(--red);padding:7px 16px;border-radius:999px;letter-spacing:.04em" data-i18n="bqBtnExit">❌ Salir del juego</button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA ERROR (< 10 libros)
+══════════════════════════════════════════ -->
+<div id="s-error" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center">
+    <div style="font-size:64px;margin-bottom:16px">📚</div>
+    <h2 style="color:#f59e0b;margin-bottom:10px" data-i18n="bqErrorTitle">¡Necesitas más libros!</h2>
+    <p style="color:var(--textd);max-width:380px;margin:0 auto;font-size:.9rem;line-height:1.5" data-i18n-html="bqErrorDesc">
+        Para jugar con tu biblioteca necesitas al menos <strong>10 libros</strong>
+        en <strong>Leyendo</strong>, <strong>Leídos</strong> o <strong>Releyendo</strong>.<br><br>
+        O usa la biblioteca de clásicos: 10 obras maestras listas para jugar.
+    </p>
+    <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <button onclick="startGame(window.LECTURAMETER_BOOKS, true)" style="padding:12px 24px;background:#f59e0b;border:none;border-radius:999px;color:#000;font-weight:700;cursor:pointer" data-i18n="bqErrorBtnClassics">📚 Usar clásicos</button>
+        <button onclick="showScreen('s-intro')" style="padding:12px 24px;background:transparent;border:1px solid var(--brd);border-radius:999px;color:var(--text);cursor:pointer" data-i18n="bqBack">← Volver</button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA IMPORT
+══════════════════════════════════════════ -->
+<div id="s-import" class="hidden">
+    <div class="imp-box">
+        <h2 data-i18n="bqImportTitle">📥 Importar biblioteca</h2>
+        <p data-i18n-html="bqImportDesc">
+            En Lecturameter ve a <strong style="color:var(--gold2)">Ajustes → Exportar JSON</strong>.<br>
+            El archivo se guarda en tu carpeta de <em>Descargas</em>.
+        </p>
+        <!-- Opción 1: selector de archivo directo -->
+        <input type="file" id="file-picker" accept=".json,application/json,text/plain" style="display:none">
+        <button id="btn-file" data-i18n="bqImportBtnFile">📂 Seleccionar archivo JSON</button>
+        <p style="color:var(--textd);font-size:11px;margin:-4px 0" data-i18n="bqImportOrPaste">— o pega el contenido manualmente —</p>
+        <textarea id="imp-ta" data-i18n-placeholder="bqImportPlaceholder" placeholder='Pega aquí el contenido del JSON exportado desde Lecturameter…'></textarea>
+        <div class="imp-btns">
+            <button id="btn-back" data-i18n="bqBack">← Volver</button>
+            <button id="btn-load" data-i18n="bqImportBtnLoad">🚀 Cargar biblioteca</button>
+        </div>
+        <div id="imp-err" class="imp-err hidden"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA JUEGO
+══════════════════════════════════════════ -->
+<div id="s-game" class="hidden">
+
+    <!-- Badge Modo Clásicos -->
+    <div id="game-mode-badge" style="display:none;text-align:center;margin-bottom:4px">
+        <span style="background:#f59e0b;color:#000;padding:3px 14px;border-radius:20px;font-size:11px;font-weight:700" data-i18n="bqModeClassicBadge">📚 Modo Clásicos · partida fácil</span>
+    </div>
+
+    <!-- Top bar -->
+    <div class="g-top">
+        <button class="g-top-btn" id="btn-restart" data-i18n="bqBtnRestart">🔄 Reiniciar</button>
+        <div id="run-prog">
+            <div class="rp-node">
+                <div class="rp-icon" id="rp0">⚔️</div>
+                <div class="rp-lbl" id="rpl0">Combate 1</div>
+            </div>
+            <div class="rp-line" id="rpl-a"></div>
+            <div class="rp-node">
+                <div class="rp-icon" id="rp1">⚔️</div>
+                <div class="rp-lbl" id="rpl1">Combate 2</div>
+            </div>
+            <div class="rp-line" id="rpl-b"></div>
+            <div class="rp-node">
+                <div class="rp-icon" id="rp2">💀</div>
+                <div class="rp-lbl" id="rpl2">Jefe</div>
+            </div>
+        </div>
+        <button class="g-top-btn" id="btn-exit">❌ Salir</button>
+    </div>
+
+    <!-- Enemy panel -->
+    <div class="cpanel" id="ep">
+        <div class="ph">
+            <div>
+                <div class="ename" id="e-name">El Bloqueo Lector</div>
+                <div class="intent hidden" id="intent-badge">
+                    <span id="intent-icon">⚔️</span>
+                    <span id="intent-lbl">Atacará 5</span>
+                </div>
+                <div class="sr" id="e-sr"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+                <div class="blk-badge hidden" id="e-blk">🛡️ <span id="e-blkv">0</span></div>
+                <div class="eemoji" id="e-emoji">📚</div>
+            </div>
+        </div>
+        <div class="hp-row">
+            <div class="hp-wrap"><div class="hp-fill" id="e-hp" style="width:100%"></div></div>
+            <div class="hp-txt" id="e-hpt">30/30</div>
+        </div>
+    </div>
+
+    <!-- Battle area -->
+    <div class="battle" id="battle"></div>
+
+    <!-- Player panel -->
+    <div class="cpanel" id="pp">
+        <div class="ph">
+            <div>
+                <div class="ename">🧙 Tú</div>
+                <div class="sr" id="p-sr"></div>
+            </div>
+            <div class="blk-badge hidden" id="p-blk">🛡️ <span id="p-blkv">0</span></div>
+        </div>
+        <div class="hp-row">
+            <div class="hp-wrap"><div class="hp-fill" id="p-hp" style="width:100%"></div></div>
+            <div class="hp-txt" id="p-hpt">30/30</div>
+        </div>
+        <div class="e-row">
+            <span style="font-size:14px">⚡</span>
+            <div class="e-pips" id="e-pips"></div>
+            <span class="e-txt" id="e-txt">5/5</span>
+            <span style="font-size:10px;color:var(--textm);margin-left:auto" id="deck-cnt"></span>
+        </div>
+    </div>
+
+    <!-- Hand header -->
+    <div class="hand-hdr">
+        <span class="hand-lbl">✧ Tu mano ✧</span>
+        <button id="btn-end">Fin de turno →</button>
+    </div>
+
+    <!-- Cards -->
+    <div id="hand"></div>
+
+</div>
+
+<!-- Enemy transition -->
+<div id="enemy-tr" class="hidden">
+    <div class="et-ico" id="et-ico">⚔️</div>
+    <div class="et-defeated" data-i18n="bqEnemyDefeated">¡Enemigo derrotado!</div>
+    <div class="et-heal" id="et-heal">+5 ❤️ curado</div>
+    <div class="et-next-lbl" id="et-next-lbl">Siguiente enemigo</div>
+    <div class="et-next-name" id="et-ename"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden"></div>
+
+<!-- Turn banner -->
+<div id="turn-banner" class="hidden"></div>
+
+<!-- Quote toast -->
+<div id="quote" class="hidden"></div>
+
+<!-- Victory -->
+<div id="v-ov" class="r-ov hidden">
+    <div class="r-box">
+        <div class="r-emoji">🏆</div>
+        <div class="r-title gold">¡VICTORIA!</div>
+        <div class="r-sub">Has derrotado a todos los enemigos y completado la run</div>
+        <button class="r-btn" id="btn-v">🔄 Nueva partida</button>
+    </div>
+</div>
+
+<!-- Defeat -->
+<div id="d-ov" class="r-ov hidden">
+    <div class="r-box">
+        <div class="r-emoji">💀</div>
+        <div class="r-title red">DERROTA</div>
+        <div class="r-sub">Los libros te han vencido... vuelve a intentarlo</div>
+        <button class="r-btn" id="btn-d">🔄 Intentar de nuevo</button>
+    </div>
+</div>
+
+<!-- Easter egg: Hoid -->
+<div id="hoid-ov" class="hidden" style="position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;pointer-events:none">
+    <div style="background:rgba(9,17,10,.93);border:1px solid rgba(212,160,74,.45);border-radius:18px;padding:22px 28px;text-align:center;max-width:260px;backdrop-filter:blur(6px)">
+        <div style="font-size:13px;color:var(--textd);margin-bottom:6px;letter-spacing:.05em" id="hoid-flavor"></div>
+        <div style="font-size:26px;font-weight:bold;color:var(--gold);letter-spacing:.04em" id="hoid-quote"></div>
+        <div style="font-size:11px;color:var(--textd);margin-top:8px;opacity:.6">— Hoid</div>
+    </div>
+</div>
+
+<script>
+    /* ╔══════════════════════════════════════════════════╗
+       ║  IDIOMA / TRADUCCIÓN                             ║
+       ╚══════════════════════════════════════════════════╝ */
+    let currentLang = 'es';
+
+    const LANG = {
+      es: {
+        bqSubtitle: "DUELO DE ESTANTERÍAS · LECTURAMETER",
+        bqRuleTap: "Toca una carta para jugarla.",
+        bqRuleStats: "⚡ 5 energía · ❤️ 30 HP · curación +3 tras combate 1 y +5 tras combate 2",
+        bqRuleAttack: "⚔️ Ataque = Páginas ÷100 &nbsp;(mín 4, máx 7)",
+        bqRuleDefense: "🛡️ Defensa = valor fijo por género",
+        bqRuleHint: "Toca la intención del enemigo o un estado para ver qué hace. Las cartas no jugadas se conservan al terminar el turno.",
+        bqColAttacksTitle: "⚔️ Ataques",
+        bqAtk1: '✨ <b>Augurio</b> (Fantasía/Grimdark) Ataca y +1⚡.',
+        bqAtk2: '😨 <b>Miedo</b> (Terror) Ataca + aturde 1T.',
+        bqAtk3: '📖 <b>Deducción</b> (Misterio) Ataca y robas 1 carta.',
+        bqAtk4: '⚡ <b>Golpe rápido</b> (Aventura/Manga) Ataca con +3 daño extra.',
+        bqAtk5: '🛡️ <b>Escudo refractor</b> (Ci. Ficción) Ataca y +6🛡️.',
+        bqColDefensesTitle: "🛡️ Defensas",
+        bqDef1: '❤️ <b>Inspiración</b> (Romance) +7🛡️ y +2❤️.',
+        bqDef2: '💰 <b>Sabiduría</b> (No ficción) +6🛡️ y -1⚡ a próx. carta.',
+        bqDef3: '🎯 <b>Agudeza</b> (Thriller) +8🛡️ — defensa firme.',
+        bqDef4: '📜 <b>Estrategia</b> (Histórica/Costumbrismo) +6🛡️ y robas 1 carta.',
+        bqDef5: '🛡️ <b>Bloqueo</b> Absorbe daño. Se pierde al terminar turno.',
+        bqOptElite: "⭐ Solo bestias",
+        bqOptEliteHint: "(rating &gt; 7)",
+        bqOptEliteUnavailable: "No disponible al jugar con clásicos",
+        bqOptTurbo: "⚡ Modo Turbo",
+        bqOptTurboHint: "(animaciones rápidas)",
+        bqMinBooksWarning: " (mínimo 10 para jugar)",
+        bqBooksAvailable: "{n} libros disponibles",
+        bqBtnPlaySaved: "📖 Jugar con mi biblioteca",
+        bqBtnPlayClassics: "📚 Jugar con clásicos",
+        bqBtnImport: "📥 Importar y jugar",
+        bqBtnReimport: "🔄 Actualizar biblioteca",
+        bqBtnExit: "❌ Salir del juego",
+        bqErrorTitle: "¡Necesitas más libros!",
+        bqErrorDesc: `Para jugar con tu biblioteca necesitas al menos <strong>10 libros</strong>
+        en <strong>Leyendo</strong>, <strong>Leídos</strong> o <strong>Releyendo</strong>.<br><br>
+        O usa la biblioteca de clásicos: 10 obras maestras listas para jugar.`,
+        bqErrorBtnClassics: "📚 Usar clásicos",
+        bqBack: "← Volver",
+        bqImportTitle: "📥 Importar biblioteca",
+        bqImportDesc: `En Lecturameter ve a <strong style="color:var(--gold2)">Ajustes → Exportar JSON</strong>.<br>
+            El archivo se guarda en la carpeta <em>Lecturameter Backups</em>.`,
+        bqImportBtnFile: "📂 Seleccionar archivo JSON",
+        bqImportOrPaste: "— o pega el contenido manualmente —",
+        bqImportPlaceholder: "Pega aquí el contenido del JSON exportado desde Lecturameter…",
+        bqImportBtnLoad: "🚀 Cargar biblioteca",
+        bqImportErrNoPaste: "Pega el contenido del JSON primero.",
+        bqImportErrInvalid: "JSON no reconocido. Prueba a exportar de nuevo desde Lecturameter.",
+        bqModeClassicBadge: "📚 Modo Clásicos · partida fácil",
+        bqBtnRestart: "🔄 Reiniciar",
+        bqTurnPlayer: "TU TURNO",
+        bqTurnEnemy: "TURNO DEL ENEMIGO",
+        bqEndTurn: "Fin de turno →",
+        bqEnemyTurnRunning: "Turno enemigo...",
+        bqEnemyDefeated: "¡Enemigo derrotado!",
+        bqNextEnemy: "Siguiente enemigo",
+        bqFinalBoss: "¡¡¡JEFE FINAL!!!",
+        bqHealAmount: "+{n} ❤️ curado",
+        bqToastNoEnergy: "⚡ Energía insuficiente",
+        bqDefeatedFloat: "¡Derrotado! 🎉",
+        bqStatusStunned: '💫 <b>Aturdido</b><br>El enemigo pierde su próximo turno.',
+        bqStatusWeakened: '💀 <b>Debilitado</b><br>Tus ataques hacen la mitad de daño.',
+        bqStatusConfused: '🌀 <b>Confundido</b><br>El efecto especial de tus cartas no se activa.',
+        bqStatusNameWeakened: "Debilitado",
+        bqStatusNameConfused: "Confundido",
+        bqHintAttack: '⚔️ <b>Ataque</b><br>El enemigo atacará por {n} de daño este turno. Usa bloqueo o aturde para mitigarlo.',
+        bqHintMulti: '⚡ <b>Golpe múltiple</b><br>{hits} ataques de {n} daño cada uno. El bloqueo se consume por cada golpe.',
+        bqHintDefend: '🛡️ <b>Bloqueo</b><br>El enemigo se cubrirá con {n} de bloqueo este turno. Reduce el daño que recibe.',
+        bqHintDebuff: '💀 <b>Debuff: {name}</b><br>Te aplicará el estado «{name}» durante {n} turnos. {extra}',
+        bqToastSlowDown: '🐢 ¡Más despacio, por favor!',
+        hoidQuotes: ['Hoid? 🤨', 'Hoid! 😡', '¡Hoid! 😂'],
+        hoidFlavor: '¿Otra vez tú aquí?',
+      },
+      en: {
+        bqSubtitle: "SHELF DUEL · LECTURAMETER",
+        bqRuleTap: "Tap a card to play it.",
+        bqRuleStats: "⚡ 5 energy · ❤️ 30 HP · +3 healing after fight 1 and +5 after fight 2",
+        bqRuleAttack: "⚔️ Attack = Pages ÷100 &nbsp;(min 4, max 7)",
+        bqRuleDefense: "🛡️ Defense = fixed value per genre",
+        bqRuleHint: "Tap the enemy's intent or a status to see what it does. Unplayed cards carry over when you end your turn.",
+        bqColAttacksTitle: "⚔️ Attacks",
+        bqAtk1: '✨ <b>Omen</b> (Fantasy/Grimdark) Attacks and +1⚡.',
+        bqAtk2: '😨 <b>Fear</b> (Horror) Attacks + stuns 1T.',
+        bqAtk3: '📖 <b>Deduction</b> (Mystery) Attacks and draws 1 card.',
+        bqAtk4: '⚡ <b>Quick strike</b> (Adventure/Manga) Attacks with +3 extra damage.',
+        bqAtk5: '🛡️ <b>Refractive shield</b> (Sci-Fi) Attacks and +6🛡️.',
+        bqColDefensesTitle: "🛡️ Defenses",
+        bqDef1: '❤️ <b>Inspiration</b> (Romance) +7🛡️ and +2❤️.',
+        bqDef2: '💰 <b>Wisdom</b> (Non-fiction) +6🛡️ and -1⚡ to next card.',
+        bqDef3: '🎯 <b>Sharpness</b> (Thriller) +8🛡️ — solid defense.',
+        bqDef4: '📜 <b>Strategy</b> (Historical/Slice of life) +6🛡️ and draws 1 card.',
+        bqDef5: '🛡️ <b>Block</b> Absorbs damage. Lost at the end of the turn.',
+        bqOptElite: "⭐ Beasts only",
+        bqOptEliteHint: "(rating &gt; 7)",
+        bqOptEliteUnavailable: "Not available when playing with classics",
+        bqOptTurbo: "⚡ Turbo mode",
+        bqOptTurboHint: "(faster animations)",
+        bqMinBooksWarning: " (minimum 10 to play)",
+        bqBooksAvailable: "{n} books available",
+        bqBtnPlaySaved: "📖 Play with my library",
+        bqBtnPlayClassics: "📚 Play with classics",
+        bqBtnImport: "📥 Import and play",
+        bqBtnReimport: "🔄 Refresh library",
+        bqBtnExit: "❌ Exit game",
+        bqErrorTitle: "Not enough books!",
+        bqErrorDesc: `To play with your library you need at least <strong>10 books</strong>
+        on <strong>Reading</strong>, <strong>Finished</strong> or <strong>Rereading</strong>.<br><br>
+        Or use the classics library: 10 masterpieces ready to play.`,
+        bqErrorBtnClassics: "📚 Use classics",
+        bqBack: "← Back",
+        bqImportTitle: "📥 Import library",
+        bqImportDesc: `In Lecturameter go to <strong style="color:var(--gold2)">Settings → Export JSON</strong>.<br>
+            The file is saved in the <em>Lecturameter Backups</em> folder.`,
+        bqImportBtnFile: "📂 Select JSON file",
+        bqImportOrPaste: "— or paste the content manually —",
+        bqImportPlaceholder: "Paste the JSON content exported from Lecturameter here…",
+        bqImportBtnLoad: "🚀 Load library",
+        bqImportErrNoPaste: "Paste the JSON content first.",
+        bqImportErrInvalid: "JSON not recognized. Try exporting again from Lecturameter.",
+        bqModeClassicBadge: "📚 Classics Mode · easy game",
+        bqBtnRestart: "🔄 Restart",
+        bqTurnPlayer: "YOUR TURN",
+        bqTurnEnemy: "ENEMY TURN",
+        bqEndTurn: "End turn →",
+        bqEnemyTurnRunning: "Enemy turn...",
+        bqEnemyDefeated: "Enemy defeated!",
+        bqNextEnemy: "Next enemy",
+        bqFinalBoss: "!!! FINAL BOSS !!!",
+        bqHealAmount: "+{n} ❤️ healed",
+        bqToastNoEnergy: "⚡ Not enough energy",
+        bqDefeatedFloat: "Defeated! 🎉",
+        bqStatusStunned: '💫 <b>Stunned</b><br>The enemy loses its next turn.',
+        bqStatusWeakened: '💀 <b>Weakened</b><br>Your attacks deal half damage.',
+        bqStatusConfused: '🌀 <b>Confused</b><br>Your cards\' special effect does not trigger.',
+        bqStatusNameWeakened: "Weakened",
+        bqStatusNameConfused: "Confused",
+        bqHintAttack: '⚔️ <b>Attack</b><br>The enemy will attack for {n} damage this turn. Use block or stun to mitigate it.',
+        bqHintMulti: '⚡ <b>Multi-hit</b><br>{hits} attacks of {n} damage each. Block is consumed on each hit.',
+        bqHintDefend: '🛡️ <b>Block</b><br>The enemy will cover itself with {n} block this turn. Reduces the damage it takes.',
+        bqHintDebuff: '💀 <b>Debuff: {name}</b><br>Will apply the «{name}» status for {n} turns. {extra}',
+        bqToastSlowDown: '🐢 Slower, please!',
+        hoidQuotes: ['Hoid? 🤨', 'Hoid! 😡', 'Hoid! 😂'],
+        hoidFlavor: 'You again?',
+      }
+    };
+
+    function t(key, params = {}) {
+      const text = LANG[currentLang]?.[key] ?? LANG.es[key] ?? key;
+      let result = text;
+      Object.keys(params).forEach(k => {
+        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), params[k]);
+      });
+      return result;
+    }
+
+    function renderUI() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        el.innerHTML = t(el.getAttribute('data-i18n-html'));
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
+      });
+      // Textos que se generan dinámicamente y no usan data-i18n
+      const countEl = document.getElementById('book-count-text');
+      if (countEl) {
+        const n = (window.LECTURAMETER_BOOKS || []).filter(b => b && b.title && String(b.title).trim().length > 0).length;
+        countEl.textContent = t('bqBooksAvailable', { n });
+      }
+    }
+
+    /** Llamado desde Kotlin tras cargar la página para fijar el idioma. */
+    window.setBookQuestLanguage = function(lang) {
+      if (!LANG[lang]) return;
+      currentLang = lang;
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', renderUI, { once: true });
+      } else {
+        renderUI();
+      }
+    };
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  DATOS                                           ║
+       ╚══════════════════════════════════════════════════╝ */
+
+    const SPECIALS = {
+      "fantasía":        { name:"✨ Augurio",          enName:"✨ Omen",              desc:"Ataca +1⚡",     enDesc:"Attacks +1⚡",            isAttack:true,  shieldVal:0 },
+      "terror":          { name:"😨 Miedo",             enName:"😨 Fear",              desc:"Ataca +Stun",    enDesc:"Attacks +Stun",          isAttack:true,  shieldVal:0 },
+      "suspense":        { name:"😨 Miedo",             enName:"😨 Fear",              desc:"Ataca +Stun",    enDesc:"Attacks +Stun",          isAttack:true,  shieldVal:0 },
+      "misterio":        { name:"📖 Deducción",         enName:"📖 Deduction",         desc:"Ataca +carta",   enDesc:"Attacks +card",          isAttack:true,  shieldVal:0 },
+      "aventura":        { name:"⚡ Golpe rápido",      enName:"⚡ Quick strike",      desc:"+3 daño extra",  enDesc:"+3 extra damage",        isAttack:true,  shieldVal:0 },
+      "manga":           { name:"⚡ Golpe rápido",      enName:"⚡ Quick strike",      desc:"+3 daño extra",  enDesc:"+3 extra damage",        isAttack:true,  shieldVal:0 },
+      "graphic novel":   { name:"⚡ Golpe rápido",      enName:"⚡ Quick strike",      desc:"+3 daño extra",  enDesc:"+3 extra damage",        isAttack:true,  shieldVal:0 },
+      "ciencia ficción": { name:"🛡️ Escudo refractor",  enName:"🛡️ Refractive shield", desc:"Ataca +6🛡️",    enDesc:"Attacks +6🛡️",           isAttack:true,  shieldVal:6 },
+      "ci. ficción":     { name:"🛡️ Escudo refractor",  enName:"🛡️ Refractive shield", desc:"Ataca +6🛡️",    enDesc:"Attacks +6🛡️",           isAttack:true,  shieldVal:6 },
+      "sci-fi":          { name:"🛡️ Escudo refractor",  enName:"🛡️ Refractive shield", desc:"Ataca +6🛡️",    enDesc:"Attacks +6🛡️",           isAttack:true,  shieldVal:6 },
+      "distopía":        { name:"🛡️ Escudo refractor",  enName:"🛡️ Refractive shield", desc:"Ataca +6🛡️",    enDesc:"Attacks +6🛡️",           isAttack:true,  shieldVal:6 },
+      "romance":         { name:"❤️ Inspiración",       enName:"❤️ Inspiration",       desc:"+2❤️ al jugar",  enDesc:"+2❤️ when played",       isAttack:false, shieldVal:7 },
+      "romántico":       { name:"❤️ Inspiración",       enName:"❤️ Inspiration",       desc:"+2❤️ al jugar",  enDesc:"+2❤️ when played",       isAttack:false, shieldVal:7 },
+      "no ficción":      { name:"💰 Sabiduría",         enName:"💰 Wisdom",            desc:"-1⚡ próx. carta",enDesc:"-1⚡ next card",          isAttack:false, shieldVal:6 },
+      "ensayo":          { name:"💰 Sabiduría",         enName:"💰 Wisdom",            desc:"-1⚡ próx. carta",enDesc:"-1⚡ next card",          isAttack:false, shieldVal:6 },
+      "thriller":        { name:"🎯 Agudeza",           enName:"🎯 Sharpness",         desc:"Defensa firme",  enDesc:"Solid defense",          isAttack:false, shieldVal:8 },
+      "histórica":       { name:"📜 Estrategia",        enName:"📜 Strategy",          desc:"+1 carta",       enDesc:"+1 card",                isAttack:false, shieldVal:6 },
+    };
+    const SHIELD_VALUES = Object.fromEntries(
+      Object.entries(SPECIALS).filter(([,v])=>v.shieldVal>0).map(([k,v])=>[k,v.shieldVal])
+    );
+    const SPEC_DEF = { name:"⚔️ Lectura", enName:"⚔️ Reading", desc:"Ataque básico", enDesc:"Basic attack", isAttack:true };
+
+    const GENRE_EMOJI = {
+      "fantasía":"🗡️","terror":"👻","misterio":"🔍","aventura":"⚡",
+      "ciencia ficción":"🚀","sci-fi":"🚀","distopía":"🌑",
+      "romance":"💕","no ficción":"📊","thriller":"🎯",
+      "histórica":"📜","manga":"🇯🇵","graphic novel":"🎨","suspense":"🎭",
+    };
+
+    const DEMO_BOOKS = [
+      {title:"Proyecto Hail Mary",author:"Andy Weir",pages:480,rating:10,genre:"ciencia ficción",coverId:"12617413",
+       quotes:["La ciencia no distingue entre imposible y difícil.", "Marte no va a matarme. No hoy.", "Si puedes calcularlo, puedes resolverlo."]},
+      {title:"El Imperio Final",author:"Brandon Sanderson",pages:541,rating:9,genre:"fantasía",coverId:"10521270",
+       quotes:["Yo soy la esperanza.", "Sobrevive.", "Siempre hay otro secreto."]},
+      {title:"El Ojo del Mundo",author:"Robert Jordan",pages:782,rating:10,genre:"fantasía",coverId:"8231996",
+       quotes:["Ta'veren.", "El Entramado teje como el Entramado quiere.", "La Rueda del Tiempo gira, y las Eras pasan y dejan recuerdos que se convierten en leyenda."]},
+      {title:"Dune",author:"Frank Herbert",pages:688,rating:10,genre:"ciencia ficción",coverId:"8226193",
+       quotes:["El miedo es el asesino de la mente.", "El que controla la especia controla el universo.", "Debo no tener miedo."]},
+      {title:"It",author:"Stephen King",pages:1168,rating:9,genre:"terror",coverId:"8228691",
+       quotes:["Flotan aquí abajo.", "El miedo tiene muchos colores.", "Los niños saben lo que los adultos olvidan."]},
+      {title:"El nombre del viento",author:"Patrick Rothfuss",pages:662,rating:10,genre:"fantasía",coverId:"12305806",
+       quotes:["Las palabras son pálidos fantasmas de cosas olvidadas.", "El miedo nació antes que el nombre.", "Una canción puede cambiar el mundo."]},
+      {title:"Sapiens",author:"Yuval Noah Harari",pages:473,rating:9,genre:"no ficción",coverId:"8946986",
+       quotes:["El dinero es la historia más exitosa jamás contada.", "Gobernamos el mundo porque creemos en ficciones.", "La historia más importante es la que nos contamos a nosotros mismos."]},
+      {title:"Orgullo y Prejuicio",author:"Jane Austen",pages:432,rating:8,genre:"romance",coverId:"8739161",
+       quotes:["Es una verdad universalmente reconocida.", "Solo los sentimientos más profundos convencen.", "Una vida sin libros es como un cuerpo sin alma."]},
+      {title:"Sherlock Holmes: Estudio en Escarlata",author:"Arthur Conan Doyle",pages:224,rating:8,genre:"misterio",coverId:"8096815",
+       quotes:["El juego está en marcha.", "Cuando elimines lo imposible, lo que quede debe ser la verdad.", "Una mente sin datos es como un motor sin combustible."]},
+      {title:"1984",author:"George Orwell",pages:328,rating:10,genre:"distopía",coverId:"8575708",
+       quotes:["El Gran Hermano te vigila.", "La guerra es la paz. La libertad es la esclavitud.", "Quien controla el pasado controla el futuro."]},
+      {title:"El Señor de los Anillos",author:"J.R.R. Tolkien",pages:1178,rating:10,genre:"fantasía",coverId:"9255566",
+       quotes:["No todo el que vaga está perdido.", "Incluso los más pequeños pueden cambiar el futuro del mundo.", "Nadie puede saber lo que pasará."]},
+      {title:"Chainsaw Man Vol.1",author:"Tatsuki Fujimoto",pages:200,rating:8,genre:"manga",coverId:"12629127",
+       quotes:["Nunca te rindas.", "Los demonios existen entre nosotros.", "La supervivencia tiene su precio."]},
+      {title:"DanDaDan Vol.1",author:"Yukinobu Tatsu",pages:200,rating:7,genre:"manga",coverId:"12867334",
+       quotes:["Lo paranormal es real.", "El misterio nunca duerme.", "No mires atrás."]},
+      {title:"La sombra del viento",author:"Carlos Ruiz Zafón",pages:544,rating:9,genre:"misterio",coverId:"8231962",
+       quotes:["Los libros son espejos: solo vemos en ellos lo que llevamos dentro.", "Barcelona guarda secretos que nunca mueren.", "El tiempo devora las memorias que no cuidamos."]},
+      {title:"Cien años de soledad",author:"G. García Márquez",pages:422,rating:9,genre:"romance",coverId:"8706566",
+       quotes:["Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar...", "El amor es más importante que el tiempo.", "La soledad es la única certeza."]},
+      {title:"El Hobbit",author:"J.R.R. Tolkien",pages:310,rating:9,genre:"fantasía",coverId:"8406786",
+       quotes:["En un hoyo en el suelo vivía un hobbit.", "Las aventuras más grandes empiezan en casa.", "Nunca se sabe lo que puede pasar si sales de tu puerta."]},
+      {title:"El Marciano",author:"Andy Weir",pages:369,rating:9,genre:"ciencia ficción",coverId:"9374553",
+       quotes:["Voy a tener que hacer ciencia para sobrevivir.", "Marte va a aprender que soy más terco.", "Si puedes calcularlo, puedes resolverlo."]},
+      {title:"La Carretera",author:"Cormac McCarthy",pages:287,rating:9,genre:"aventura",coverId:"8714026",
+       quotes:["Llevar el fuego.", "El amor es la última religión.", "En el gris crepúsculo del fin del mundo."]},
+      {title:"El Nombre de la Rosa",author:"Umberto Eco",pages:512,rating:8,genre:"misterio",coverId:"8406796",
+       quotes:["Los libros no están hechos para creerlos, sino para someterlos a indagación.", "El miedo a los demonios puede crear demonios.", "La verdad se esconde en los libros prohibidos."]},
+      {title:"Salitre y Ceniza",author:"Autor X",pages:320,rating:8,genre:"terror",coverId:"11153283",
+       quotes:["El miedo se respira en el aire.", "Sombras bajo la niebla.", "La ceniza nunca olvida."]},
+    ];
+
+    // damageReduction: fracción del daño recibido que se absorbe (nerf al jugador)
+    // ── BIBLIOTECA PRESTADA (Modo Clásicos) ───────────────────────────────
+    let _isPrested = false;
+    let _isStarting = false;
+
+    // Citas de fallback por género — usadas cuando un libro no tiene citas propias ni comentario
+    const GENRE_FB_DEFAULT = [
+      "Un libro que deja huella.",
+      "Una historia que merece ser leída.",
+      "Palabras que permanecen."
+    ];
+    const GENRE_FB = {
+      "fantasía":        ["La magia no necesita explicación.", "En otros mundos, todo es posible.", "Los dragones existen donde los soñamos."],
+      "ciencia ficción": ["El futuro ya está aquí.", "La tecnología cambia, la humanidad permanece.", "Entre estrellas, buscamos respuestas."],
+      "terror":          ["El miedo es el principio de la sabiduría.", "Lo desconocido nos habita.", "En la oscuridad, todo es posible."],
+      "misterio":        ["Toda respuesta esconde una nueva pregunta.", "Los secretos tienen vida propia.", "La verdad espera en los detalles."],
+      "romance":         ["El amor es el único lenguaje universal.", "Dos almas, un encuentro inevitable.", "El corazón tiene razones que la razón no entiende."],
+      "aventura":        ["El camino es la recompensa.", "Los valientes se hacen en el viaje.", "Cada horizonte esconde una nueva historia."],
+      "no ficción":      ["El conocimiento es la única riqueza que crece al compartirla.", "Los hechos son más extraños que la ficción.", "La realidad supera siempre a la imaginación."],
+      "histórica":       ["El pasado nunca muere, apenas si pasa.", "La historia la escriben los que sobreviven.", "Cada época tiene sus héroes olvidados."],
+      "manga":           ["El poder nace del esfuerzo.", "Nakama: los que luchan a tu lado.", "Superar los propios límites es el verdadero camino ninja."],
+      "clásico":         ["Los clásicos son libros que nunca terminan de decir lo que tienen que decir.", "Una obra maestra del tiempo.", "La eternidad en páginas."],
+      "distopía":        ["La vigilancia es el precio de la ignorancia.", "Resistir es la única forma de existir.", "El sistema siempre tiene fisuras."],
+      "thriller":        ["El peligro acecha donde menos se espera.", "Un segundo puede cambiar todo.", "La adrenalina es la tinta de estas páginas."]
+    };
+
+    const PRESTED_LIBRARY = [
+      { title:"El Quijote",          author:"Miguel de Cervantes",    pages:863, genres:["clásico"],       rating:9.2, status:"FINISHED", isbn:"8420412146", costOverride:2, quotes:["En un lugar de la Mancha, de cuyo nombre no quiero acordarme...","La libertad, Sancho, es uno de los más preciosos dones que a los hombres dieron los cielos.","Bien haya aquel que inventó el sueño, que es un alimento del alma."] },
+      { title:"La Ilíada",           author:"Homero",                 pages:560, genres:["épico"],          rating:8.8, status:"FINISHED", isbn:"8424936139", quotes:["Canta, oh diosa, la cólera del Pelida Aquiles.","El hombre es el más débil de todos los seres que respiran y se mueven sobre la tierra.","La gloria de los hombres está en manos de los dioses."] },
+      { title:"Drácula",             author:"Bram Stoker",            pages:418, genres:["terror"],         rating:8.5, status:"FINISHED", isbn:"8420674476", costOverride:2, quotes:["Bienvenido a mi casa. Entra libremente, vete con alegría y deja algo de la felicidad que traes.","Los muertos no descansan en paz.","Hay misterios que los hombres no deben conocer."] },
+      { title:"Frankenstein",        author:"Mary Shelley",           pages:280, genres:["terror"],         rating:8.6, status:"FINISHED", isbn:"8420674212", quotes:["Criatura, te he creado, pero tú has hecho de mí un demonio.","El hombre no debe ser el verdugo de su propia especie.","El odio es un sentimiento que nace del miedo."] },
+      { title:"1984",                author:"George Orwell",          pages:328, genres:["ciencia ficción"],rating:9.0, status:"FINISHED", isbn:"8499890944", costOverride:2, quotes:["La guerra es la paz. La libertad es la esclavitud. La ignorancia es la fuerza.","El Gran Hermano te vigila.","Si quieres una imagen del futuro, imagina una bota pisando un rostro humano para siempre."] },
+      { title:"Orgullo y prejuicio", author:"Jane Austen",            pages:432, genres:["romance"],        rating:8.7, status:"FINISHED", isbn:"8420674263", quotes:["Es una verdad universalmente reconocida que un hombre soltero en posesión de una buena fortuna debe estar necesitado de esposa.","Mi afecto y mis deseos no han cambiado.","El orgullo no es una falta, es un sentimiento."] },
+      { title:"El Principito",       author:"Antoine de Saint-Exupéry",pages:96, genres:["aventura"],      rating:8.9, status:"FINISHED", isbn:"8498381498", quotes:["Lo esencial es invisible a los ojos.","Fue el tiempo que pasaste con tu rosa lo que la hizo tan importante.","Todos los adultos han sido niños, pero pocos lo recuerdan."] },
+      { title:"La Odisea",           author:"Homero",                 pages:480, genres:["aventura"],       rating:8.7, status:"FINISHED", isbn:"8424936147", costOverride:2, quotes:["Canta, musa, la historia del héroe de mil ardides.","El hombre es el artífice de su propia suerte.","No hay nada más dulce que la patria y la familia."] },
+      { title:"El Gran Gatsby",      author:"F. Scott Fitzgerald",    pages:208, genres:["clásico"],        rating:8.4, status:"FINISHED", isbn:"8425342249", quotes:["Gatsby creía en la luz verde, el futuro orgiástico que año tras año retrocede ante nosotros.","La vida no es más que una fiesta, y yo soy el anfitrión.","El pasado siempre nos alcanza."] },
+      { title:"Crimen y castigo",    author:"Fiódor Dostoyevski",     pages:671, genres:["clásico"],        rating:8.9, status:"FINISHED", isbn:"8420674697", quotes:["El hombre es un ser que se acostumbra a todo, y creo que esa es la mejor definición del ser humano.","El sufrimiento es el único origen de la conciencia.","Si has de mentir, miente bien, que la mentira acaba siendo verdad."] }
+    ];
+
+    const ENEMIES = [
+      {
+        name:"El Bloqueo Lector", enName:"The Reader Block", emoji:"📚", maxHp:30, barColor:"#4ade80", boss:false, damageReduction:0,
+        pattern:[
+          {type:'attack', value:5,  label:'Atacará por 5 de daño',   enLabel:'Will attack for 5 damage',   icon:'⚔️', cls:'atk'},
+          {type:'defend', value:6,  label:'Bloquea 6 de daño',       enLabel:'Blocks 6 damage',            icon:'🛡️', cls:'dfn'},
+          {type:'attack', value:7,  label:'Atacará por 7 de daño',   enLabel:'Will attack for 7 damage',   icon:'⚔️', cls:'atk'},
+          {type:'debuff', effect:'weakened', turns:2, label:'Debilitará 2 turnos', enLabel:'Will weaken for 2 turns', icon:'💀', cls:'dbf'},
+        ]
+      },
+      {
+        name:"El Spoiler", enName:"The Spoiler", emoji:"🗣️", maxHp:60, barColor:"#facc15", boss:false, damageReduction:0.05,
+        pattern:[
+          {type:'attack', value:7,  label:'Atacará por 7 de daño',    enLabel:'Will attack for 7 damage',  icon:'⚔️', cls:'atk'},
+          {type:'defend', value:9,  label:'Bloquea 9 de daño',        enLabel:'Blocks 9 damage',           icon:'🛡️', cls:'dfn'},
+          {type:'attack', value:9,  label:'Atacará por 9 de daño',    enLabel:'Will attack for 9 damage',  icon:'⚔️', cls:'atk'},
+          {type:'debuff', effect:'confused', turns:2, label:'Confundirá 2 turnos', enLabel:'Will confuse for 2 turns', icon:'🌀', cls:'dbf'},
+          {type:'attack', value:11, label:'Atacará por 11 de daño',   enLabel:'Will attack for 11 damage', icon:'💥', cls:'atk'},
+        ]
+      },
+      {
+        name:"LecturaDash", enName:"LecturaDash", emoji:"⚡", maxHp:70, barColor:"#f87171", boss:true, damageReduction:0.05,
+        pattern:[
+          {type:'attack', value:8,  label:'Atacará por 8 de daño',       enLabel:'Will attack for 8 damage',  icon:'⚔️',  cls:'atk'},
+          {type:'multi',  hits:2, value:5, label:'Doble golpe (5+5 daño)', enLabel:'Double strike (5+5 damage)', icon:'⚡', cls:'atk'},
+          {type:'defend', value:12, label:'Bloquea 12 de daño',           enLabel:'Blocks 12 damage',          icon:'🛡️', cls:'dfn'},
+          {type:'debuff', effect:'weakened', turns:3, label:'Debilitará 3 turnos', enLabel:'Will weaken for 3 turns', icon:'💀', cls:'dbf'},
+          {type:'attack', value:14, label:'¡GOLPE FINAL! 14 de daño',     enLabel:'FINAL STRIKE! 14 damage',   icon:'💥', cls:'atk'},
+        ]
+      },
+    ];
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  ESTADO                                          ║
+       ╚══════════════════════════════════════════════════╝ */
+    let G = {};
+
+    function initG(cards) {
+      _sandersonCardsPlayed = 0; // Easter egg: reset contador por partida
+      G = {
+        playerHp:30, maxHp:30, playerBlock:0,
+        energy:5, maxEnergy:5,
+        status:{ weakened:0, confused:0 },
+        costRed:0,
+        deck: shuffle([...cards]),
+        hand:[], discard:[],
+        enemies: ENEMIES.map(e => {
+          const hp = _isPrested ? Math.floor(e.maxHp * 0.7) : e.maxHp;
+          return { ...e, hp, maxHp: hp, block:0, pidx:0, status:{ stunned:0 } };
+        }),
+        curEnemy:0,
+        isPlayer:true,
+        busy:false,
+      };
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  LIMPIEZA DE TÍTULO                              ║
+       ╚══════════════════════════════════════════════════╝ */
+    function cleanTitle(raw) {
+      let t = (raw || '').trim();
+      // Detectar y preservar volumen: "Vol.", "Tomo", "#N", ", N" → guardar como sufijo "Vol. N"
+      let volSuffix = '';
+      const volMatch = t.match(/[\s,]+(?:vol\.?|tomo|tome|t\.?|book|libro)\s*(\d+)\s*$/i)
+                    || t.match(/\s*#\s*(\d+)\s*$/)
+                    || t.match(/\s*,\s*(\d+)\s*$/);
+      if (volMatch) {
+        volSuffix = ' Vol. ' + volMatch[1];
+        t = t.slice(0, t.length - volMatch[0].length).trim();
+      }
+      // Strip trailing parenthetical: "Título (Saga, 1)" → "Título"
+      t = t.replace(/\s*\([^)]+\)\s*$/, '').trim();
+      // Strip "Compendium One/Two/Three" y similares (palabras en mayúscula tras coma)
+      // "Invincible, Compendium One" → "Invincible"
+      t = t.replace(/\s*,\s*[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ]*(?:\s+[A-Za-zÁÉÍÓÚÑáéíóúñ]+){0,3}\s*$/, '').trim();
+      // Colon "Series: Book title" — keep the part AFTER the colon only if
+      // the prefix is ≤4 words (it's a series name) and the suffix is meaningful
+      const ci = t.indexOf(':');
+      if (ci > 0) {
+        const before = t.slice(0, ci).trim();
+        const after  = t.slice(ci + 1).trim();
+        const wBefore = before.split(/\s+/).length;
+        if (wBefore <= 4 && after.split(/\s+/).length >= 2) {
+          t = after;
+        } else if (wBefore > 4) {
+          t = before; // long prefix = the title itself (e.g. "La energía nuclear…")
+        }
+      }
+      // Fallback de longitud: si aún > 22 chars sin volumen, cortar tras la primera coma o palabra larga
+      t = t.trim();
+      if (!volSuffix && t.length > 22 && t.includes(',')) {
+        t = t.split(',')[0].trim();
+      }
+      return (t + volSuffix).trim() || raw;
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  CITAS POR LIBRO                                 ║
+       ╚══════════════════════════════════════════════════╝ */
+    const BOOK_QUOTES = {
+      // ── MISTBORN ERA 1 ──────────────────────────────────────────────────────
+      'el_imperio_final':         ["Yo soy la esperanza.", "Sobrevive.", "Siempre hay otro secreto."],
+      'el_pozo_de_la_ascension':  ["¿Qué es un hombre sino las promesas que mantiene?", "La bruma no distingue entre reyes y mendigos.", "Confiar es el acto más revolucionario en un mundo construido sobre la traición."],
+      'el_heroe_de_las_eras':     ["Soy, desafortunadamente, el Héroe de las Eras.", "La Ruina no destruye por maldad. La Preservación no protege por bondad. Juntas son, simplemente, lo que son.", "El Héroe de las Eras no salvó el mundo. Se convirtió en él."],
+      'the_eleventh_metal':       ["El maestro enseña con cicatrices, no con palabras.", "Antes de robar un imperio, aprende a robar una ilusión.", "La bruma es el primer secreto. El metal, el segundo."],
+      'secret_history':           ["La muerte me negó su última palabra. Así que seguí hablando.", "Incluso muerto, me niego a quedarme quieto.", "El Más Allá no es un destino. Es solo otro problema que resolver."],
+
+      // ── MISTBORN ERA 2 ──────────────────────────────────────────────────────
+      'aleacion_de_ley':          ["Wayne no roba. Wayne intercambia. La diferencia es filosófica y, en su opinión, absolutamente fundamental.", "La ley es el último bastión entre la civilización y el caos. Y yo soy la ley.", "Waxillium Ladrian no es el héroe que Elendel merece. Es el que necesita."],
+      'sombras_de_identidad':     ["La identidad es la única prisión de la que nadie escapa jamás.", "Todo el mundo lleva una máscara. La pregunta es cuántas.", "Ser libre no significa ser nadie. Significa elegir quién quieres ser."],
+      'brazales_de_duelo':        ["Wayne no roba. Wayne intercambia. La diferencia es filosófica y, en su opinión, absolutamente fundamental.", "Steris había planificado veintidós contingencias para esa noche. La vigesimotercera era Wayne.", "Waxillium Ladrian no es el héroe que Elendel merece. Es el que necesita."],
+      'el_metal_perdido':         ["Toda despedida es también un comienzo disfrazado.", "Se extendió hacia el viento. Y hacia las estrellas. Y a todas las cosas infinitas.", "Wax no luchó por ser recordado. Luchó para que hubiera alguien que pudiera olvidarlo en paz."],
+
+      // ── STORMLIGHT ARCHIVE ──────────────────────────────────────────────────
+      'el_camino_de_los_reyes':   ["Vida antes que muerte. Fuerza antes que debilidad. El camino antes que el destino.", "El paso más importante que puede dar un hombre no es el primero. Es el siguiente. Siempre el siguiente.", "¿Qué vale la vida de un hombre?"],
+      'palabras_radiantes':       ["El honor ha muerto, pero veré qué puedo hacer.", "Protegeré a aquellos que no pueden protegerse a sí mismos.", "Un espejo muerto de verdad no refleja luz. Solo recuerda oscuridad."],
+      'juramentada':              ["No puedes tener mi dolor.", "Uníos.", "He quemado ciudades. He masacrado pueblos. Y aun así, sigo eligiendo ser mejor."],
+      'el_ritmo_de_la_guerra':    ["La ciencia y la magia no son opuestas. Son el mismo deseo de entender el mundo.", "No puedo ser el que salva a todos. Pero puedo ser el que no se rinde.", "Algunos días la tormenta gana. Eso no significa que hayas perdido. Solo que hoy necesitas cubrirte."],
+      'viento_y_verdad':          ["Szeth sirvió durante décadas creyendo que merecía su condena. La verdad fue más cruel: nadie tiene ese derecho sobre otro.", "Kaladin le enseñó a Szeth que los juramentos no son cadenas. Son el único ancla que uno elige por sí mismo.", "Un Radiante sin juramentos es solo un hombre con cicatrices."],
+      'edgedancer':               ["Los olvidados no necesitan monumentos. Necesitan que alguien los recuerde.", "La grandeza no está en el poder. Está en acordarse de los pequeños.", "Lift decidió que si el mundo iba a ignorarla, al menos lo haría con el estómago lleno."],
+      'dawnshard':                ["La aventura real comienza cuando pierdes el control de la situación.", "No todos los secretos del Cosmere son peligrosos. Algunos simplemente son inconvenientes.", "Rysn no buscaba ser especial. El poder la encontró a ella."],
+
+      // ── COSMERE VARIOS ──────────────────────────────────────────────────────
+      'trenza_del_mar_esmeralda': ["Tú también eres mis guantes, Charlie.", "Decidió no llorar. Llorar no sería pragmático, así que asunto zanjado. Nada de llorar. Sus ojos vetaron la resolución.", "He oído esas palabras. He dicho esas palabras. Las palabras que proclaman con descarada arrogancia: «No confío en ti para que tomes tus propias decisiones»."],
+      'yumi':                     ["El arte no imita la vida. La crea.", "Somos lo que elegimos crear, no lo que nos obligan a ser.", "Un pintor de pesadillas no teme la oscuridad. Aprende a darle forma."],
+      'arcanum_ilimitado':        ["El Cosmere es más amplio de lo que cualquier mente puede abarcar. Aún así, vale la pena intentarlo.", "Cada mundo tiene sus propias reglas. Cada sistema sus propias leyes. Cada historia su propio corazón.", "Los secretos del universo no se revelan todos a la vez. Se dan en cuentagotas, para que sobrevivas a conocerlos."],
+      'elantris':                 ["Los dioses también mueren. Lo que permanece es lo que construyeron.", "La enfermedad del espíritu es más lenta que la del cuerpo, pero más mortal.", "Caer no define a un hombre. La manera en que se levanta en el barro, sí."],
+      'aliento_de_los_dioses':    ["El buen dios Sondeluz no se cree un dios. Lo considera su argumento más convincente contra la divinidad.", "Sangre Nocturna fue creada para destruir el mal. Su problema es que nunca aprendió a reconocerlo.", "Al final, Sondeluz hizo algo que ningún dios suele hacer: actuar sin estar seguro de tener razón."],
+      'the_emperors_soul':        ["El alma de un objeto está en su historia, no en su forma.", "Copiar es el mayor elogio. Crear es el mayor poder. Forjar es ambos a la vez.", "La identidad no es lo que fue. Es lo que puede ser."],
+      'shadows_for_silence':      ["En este bosque, las reglas no son sugerencias. Son la única razón por la que sigues vivo.", "La oscuridad tiene sus propias leyes. Apréndelas o muere. Preferiblemente apréndelas.", "Silence sabía que el miedo es útil. El pánico, no."],
+      'sixth_of_the_dusk':        ["El primer explorador que llega a tierra desconocida llega al peligro. El segundo llega a la leyenda.", "Los Atrapadores no temen las islas. Respetan cada árbol, cada pájaro, cada sombra.", "Explorar no es temeridad. Es fe en que el mundo tiene más que ofrecer."],
+      'islas_de_la_ascuaoscura':  ["La Ascuaoscura no perdonó a quienes la descubrieron. Solo aceptó a quienes la respetaron lo suficiente para tenerle miedo.", "Sexto del Ocaso pensó que ya conocía las islas. La Ascuaoscura le demostró que no había empezado.", "Hay secretos que las islas guardan no porque sean peligrosos, sino porque nadie que los descubre vive para contarlos."],
+      'the_hope_of_elantris':     ["La esperanza no alimenta a los hambrientos, pero los mantiene en pie.", "Un niño en Elantris aprende antes que nadie que la ciudad guarda más secretos que cadáveres.", "El Shaod no distingue entre merecedores e inmerecedores. Solo actúa."],
+      'arena_blanca':             ["Cada grano de arena tiene su función. Cada hombre, su propósito. El truco es encontrarlo antes de que la arena se acabe.", "La blancura de la arena no es inocencia. Es el color del poder latente.", "En Taldain, la magia y la supervivencia son la misma cosa."],
+      'dragonsteel_prime':        ["Todo gran universo nació de una idea imperfecta y un autor que no se rindió.", "Jerick no sabía que estaba en el origen de todo. Nadie lo sabe nunca.", "Los primeros borradores del mundo siempre son los más honestos."],
+
+      // ── WHEEL OF TIME ───────────────────────────────────────────────────────
+      'el_ojo_del_mundo':         ["Ta'veren.", "El Entramado teje como el Entramado quiere.", "La Rueda del Tiempo gira, y las Eras pasan y dejan recuerdos que se convierten en leyenda."],
+      'la_gran_caceria':          ["El Cuerno de Valere llama a los héroes cuando el mundo más los necesita.", "Rand al'Thor no eligió ser el Dragón Renacido. El Entramado no pregunta.", "La gloria no se busca. Se encuentra mientras persigues algo más importante."],
+
+      // ── INVINCIBLE ──────────────────────────────────────────────────────────
+      'invincible':               ["Think, Mark.", "Los héroes no nacen. Se fabrican a golpe de consecuencias.", "El legado de un padre es a la vez una carga y una oportunidad. Mark Grayson lo aprendió de la peor manera."],
+
+      // ── CHAINSAW MAN ────────────────────────────────────────────────────────
+      'chainsaw_man':             ["Los perros hacen lo que les dice su amo.", "Hay cosas por las que merece la pena morir. El problema es descubrir cuáles antes de hacerlo.", "Denji soñó toda su vida con algo simple. El mundo le dio todo menos eso."],
+
+      // ── DANDADAN ────────────────────────────────────────────────────────────
+      'dandadan':                 ["¿Crees en los fantasmas? Yo creo en los extraterrestres. Ninguno de los dos tiene razón. Los dos la tienen.", "El amor más fuerte es el que lucha contra lo imposible y además contra un yokai gigante.", "Lo sobrenatural no es una amenaza. Es la realidad que nadie se atreve a ver."],
+
+      // ── LOVECRAFT / GOU TANABE ──────────────────────────────────────────────
+      'montanas_de_la_locura':    ["Lo más misericordioso del mundo es la incapacidad de la mente humana de relacionar todos sus contenidos.", "Hemos encontrado algo más antiguo que la humanidad. Y descubrimos que preferíamos no haberlo hecho.", "La locura no es perder la razón. Es encontrar algo que la razón no puede soportar."],
+      'llamada_de_cthulhu':       ["En su casa de R'lyeh, el muerto Cthulhu espera soñando.", "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn.", "Los que ven a Cthulhu no enloquecen porque sean débiles. Enloquecen porque son honestos."],
+      'el_color_que_cayo':        ["Algunos colores no tienen nombre porque ninguna mente humana puede contenerlos.", "El universo no nos teme. Somos demasiado pequeños para merecer ese honor.", "La granja de los Gardner nunca volvió a crecer nada. La tierra recordaba."],
+      'el_sabueso':               ["Lo que perseguimos en las tinieblas a veces nos persigue de vuelta.", "Los muertos guardan sus secretos con más celo que los vivos.", "El amuleto que robaron no era una joya. Era una advertencia."],
+
+      // ── LEAGUE OF LEGENDS ───────────────────────────────────────────────────
+      'ruination':                ["El amor que destruye el mundo no es amor. Es obsesión con una corona.", "Un rey sin reino es solo un hombre con una corona y demasiado tiempo.", "La Ruina no llegó de golpe. Llegó gota a gota, con cada decisión de Viego."],
+      'ambessa':                  ["La fuerza no se hereda. Se forja en cada batalla que nadie más quiso pelear.", "Ser elegida del lobo no es un honor. Es una condena que aprendes a amar.", "Noxus no cría líderes. Cría supervivientes. Los líderes se hacen solos."],
+
+      // ── NO FICCIÓN ──────────────────────────────────────────────────────────
+      'por_si_las_voces_vuelven': ["Las voces en mi cabeza tenían sus propias opiniones. Muy malas opiniones. Y muy buena dicción.", "Aprendí más sobre quién era yo en el silencio de un hospital que en treinta años de ruido.", "Estar loco no es lo contrario de estar cuerdo. Es simplemente estar en otro lado. Más tranquilo, en realidad."],
+      'la_energia_nuclear':       ["El miedo a la energía nuclear ha matado más gente que la energía nuclear.", "Los datos no tienen ideología. Los miedos, sí.", "Si quieres salvar el planeta, primero tienes que entender cómo funciona."],
+      'que_puede_salir_mal':      ["El riesgo cero no existe. Elegir es solo decidir qué riesgo prefieres.", "La estadística es nuestra mejor armadura contra un mundo que intenta matarnos.", "La ciencia no promete inmortalidad. Solo un poco más de tiempo para entender."],
+
+      // ── OTROS ───────────────────────────────────────────────────────────────
+      'la_torre':                 ["La identidad es una historia que nos contamos. Yo perdí el primer capítulo y tuve que improvisar el resto.", "Un agente secreto sin secretos propios es la persona más peligrosa del mundo.", "Myfanwy Thomas murió con sus recuerdos. La que se despertó decidió que eso era una ventaja."],
+      'el_libro_hueco':           ["Sin mente que piense, sin voluntad que actúe, sin voz que hable. Un recipiente vacío.", "El Rey Pálido transformó su forma. El coste no importó. El coste nunca fue demasiado grande.", "He visto tanta muerte en este reino, y tanta gracia. He llegado a entender que las dos son inseparables."],
+      'salitre_y_cenizas':        ["Bajé de la cama de un salto, y las consecuencias funestas de ese acto no las descubriría hasta muchos años después.", "No hay nada malo en un cuerpo. Somos tal y como nuestras madres nos hicieron.", "La ley eclesiástica puede ser dura, pero solo si te pillan."],
+      'habito_y_mortaja':         ["El hábito hace al monje, y la mortaja hace al muerto. Entre los dos está todo lo que somos.", "Una segunda parte no es una continuación. Es la consecuencia de lo que no resolviste en la primera.", "Abrazar la oscuridad no es rendirse. A veces es el único camino que queda."],
+    };
+
+    // Normaliza título para búsqueda en BOOK_QUOTES (sin tildes, sin nº de volumen, sin (serie))
+    function findBookQuotes(title, author) {
+      const norm = s => (s || '').toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s*[(\[][^)\]]*[)\]]\s*/g, ' ')
+        .replace(/,\s*vol\.?\s*\d+/gi, '')
+        .replace(/\s+/g, ' ').trim();
+      const t = norm(title);
+      const a = norm(author || '');
+
+      // Títulos con caracteres japoneses
+      if (title.includes('チェンソーマン') || t.includes('chainsaw')) return BOOK_QUOTES['chainsaw_man'];
+      if (title.includes('ダンダダン') || t.includes('dandadan'))      return BOOK_QUOTES['dandadan'];
+
+      // Coincidencias por palabras clave en título
+      if (t.includes('trenza del mar esmeralda'))               return BOOK_QUOTES['trenza_del_mar_esmeralda'];
+      if (t.includes('yumi'))                                   return BOOK_QUOTES['yumi'];
+      if (t.includes('arcanum') || t.includes('arcanun'))       return BOOK_QUOTES['arcanum_ilimitado'];
+      if (t.includes('el pozo de la ascension'))                return BOOK_QUOTES['el_pozo_de_la_ascension'];
+      if (t.includes('heroe de las eras'))                      return BOOK_QUOTES['el_heroe_de_las_eras'];
+      if (t.includes('el imperio final'))                       return BOOK_QUOTES['el_imperio_final'];
+      if (t.includes('camino de los reyes'))                    return BOOK_QUOTES['el_camino_de_los_reyes'];
+      if (t.includes('palabras radiantes'))                     return BOOK_QUOTES['palabras_radiantes'];
+      if (t.includes('juramentada') || t.includes('oathbringer')) return BOOK_QUOTES['juramentada'];
+      if (t.includes('ritmo de la guerra'))                     return BOOK_QUOTES['el_ritmo_de_la_guerra'];
+      if (t.includes('viento y verdad'))                        return BOOK_QUOTES['viento_y_verdad'];
+      if (t.includes('edgedancer'))                             return BOOK_QUOTES['edgedancer'];
+      if (t.includes('dawnshard'))                              return BOOK_QUOTES['dawnshard'];
+      if (t.includes('metal perdido') || t.includes('lost metal')) return BOOK_QUOTES['el_metal_perdido'];
+      if (t.includes('secret history'))                         return BOOK_QUOTES['secret_history'];
+      if (t.includes('aleacion de ley') || t.includes('alloy of law')) return BOOK_QUOTES['aleacion_de_ley'];
+      if (t.includes('sombras de identidad') || t.includes('shadows of self')) return BOOK_QUOTES['sombras_de_identidad'];
+      if (t.includes('brazales de duelo') || t.includes('bands of mourning')) return BOOK_QUOTES['brazales_de_duelo'];
+      if (t.includes('eleventh metal'))                         return BOOK_QUOTES['the_eleventh_metal'];
+      if (t.includes('ascuaoscura') || t.includes('darkwater')) return BOOK_QUOTES['islas_de_la_ascuaoscura'];
+      if (t.includes('sixth of the dusk') || t.includes('sexto del ocaso')) return BOOK_QUOTES['sixth_of_the_dusk'];
+      if (t.includes('hope of elantris'))                       return BOOK_QUOTES['the_hope_of_elantris'];
+      if (t.includes('arena blanca'))                           return BOOK_QUOTES['arena_blanca'];
+      if (t.includes('aliento de los dioses') || t.includes('warbreaker')) return BOOK_QUOTES['aliento_de_los_dioses'];
+      if (t.includes("emperor's soul") || t.includes('emperors soul')) return BOOK_QUOTES['the_emperors_soul'];
+      if (t.includes('shadows for silence'))                    return BOOK_QUOTES['shadows_for_silence'];
+      if (t.includes('elantris'))                               return BOOK_QUOTES['elantris'];
+      if (t.includes('dragonsteel prime'))                      return BOOK_QUOTES['dragonsteel_prime'];
+      if (t.includes('ojo del mundo'))                          return BOOK_QUOTES['el_ojo_del_mundo'];
+      if (t.includes('gran caceria'))                           return BOOK_QUOTES['la_gran_caceria'];
+      if (t.includes('invincible'))                             return BOOK_QUOTES['invincible'];
+      if (t.includes('montanas de la locura'))                  return BOOK_QUOTES['montanas_de_la_locura'];
+      if (t.includes('llamada de cthulhu') || t.includes('call of cthulhu')) return BOOK_QUOTES['llamada_de_cthulhu'];
+      if (t.includes('color que cayo') || t.includes('colour out')) return BOOK_QUOTES['el_color_que_cayo'];
+      if (t.includes('sabueso') || t.includes('hound'))         return BOOK_QUOTES['el_sabueso'];
+      if (t.includes('ruination'))                              return BOOK_QUOTES['ruination'];
+      if (t.includes('ambessa'))                                return BOOK_QUOTES['ambessa'];
+      if (t.includes('voces vuelven'))                          return BOOK_QUOTES['por_si_las_voces_vuelven'];
+      if (t.includes('energia nuclear'))                        return BOOK_QUOTES['la_energia_nuclear'];
+      if (t.includes('puede salir mal'))                        return BOOK_QUOTES['que_puede_salir_mal'];
+      if ((t.includes('la torre') || t.includes('the rook')) && a.includes('malley')) return BOOK_QUOTES['la_torre'];
+      if (t.includes('libro hueco') || t.includes('hollow knight')) return BOOK_QUOTES['el_libro_hueco'];
+      if (t.includes('salitre'))                                return BOOK_QUOTES['salitre_y_cenizas'];
+      if (t.includes('habito y mortaja'))                       return BOOK_QUOTES['habito_y_mortaja'];
+
+      return null;
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  LIBRO → CARTA                                   ║
+       ╚══════════════════════════════════════════════════╝ */
+    function toCard(b) {
+      // Lecturameter exports both `genre` (string) and `genres` (array)
+      const genreStr = (b.genre && b.genre.trim()) || (b.genres && b.genres[0]) || '';
+      const gk = normalizeGenre(genreStr);
+      const spec = SPECIALS[gk] || SPEC_DEF;
+      const isDefense = !spec.isAttack;
+      const pages = parseInt(b.pages) || 300;
+      const atk = isDefense ? 0 : Math.max(4, Math.min(7, Math.floor(pages / 100) + 2));
+      const shieldVal = isDefense ? (SHIELD_VALUES[gk] || 6) : (spec.shieldVal || 0);
+      // Cost based purely on pages for all cards: pages/100, min 1, max 3
+      // Salvo que el libro traiga un costOverride explícito (usado en Modo Clásicos)
+      const cost = (typeof b.costOverride === 'number')
+        ? b.costOverride
+        : Math.max(1, Math.min(3, Math.floor(pages / 100)));
+
+      // Cover resolution con cadena de fallbacks:
+      // 1. https:// URL directa → usar tal cual (upgrade a -L.jpg si es OL)
+      // 2. Ruta local (content:// o path absoluto) → pedir base64 a Android via JavascriptInterface
+      // 3. coverId de OL → construir URL de covers.openlibrary.org
+      // 4. ISBN de OL como último recurso → covers.openlibrary.org/b/isbn/{isbn}-L.jpg
+      // 5. Nada → null (se mostrará emoji del género)
+      // El elemento <img> en renderHand intentará cargar y caerá al emoji si falla la red.
+      let cover = null;
+      let coverFallback = null;  // URL secundaria si la principal falla
+      if (b.coverUrl && /^https?:\/\//.test(b.coverUrl)) {
+        cover = b.coverUrl
+          .replace(/^http:\/\//, 'https://')
+          .replace(/-M\.jpg$/i, '-L.jpg');
+      } else if (b.coverUrl && typeof Android !== 'undefined' && Android.getCoverBase64) {
+        // Portada guardada localmente — pedir base64 al bridge nativo
+        try {
+          const b64 = Android.getCoverBase64(b.coverUrl);
+          if (b64 && b64.length > 0) {
+            // Detectar tipo por magic bytes del base64 (JPEG: /9j/, PNG: iVBO)
+            const mime = b64.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+            cover = `data:${mime};base64,${b64}`;
+          }
+        } catch(e) { /* bridge no disponible o error — continuar sin portada */ }
+      }
+      if (!cover && b.coverId) {
+        cover = `https://covers.openlibrary.org/b/id/${b.coverId}-L.jpg`;
+      }
+      // Fallback secundario por ISBN si tenemos uno
+      if (b.isbn && /^[0-9Xx]{10,13}$/.test(String(b.isbn).replace(/[-\s]/g,''))) {
+        const isbnClean = String(b.isbn).replace(/[-\s]/g,'');
+        const isbnUrl = `https://covers.openlibrary.org/b/isbn/${isbnClean}-L.jpg`;
+        if (!cover) cover = isbnUrl;
+        else if (cover !== isbnUrl) coverFallback = isbnUrl;
+      }
+
+
+
+
+      // Citas: delegar a buildQuotePool (maneja: quotes propias, hardcoded, comentario, género, fallback)
+      const quotes = buildQuotePool(b);
+
+      return {
+        title: cleanTitle(b.title) || "Libro",
+        author: b.author || "",
+        gk, cover, coverFallback, isDefense,
+        emoji: GENRE_EMOJI[gk] || "📚",
+        atk, cost, shieldVal,
+        specName: (currentLang === 'en' && spec.enName) ? spec.enName : spec.name,
+        specDesc: (currentLang === 'en' && spec.enDesc) ? spec.enDesc : spec.desc,
+        quotes,
+      };
+    }
+
+    // ── POOL DE CITAS (buildQuotePool) ────────────────────────────────────────
+    function buildQuotePool(book) {
+      let pool = [];
+      // 1. Si el libro ya trae citas propias (PRESTED_LIBRARY o campo quotes)
+      if (book.quotes && book.quotes.length) {
+        pool = pool.concat(book.quotes);
+      }
+      // 2. Tabla hardcodeada de citas famosas
+      if (!pool.length) {
+        const hardcoded = findBookQuotes(book.title, book.author);
+        if (hardcoded && hardcoded.length) pool = pool.concat(hardcoded);
+      }
+      // 3. Comentario del usuario (si existe y tiene sustancia)
+      if (!pool.length && book.comment && book.comment.trim().length > 10) {
+        const sentences = book.comment.split(/[.!?]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 12 && s.length < 130);
+        if (sentences.length) pool = pool.concat(sentences.slice(0, 3));
+      }
+      // 4. Fallback por género
+      if (!pool.length) {
+        const genre = normalizeGenre((book.genre || (book.genres && book.genres[0]) || ''));
+        const fb = GENRE_FB[genre] || GENRE_FB_DEFAULT;
+        if (fb && fb.length) pool = pool.concat(fb);
+      }
+      // 5. Último recurso personalizado
+      if (!pool.length) {
+        pool.push(`Ojalá alguien hubiese comentado «${book.title}» 😞`);
+      }
+      return pool.slice(0, 6);
+    }
+
+    function normalizeGenre(g) {
+      // Strip accents only for matching — keys returned always have proper accents
+      const s = (g || '').toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (/c(iencia)?\.?\s*ficci|sci.?fi|scifi|space.?opera|cyberpunk/.test(s)) return 'ciencia ficción';
+      if (/distop/.test(s)) return 'distopía';
+      if (/no\s*ficci|non.?fic|ensayo|divulg|biograf|autobio|memorias|cronica|periodis/.test(s)) return 'no ficción';
+      if (/manga|manhwa|manhua|webtoon/.test(s)) return 'manga';
+      if (/comic|grafica|graphic/.test(s)) return 'graphic novel';
+      // Grimdark = fantasía oscura → mismo special que fantasía (Augurio)
+      if (/grimdark|grim\s*dark|fantasia\s*oscura/.test(s)) return 'fantasía';
+      if (/fantas/.test(s)) return 'fantasía';
+      if (/terror|horror|miedo/.test(s)) return 'terror';
+      if (/suspense|suspen/.test(s)) return 'suspense';
+      if (/misterio|polici|detectiv|crimen|noir/.test(s)) return 'misterio';
+      if (/aventura/.test(s)) return 'aventura';
+      if (/thriller/.test(s)) return 'thriller';
+      if (/romance|romanc|romantico|romantica|sentimental|chick.?lit/.test(s)) return 'romance';
+      // Costumbrismo = realismo de vida cotidiana → como histórica (Estrategia: +6🛡️ + carta)
+      if (/costumbris|costumbres|realismo\s*social/.test(s)) return 'histórica';
+      if (/histori/.test(s)) return 'histórica';
+      // Generic fiction → attack (treated as aventura)
+      if (/ficcion|fiction|novela|novel|contemporan|literatur|clasic|juvenil|young.?adult/.test(s)) return 'aventura';
+      // Self-help / philosophy → defense
+      if (/poesia|poem|lirica|filosofia|philosophy|psicolog|autoayuda|self.?help/.test(s)) return 'no ficción';
+      return ''; // unrecognized → SPEC_DEF
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  UTILIDADES                                      ║
+       ╚══════════════════════════════════════════════════╝ */
+    const _baseDelay = ms => new Promise(r => setTimeout(r, ms));
+    const delay = ms => {
+      const turbo = document.getElementById('chk-turbo')?.checked || false;
+      return _baseDelay(turbo ? Math.round(ms * 0.4) : ms);
+    };
+    const clamp = (v,mn,mx) => Math.max(mn, Math.min(mx, v));
+    const rand = arr => arr[Math.floor(Math.random() * arr.length)];
+    function shuffle(a) {
+      const b = [...a];
+      for (let i = b.length-1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i+1));
+        [b[i],b[j]] = [b[j],b[i]];
+      }
+      return b;
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  PANTALLAS                                       ║
+       ╚══════════════════════════════════════════════════╝ */
+    function showScreen(id) {
+      ['s-intro','s-import','s-game','s-error'].forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.classList.add('hidden');
+      });
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  INICIO DE PARTIDA                               ║
+       ╚══════════════════════════════════════════════════╝ */
+    function startGame(rawBooks, forcePrested = false) {
+      if (_isStarting) return;
+      _isStarting = true;
+      setTimeout(() => { _isStarting = false; }, 2000);
+
+      const useElite = document.getElementById('chk-elite')?.checked || false;
+      let valid = (rawBooks || []).filter(b => {
+        if (!b || !b.title || !String(b.title).trim().length) return false;
+        if (useElite && parseFloat(b.rating || b.nota || 0) <= 7) return false;
+        return true;
+      });
+
+      // Si < 10 libros o se fuerza clásicos → Modo Clásicos
+      if (valid.length < 10 || forcePrested) {
+        _isPrested = true;
+        valid = PRESTED_LIBRARY.map(b => ({
+          ...b,
+          genres: b.genres || [b.genre || 'clásico'],
+          rating: b.rating || 8,
+          status: b.status || 'FINISHED',
+          coverUrl: null,
+          comment: b.quotes ? b.quotes.join('. ') : (currentLang === 'en' ? 'An international classic.' : 'Un clásico internacional.')
+        }));
+      } else {
+        _isPrested = false;
+      }
+
+      if (valid.length < 3) {
+        showScreen('s-error');
+        _isStarting = false;
+        return;
+      }
+
+      let cards = valid.map(toCard);
+
+      // Garantizar al menos 25% cartas de defensa
+      const defCount = cards.filter(c => c.isDefense).length;
+      const target = Math.max(1, Math.floor(cards.length / 4));
+      if (defCount < target) {
+        const defSpecs = ['romance', 'no ficción', 'thriller', 'histórica'].map(gk => {
+          const sp = SPECIALS[gk];
+          return {
+            gk,
+            specName: (currentLang === 'en' && sp.enName) ? sp.enName : sp.name,
+            specDesc: (currentLang === 'en' && sp.enDesc) ? sp.enDesc : sp.desc,
+            shieldVal: sp.shieldVal
+          };
+        });
+        let converted = 0;
+        for (let i = 0; i < cards.length && converted < target - defCount; i++) {
+          if (!cards[i].isDefense) {
+            const ds = defSpecs[converted % defSpecs.length];
+            cards[i] = { ...cards[i], isDefense:true, atk:0,
+              gk: ds.gk, specName: ds.specName, specDesc: ds.specDesc,
+              shieldVal: ds.shieldVal };
+            converted++;
+          }
+        }
+      }
+
+      initG(cards);
+      showScreen('s-game');
+
+      // Badge Modo Clásicos
+      const badge = document.getElementById('game-mode-badge');
+      if (badge) badge.style.display = _isPrested ? 'block' : 'none';
+
+      beginPlayerTurn();
+    }
+
+    function parseImport(str) {
+      try {
+        let d = JSON.parse(str);
+        if (Array.isArray(d)) return d;
+        if (d.books) return typeof d.books === 'string' ? JSON.parse(d.books) : d.books;
+        if (d.data) return d.data;
+      } catch {}
+      return null;
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  TURNOS                                          ║
+       ╚══════════════════════════════════════════════════╝ */
+    function beginPlayerTurn() {
+      G.isPlayer = true;
+      G.busy = false;
+      _lastCardFinished = 0; // v21.35: reset cooldown al inicio de turno
+      // Clear block
+      G.playerBlock = 0;
+      // Tick debuffs
+      if (G.status.weakened > 0) G.status.weakened--;
+      if (G.status.confused > 0) G.status.confused--;
+      // Refill energy
+      G.energy = G.maxEnergy;
+      G.costRed = 0;
+      // Draw to 4
+      const need = Math.max(0, 4 - G.hand.length);
+      for (let i = 0; i < need; i++) {
+        if (!G.deck.length) {
+          if (!G.discard.length) break;
+          G.deck = shuffle([...G.discard]); G.discard = [];
+        }
+        G.hand.push(G.deck.shift());
+      }
+      setBtn('btn-end', false, false);
+      updateIntent();
+      render();
+    }
+
+    async function endTurn() {
+      if (!G.isPlayer || G.busy) return;
+      G.isPlayer = false;
+      G.busy = true;
+      setBtn('btn-end', true, true);
+      await enemyTurn();
+    }
+
+    async function enemyTurn() {
+      const e = G.enemies[G.curEnemy];
+      showBanner(t('bqTurnEnemy'), 'enemy');
+      await delay(850);
+      hideBanner();
+      await delay(150);
+
+      // Clear enemy block at start of their turn
+      e.block = 0;
+
+      if (e.status.stunned > 0) {
+        e.status.stunned--;
+        floatAt(`💫 ${currentLang === 'en' ? 'Stunned' : 'Aturdido'}`, '#c084fc', 'ep');
+        render();
+        await delay(800);
+      } else {
+        const act = e.pattern[e.pidx % e.pattern.length];
+        await execAction(e, act);
+      }
+      e.pidx = (e.pidx + 1) % e.pattern.length;
+
+      if (G.playerHp <= 0) { showDefeat(); return; }
+
+      await delay(350);
+      showBanner(t('bqTurnPlayer'), 'player');
+      await delay(550);
+      hideBanner();
+      beginPlayerTurn();
+    }
+
+    async function execAction(e, act) {
+      switch (act.type) {
+        case 'attack': {
+          const {dmgDone, blocked} = hitPlayer(act.value);
+          if (blocked > 0) floatAt(`🛡️ ${blocked}`, '#93c5fd', 'pp');
+          if (dmgDone > 0) { floatAt(`-${dmgDone}`, '#f87171', 'pp'); shakeEl('pp'); }
+          render();
+          await delay(600);
+          break;
+        }
+        case 'multi': {
+          for (let h = 0; h < act.hits; h++) {
+            const {dmgDone, blocked} = hitPlayer(act.value);
+            if (blocked > 0) floatAt(`🛡️ ${blocked}`, '#93c5fd', 'pp');
+            if (dmgDone > 0) { floatAt(`-${dmgDone}`, '#f87171', 'pp'); shakeEl('pp'); }
+            render();
+            await delay(420);
+          }
+          break;
+        }
+        case 'defend': {
+          e.block += act.value;
+          floatAt(`🛡️ +${act.value}`, '#93c5fd', 'ep');
+          render();
+          await delay(600);
+          break;
+        }
+        case 'debuff': {
+          G.status[act.effect] = act.turns;
+          const color = act.effect === 'weakened' ? '#f87171' : '#60a5fa';
+          const icon  = act.effect === 'weakened' ? '💀' : '🌀';
+          floatAt(`${icon} ${t(act.effect === 'weakened' ? 'bqStatusNameWeakened' : 'bqStatusNameConfused')} ${act.turns}T`, color, 'pp');
+          render();
+          await delay(700);
+          break;
+        }
+      }
+    }
+
+    function hitPlayer(base) {
+      let dmg = base;
+      const absorbed = Math.min(G.playerBlock, dmg);
+      G.playerBlock -= absorbed;
+      dmg -= absorbed;
+      G.playerHp = Math.max(0, G.playerHp - dmg);
+      return { dmgDone: dmg, blocked: absorbed };
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  JUGAR CARTA                                     ║
+       ╚══════════════════════════════════════════════════╝ */
+    async function playCard(idx) {
+      if (!G.isPlayer || G.busy) return;
+      // v21.35: guardia de toque rápido — muestra toast si el jugador toca antes del cooldown
+      if (Date.now() - _lastCardFinished < CARD_COOLDOWN_MS) {
+        showToast(t('bqToastSlowDown'));
+        return;
+      }
+      const card = G.hand[idx];
+      const eff = Math.max(0, card.cost - G.costRed);
+      if (eff > G.energy) {
+        showToast(t('bqToastNoEnergy'));
+        return;
+      }
+
+      G.busy = true;
+      G.energy -= eff;
+      G.costRed = 0;
+
+      // Animate card out
+      const cardEls = document.querySelectorAll('.card');
+      if (cardEls[idx]) cardEls[idx].classList.add('playing');
+      await delay(210);
+
+      G.discard.push(G.hand.splice(idx, 1)[0]);
+      const e = G.enemies[G.curEnemy];
+
+      if (!card.isDefense) {
+        // Attack card: deal damage
+        let dmg = card.atk;
+        if (G.status.weakened > 0) dmg = Math.max(1, Math.floor(dmg / 2));
+
+        if (card.gk === 'aventura' || card.gk === 'manga' || card.gk === 'graphic novel') {
+          hitEnemy(e, dmg);
+          await delay(300);
+          if (e.hp > 0) { hitEnemy(e, 3); }  // Golpe rápido: +3 daño extra
+          await delay(300);
+        } else {
+          hitEnemy(e, dmg);
+          await delay(350);
+        }
+      }
+
+      showQuote(pickQuote(card.quotes));
+
+      // ── Easter egg: Hoid ──────────────────────────────────────────────────
+      // Cada 3 cartas de Brandon Sanderson jugadas en la sesión, aparece Hoid
+      if (card.author && card.author.toLowerCase().includes('sanderson')) {
+        _sandersonCardsPlayed++;
+        if (_sandersonCardsPlayed % 3 === 0) showHoidEasterEgg();
+      }
+
+      // Special (skip if confused)
+      if (G.status.confused === 0) {
+        await applySpec(card.gk, e);
+      } else {
+        floatAt(`🌀 ${t('bqStatusNameConfused')}`, '#60a5fa', 'pp');
+        await delay(200);
+      }
+
+      if (e.hp <= 0) {
+        _lastCardFinished = Date.now(); // v21.35
+        G.busy = false;
+        render();
+        await delay(300);
+        await onEnemyDead();
+        return;
+      }
+
+      _lastCardFinished = Date.now(); // v21.35
+      G.busy = false;
+      render();
+    }
+
+    function hitEnemy(e, dmg) {
+      // Aplicar reducción de daño del enemigo (nerf al jugador)
+      if (e.damageReduction > 0) dmg = Math.floor(dmg * (1 - e.damageReduction));
+      const abs = Math.min(e.block, dmg);
+      e.block -= abs;
+      dmg -= abs;
+      e.hp = Math.max(0, e.hp - dmg);
+      if (abs > 0) floatAt(`🛡️ ${abs}`, '#93c5fd', 'ep');
+      if (dmg > 0) { floatAt(`-${dmg}`, '#f87171', 'ep'); shakeEl('ep'); }
+      render();
+    }
+
+    async function applySpec(gk, e) {
+      const g = gk;
+      if (g === 'fantasía') {
+        G.energy = clamp(G.energy + 1, 0, G.maxEnergy);
+        floatAt('+1 ⚡', '#d4a04a', 'pp');
+      } else if (g === 'terror' || g === 'suspense') {
+        if (e.status.stunned === 0) {
+          e.status.stunned = 1;
+          floatAt('STUN! 💫', '#c084fc', 'ep');
+        }
+      } else if (g === 'misterio') {
+        if (!G.deck.length && G.discard.length) { G.deck = shuffle([...G.discard]); G.discard = []; }
+        if (G.deck.length && G.hand.length < 7) G.hand.push(G.deck.shift());
+        floatAt('+1 📖', '#60a5fa', 'pp');
+      } else if (['ciencia ficción','sci-fi','distopía','ci. ficción'].includes(g)) {
+        G.playerBlock += 6;
+        floatAt('+6 🛡️', '#93c5fd', 'pp');
+      } else if (g === 'romance' || g === 'romántico') {
+        G.playerBlock += 7;
+        G.playerHp = clamp(G.playerHp + 2, 0, G.maxHp);
+        floatAt('+7🛡️ +2❤️', '#f472b6', 'pp');
+        document.getElementById('pp').classList.add('healing');
+        setTimeout(() => document.getElementById('pp').classList.remove('healing'), 450);
+      } else if (g === 'no ficción' || g === 'ensayo') {
+        G.playerBlock += 6;
+        G.costRed = 1;
+        floatAt('+6🛡️ -1⚡', '#d4a04a', 'pp');
+      } else if (g === 'thriller') {
+        // Agudeza: defensa firme (+8 bloqueo, más que el resto)
+        G.playerBlock += 8;
+        floatAt('+8 🛡️ 🎯', '#93c5fd', 'pp');
+      } else if (g === 'histórica') {
+        // Estrategia: +6 bloqueo + robar 1 carta
+        G.playerBlock += 6;
+        if (!G.deck.length && G.discard.length) { G.deck = shuffle([...G.discard]); G.discard = []; }
+        if (G.deck.length && G.hand.length < 7) G.hand.push(G.deck.shift());
+        floatAt('+6🛡️ +carta 📜', '#93c5fd', 'pp');
+      } else {
+        // default: basic attack — no extra effect (damage already dealt)
+        floatAt('⚔️', '#d4a04a', 'ep');
+      }
+      await delay(180);
+      render();
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  MUERTE ENEMIGO / VICTORIA / DERROTA            ║
+       ╚══════════════════════════════════════════════════╝ */
+    async function onEnemyDead() {
+      floatAt(t('bqDefeatedFloat'), '#4ade80', 'ep');
+      await delay(800);
+      G.curEnemy++;
+
+      if (G.curEnemy >= G.enemies.length) { showVictory(); return; }
+
+      // Curación entre combates: +3 tras combate 1, +5 tras combate 2
+      const healAmount = G.curEnemy === 1 ? 3 : G.curEnemy === 2 ? 5 : 0;
+      if (healAmount > 0) {
+        G.playerHp = clamp(G.playerHp + healAmount, 0, G.maxHp);
+      }
+
+      // Reset state
+      G.playerBlock = 0;
+      G.status = { weakened:0, confused:0 };
+      G.energy = G.maxEnergy;
+      G.costRed = 0;
+
+      // Show transition overlay
+      const nextEnemy = G.enemies[G.curEnemy];
+      document.getElementById('et-ico').textContent = nextEnemy.boss ? '💀' : '⚔️';
+      document.getElementById('et-heal').textContent = healAmount > 0 ? t('bqHealAmount', { n: healAmount }) : '';
+      document.getElementById('et-next-lbl').textContent = nextEnemy.boss ? t('bqFinalBoss') : t('bqNextEnemy');
+      document.getElementById('et-ename').textContent = `${nextEnemy.emoji} ${(currentLang === 'en' && nextEnemy.enName) ? nextEnemy.enName : nextEnemy.name}`;
+      const tr = document.getElementById('enemy-tr');
+      tr.classList.remove('hidden');
+      await delay(2400);
+      tr.classList.add('hidden');
+
+      updateIntent();
+      render();
+      await delay(300);
+      beginPlayerTurn();
+    }
+
+    function showVictory() { document.getElementById('v-ov').classList.remove('hidden'); }
+    function showDefeat()  { setTimeout(() => document.getElementById('d-ov').classList.remove('hidden'), 700); }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  RENDER                                          ║
+       ╚══════════════════════════════════════════════════╝ */
+    function render() {
+      renderEnemy();
+      renderPlayer();
+      renderHand();
+      // Progress map
+      [0,1,2].forEach(i => {
+        const icon = document.getElementById('rp'+i);
+        const lbl  = document.getElementById('rpl'+i);
+        if (!icon || !lbl) return;
+        icon.className = 'rp-icon ' + (i < G.curEnemy ? 'done' : i === G.curEnemy ? 'active' : '');
+        lbl.className  = 'rp-lbl '  + (i < G.curEnemy ? 'done' : i === G.curEnemy ? 'active' : '');
+      });
+      const la = document.getElementById('rpl-a');
+      const lb = document.getElementById('rpl-b');
+      if (la) la.className = 'rp-line' + (G.curEnemy > 0 ? ' done' : '');
+      if (lb) lb.className = 'rp-line' + (G.curEnemy > 1 ? ' done' : '');
+      const cnt = G.deck.length + G.discard.length;
+      document.getElementById('deck-cnt').textContent = `🎴 ${cnt}`;
+    }
+
+    function renderEnemy() {
+      const e = G.enemies[G.curEnemy];
+      const ep = document.getElementById('ep');
+      ep.classList.toggle('boss', !!e.boss);
+
+      document.getElementById('e-name').textContent = (currentLang === 'en' && e.enName) ? e.enName : e.name;
+      document.getElementById('e-emoji').textContent = e.emoji;
+
+      const pct = Math.max(0, e.hp / e.maxHp * 100);
+      const bar = document.getElementById('e-hp');
+      bar.style.width = pct + '%';
+      bar.style.background = pct > 60 ? '#4ade80' : pct > 30 ? '#facc15' : '#f87171';
+      document.getElementById('e-hpt').textContent = `${Math.max(0,e.hp)}/${e.maxHp}`;
+
+      const eblk = document.getElementById('e-blk');
+      if (e.block > 0) {
+        eblk.classList.remove('hidden');
+        document.getElementById('e-blkv').textContent = e.block;
+      } else eblk.classList.add('hidden');
+
+      // Status
+      const sr = document.getElementById('e-sr');
+      sr.innerHTML = '';
+      if (e.status.stunned > 0) {
+        const sp = document.createElement('span');
+        sp.className = 'sb stun';
+        // v21.35: usar i18n en vez de hardcoded español
+        const stunnedName = currentLang === 'en' ? 'Stunned' : 'Aturdido';
+        sp.innerHTML = `💫 ${stunnedName} ${e.status.stunned}T`;
+        sp.style.cursor = 'pointer';
+        sp.onclick = (ev) => { ev.stopPropagation(); showHint(statusHint('stunned')); };
+        sr.appendChild(sp);
+      }
+    }
+
+    function renderPlayer() {
+      const pct = Math.max(0, G.playerHp / G.maxHp * 100);
+      const bar = document.getElementById('p-hp');
+      bar.style.width = pct + '%';
+      bar.style.background = pct > 60 ? '#4ade80' : pct > 30 ? '#facc15' : '#f87171';
+      document.getElementById('p-hpt').textContent = `${G.playerHp}/${G.maxHp}`;
+
+      const pblk = document.getElementById('p-blk');
+      if (G.playerBlock > 0) {
+        pblk.classList.remove('hidden');
+        document.getElementById('p-blkv').textContent = G.playerBlock;
+      } else pblk.classList.add('hidden');
+
+      // Energy
+      const pips = document.getElementById('e-pips');
+      pips.innerHTML = '';
+      for (let i = 0; i < G.maxEnergy; i++) {
+        const d = document.createElement('div');
+        d.className = 'e-pip' + (i < G.energy ? ' on' : '');
+        pips.appendChild(d);
+      }
+      document.getElementById('e-txt').textContent = `${G.energy}/${G.maxEnergy}`;
+
+      // Status
+      const sr = document.getElementById('p-sr');
+      sr.innerHTML = '';
+      const addBadge = (cls, html, key) => {
+        const sp = document.createElement('span');
+        sp.className = `sb ${cls}`;
+        sp.innerHTML = html;
+        sp.style.cursor = 'pointer';
+        sp.onclick = (ev) => { ev.stopPropagation(); showHint(statusHint(key)); };
+        sr.appendChild(sp);
+      };
+      // v21.35: nombres de estado localizados
+      if (G.status.weakened > 0) addBadge('weak', `💀 ${t('bqStatusNameWeakened')} ${G.status.weakened}T`, 'weakened');
+      if (G.status.confused > 0) addBadge('conf', `🌀 ${t('bqStatusNameConfused')} ${G.status.confused}T`, 'confused');
+    }
+
+    function renderHand() {
+      const hand = document.getElementById('hand');
+      hand.innerHTML = '';
+      G.hand.forEach((card, i) => {
+        const eff = Math.max(0, card.cost - G.costRed);
+        const eff2 = eff; // alias for clarity
+        const unaffordable = eff2 > G.energy;
+        const inactive = !G.isPlayer || G.busy;
+        const div = document.createElement('div');
+        div.className = 'card' + (unaffordable || inactive ? ' no-play' : '');
+
+        const cheap = eff < card.cost;
+        // Cadena de fallback: primero coverFallback (si existe), luego emoji
+        const fallbackImg = card.coverFallback
+          ? `this.onerror=null;this.src='${card.coverFallback.replace(/'/g,"\\'")}';this.onerror=function(){this.style.display='none';this.parentNode.querySelector('.cov-fb').style.display='flex'}`
+          : `this.style.display='none';this.nextElementSibling.style.display='flex'`;
+        const coverHtml = card.cover
+          ? `<img src="${card.cover}" onerror="${fallbackImg}"><span class="cov-fb" style="display:none">${card.emoji}</span>`
+          : `<span class="cov-fb" style="display:flex">${card.emoji}</span>`;
+        const statHtml = card.isDefense
+          ? `<span style="color:#93c5fd">🛡️ ${card.shieldVal || SHIELD_VALUES[card.gk] || 6}</span>`
+          : `<span style="color:var(--gold2)">⚔️ ${card.atk}</span>`;
+
+        div.innerHTML = `
+          <div class="cost-c${cheap?' cheap':''}">${eff}</div>
+          <div class="card-cov">${coverHtml}</div>
+          <div class="card-body">
+            <div class="card-ttl">${card.title}</div>
+            <div class="card-atk">${statHtml}</div>
+            <div class="card-spc"><b>${card.specName}</b><span class="card-spc-desc-inline">${card.specDesc}</span></div>
+          </div>`;
+
+        if (!inactive) div.onclick = () => playCard(i);
+        hand.appendChild(div);
+      });
+    }
+
+    function updateIntent() {
+      const e = G.enemies[G.curEnemy];
+      if (!e) return;
+      const act = e.pattern[e.pidx % e.pattern.length];
+      const badge = document.getElementById('intent-badge');
+      badge.classList.remove('hidden','atk','dfn','dbf','stun');
+      badge.classList.add(act.cls || 'atk');
+      document.getElementById('intent-icon').textContent = act.icon;
+      document.getElementById('intent-lbl').textContent = (currentLang === 'en' && act.enLabel) ? act.enLabel : act.label;
+      badge.style.cursor = 'pointer';
+      badge.onclick = (ev) => { ev.stopPropagation(); showHint(intentHint(act)); };
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  ANIMACIONES                                     ║
+       ╚══════════════════════════════════════════════════╝ */
+    function floatAt(text, color, targetId) {
+      const t = document.getElementById(targetId);
+      if (!t) return;
+      const r = t.getBoundingClientRect();
+      const el = document.createElement('div');
+      el.className = 'flt';
+      el.textContent = text;
+      el.style.color = color;
+      el.style.left = (r.left + r.width / 2) + 'px';
+      el.style.top  = (r.top  + r.height / 2) + 'px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    }
+
+    function shakeEl(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('shaking');
+      void el.offsetWidth;
+      el.classList.add('shaking');
+      setTimeout(() => el.classList.remove('shaking'), 340);
+    }
+
+    let _toastTimer = null;
+    let _lastCardFinished = 0; // v21.35: timestamp del fin de la última carta jugada
+    const CARD_COOLDOWN_MS = 300; // ms mínimos entre cartas para mostrar "¡Más despacio!"
+    let _sandersonCardsPlayed = 0; // Easter egg Hoid: conta cartas Sanderson jugadas en la sesión
+    let _hoidTimer = null;         // Timer para ocultar overlay Hoid
+    function showToast(text) {
+      const t = document.getElementById('toast');
+      t.textContent = text;
+      t.classList.remove('hidden');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.add('hidden'), 1200);
+    }
+
+    let _bannerTimer = null;
+    function showBanner(text, type) {
+      const b = document.getElementById('turn-banner');
+      b.textContent = text;
+      b.className = type || '';
+      b.classList.remove('hidden');
+      clearTimeout(_bannerTimer);
+    }
+    function hideBanner() { document.getElementById('turn-banner').classList.add('hidden'); }
+
+    /* Tooltip explicativo (intents y estados) */
+    let _hintTimer = null;
+    function showHint(text) {
+      let h = document.getElementById('hint');
+      if (!h) {
+        h = document.createElement('div');
+        h.id = 'hint';
+        h.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);' +
+          'top:84px;background:rgba(14,9,3,.96);border:1px solid rgba(212,160,74,.4);' +
+          'border-radius:11px;padding:9px 15px;max-width:min(360px,86vw);' +
+          'font-size:.78rem;line-height:1.4;text-align:center;z-index:550;' +
+          'color:var(--gold2);pointer-events:none;';
+        document.body.appendChild(h);
+      }
+      h.innerHTML = text;
+      h.style.display = 'block';
+      clearTimeout(_hintTimer);
+      _hintTimer = setTimeout(() => { h.style.display = 'none'; }, 3200);
+    }
+
+    function statusHint(key) {
+      if (key === 'stunned') return t('bqStatusStunned');
+      if (key === 'weakened') return t('bqStatusWeakened');
+      if (key === 'confused') return t('bqStatusConfused');
+      return '';
+    }
+    function intentHint(act) {
+      if (!act) return '';
+      switch(act.type){
+        case 'attack': return t('bqHintAttack', { n: act.value });
+        case 'multi':  return t('bqHintMulti', { hits: act.hits, n: act.value });
+        case 'defend': return t('bqHintDefend', { n: act.value });
+        case 'debuff': {
+          const k = act.effect;
+          const name = k === 'weakened' ? t('bqStatusNameWeakened') : k === 'confused' ? t('bqStatusNameConfused') : k;
+          const extra = statusHint(k)?.split('<br>')[1] || '';
+          return t('bqHintDebuff', { name, n: act.turns, extra });
+        }
+        default: return '';
+      }
+    }
+
+    let _quoteTimer = null;
+    let _lastQuote = '';
+    function pickQuote(quotes) {
+      if (!quotes || !quotes.length) return '';
+      if (quotes.length === 1) return quotes[0];
+      let pick = quotes[Math.floor(Math.random() * quotes.length)];
+      for (let i = 0; i < 8 && pick === _lastQuote; i++)
+        pick = quotes[Math.floor(Math.random() * quotes.length)];
+      _lastQuote = pick;
+      return pick;
+    }
+    function showHoidEasterEgg() {
+      const ov = document.getElementById('hoid-ov');
+      if (!ov) return;
+      const quotes = LANG[currentLang]?.hoidQuotes || LANG.es.hoidQuotes;
+      const flavor = LANG[currentLang]?.hoidFlavor || LANG.es.hoidFlavor;
+      const quote  = quotes[Math.floor(Math.random() * quotes.length)];
+      document.getElementById('hoid-quote').textContent  = quote;
+      document.getElementById('hoid-flavor').textContent = flavor;
+      ov.classList.remove('hidden');
+      ov.classList.add('hoid-in');
+      clearTimeout(_hoidTimer);
+      _hoidTimer = setTimeout(() => {
+        ov.classList.remove('hoid-in');
+        ov.classList.add('hoid-out');
+        setTimeout(() => {
+          ov.classList.add('hidden');
+          ov.classList.remove('hoid-out');
+        }, 350);
+      }, 2400);
+    }
+
+    function showQuote(text) {
+      const q = document.getElementById('quote');
+      clearTimeout(_quoteTimer);
+      q.classList.add('hidden');
+      if (!text) return;  // sin cita → no mostrar nada
+      void q.offsetWidth;
+      q.textContent = `📖 «${text}»`;
+      q.classList.remove('hidden');
+      const turbo = document.getElementById('chk-turbo')?.checked || false;
+      _quoteTimer = setTimeout(() => q.classList.add('hidden'), turbo ? 1800 : 5800);
+    }
+
+    function setBtn(id, disabled, enemyTurn) {
+      const b = document.getElementById(id);
+      if (!b) return;
+      b.disabled = disabled;
+      b.classList.toggle('enemy-turn', !!enemyTurn);
+      b.textContent = enemyTurn ? t('bqEnemyTurnRunning') : t('bqEndTurn');
+    }
+
+    /* ╔══════════════════════════════════════════════════╗
+       ║  EVENTOS                                         ║
+       ╚══════════════════════════════════════════════════╝ */
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Aplica el idioma actual a toda la UI estática (es por defecto hasta que Kotlin llame a setBookQuestLanguage)
+      renderUI();
+
+      // Actualizar indicador de libros disponibles
+      function updateLibraryStatus() {
+        const books = window.LECTURAMETER_BOOKS || [];
+        const valid = books.filter(b => b && b.title && String(b.title).trim().length > 0);
+        const count = valid.length;
+        const countEl = document.getElementById('book-count-text');
+        const warnEl  = document.getElementById('library-warning');
+        const playBtn = document.getElementById('btn-play-saved');
+        if (countEl) countEl.textContent = t('bqBooksAvailable', { n: count });
+        if (warnEl)  warnEl.style.display = count < 10 ? 'inline' : 'none';
+        if (playBtn) {
+          playBtn.disabled = count < 10;
+          playBtn.style.opacity = count < 10 ? '0.45' : '1';
+        }
+      }
+
+      // Cargar biblioteca guardada via bridge nativo (localStorage no funciona en WebView)
+      const savedJSON = (() => {
+        try { return (typeof Android !== 'undefined' && Android.loadLibrary) ? Android.loadLibrary() : ''; }
+        catch(_) { return ''; }
+      })();
+      if (savedJSON) {
+        const parsed = parseImport(savedJSON);
+        if (parsed) window.LECTURAMETER_BOOKS = parsed;
+        document.getElementById('btn-play-saved').classList.remove('hidden');
+        document.getElementById('btn-reimport').classList.remove('hidden');
+        updateLibraryStatus();
+      }
+
+      document.getElementById('btn-play-saved').onclick = () => {
+        const json = (() => {
+          try { return (typeof Android !== 'undefined' && Android.loadLibrary) ? Android.loadLibrary() : ''; }
+          catch(_) { return ''; }
+        })();
+        const raw = parseImport(json);
+        if (raw) startGame(raw);
+      };
+
+      document.getElementById('btn-import').onclick = () => showScreen('s-import');
+      document.getElementById('btn-reimport').onclick = () => { document.getElementById('file-picker').click(); };
+      document.getElementById('btn-back').onclick = () => showScreen('s-intro');
+
+      document.getElementById('btn-exit-game').onclick = () => {
+        try {
+          if (typeof Android !== 'undefined' && Android.exitGame) { Android.exitGame(); return; }
+        } catch(_) {}
+        history.back();
+      };
+
+      document.getElementById('btn-file').onclick = () => {
+        document.getElementById('file-picker').click();
+      };
+
+      document.getElementById('file-picker').onchange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const str = (ev.target.result || '').trim();
+          const err = document.getElementById('imp-err');
+          err.classList.add('hidden');
+          const raw = parseImport(str);
+          if (!raw) {
+            err.textContent = t('bqImportErrInvalid');
+            err.classList.remove('hidden');
+            return;
+          }
+          // Persistir via bridge nativo (localStorage no funciona en WebView)
+          try { if (typeof Android !== 'undefined') Android.saveLibrary(str); } catch(_) {}
+          window.LECTURAMETER_BOOKS = raw;
+          updateLibraryStatus();
+          startGame(raw);
+        };
+        reader.readAsText(file, 'UTF-8');
+      };
+
+      document.getElementById('btn-load').onclick = () => {
+        const str = document.getElementById('imp-ta').value.trim();
+        const err = document.getElementById('imp-err');
+        err.classList.add('hidden');
+        if (!str) { err.textContent = t('bqImportErrNoPaste'); err.classList.remove('hidden'); return; }
+        const raw = parseImport(str);
+        if (!raw) { err.textContent = t('bqImportErrInvalid'); err.classList.remove('hidden'); return; }
+        // Persistir via bridge nativo
+        try { if (typeof Android !== 'undefined') Android.saveLibrary(str); } catch(_) {}
+        window.LECTURAMETER_BOOKS = raw;
+        updateLibraryStatus();
+        startGame(raw);
+      };
+
+      document.getElementById('btn-end').onclick = () => endTurn();
+
+      ['btn-restart','btn-exit','btn-v','btn-d'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.onclick = () => location.reload();
+      });
+
+    });
+
+</script>
+<input id="jsonFileInput" type="file" accept=".json,application/json" style="display:none;">
+</body>
+</html>

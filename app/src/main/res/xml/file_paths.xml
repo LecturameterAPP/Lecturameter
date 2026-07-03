@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="cache" path="/" />
+    <cache-path name="exported_csv" path="." />
+    <files-path name="covers" path="covers/" />
+    <external-files-path name="external_files" path="/" />
+</paths>

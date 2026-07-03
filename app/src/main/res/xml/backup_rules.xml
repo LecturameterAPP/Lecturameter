@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto Backup rules (API 23-30).
+    Includes all SharedPreferences (libros, sesiones, wrapped_history, dark_mode).
+    Excludes the cache dir (temp CSV/JSON exports).
+-->
+<full-backup-content>
+    <include domain="sharedpref" path="lecturameter.xml" />
+</full-backup-content>

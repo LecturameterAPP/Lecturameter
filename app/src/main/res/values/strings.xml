@@ -1,0 +1,751 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lecturameter</string>
+    <string name="widget_description">Muestra el libro que estás leyendo con portada, título, autor, tiempo y días de lectura.</string>
+
+    <!-- Generado: localización ES/EN -->
+    <string name="txt_00b343f8">Eliminar fecha</string>
+    <string name="txt_012f4789">Ordenados por páginas leídas al día</string>
+    <string name="txt_016a31c7">ISBN escaneado</string>
+    <string name="txt_02d47d1a">Guardar backups en Google Drive</string>
+    <string name="txt_03f6aff4">Eliminar sesión</string>
+    <string name="txt_04ed38f0">No todo libro es para todo lector, y eso está bien.</string>
+    <string name="txt_057acd78">🎨 TEMA</string>
+    <string name="txt_066bbf84">Páginas funcionales (opcional)</string>
+    <string name="txt_0a43aca4">Minutos (opcional)</string>
+    <string name="txt_0b059290">Buscar libros</string>
+    <string name="txt_0bf4acb4">✅ Feedback enviado. ¡Gracias!</string>
+    <string name="txt_0c2c2f10">Sesiones del día</string>
+    <string name="txt_0c78d77a">⚠ Páginas no encontradas, edítalas tras añadir</string>
+    <string name="txt_0ecd11c1">JSON</string>
+    <string name="txt_0fd1abda">Aún no hay sesiones registradas</string>
+    <string name="txt_10932fd3">Importa tu biblioteca desde Goodreads</string>
+    <string name="txt_113f7428">Buscar</string>
+    <string name="txt_11938ee1">Última página</string>
+    <string name="txt_11a95b58">Sin fechas. Toca ✏️ para añadir.</string>
+    <string name="txt_125ed9b0">📖 Leyendo</string>
+    <string name="pill_rereading">🔁 Releyendo</string>
+    <string name="txt_135a16f2">📷 Permiso de cámara</string>
+    <string name="txt_13d1d160">Abandonar libro</string>
+    <string name="txt_13f65f8c">Sin datos para mostrar</string>
+    <string name="txt_145bed95">¿Saltar tutorial?</string>
+    <string name="txt_14f2b208">https://…</string>
+    <string name="txt_158a98d7">No hay libros registrados en esa combinación de año/mes.</string>
+    <string name="txt_16f666bb">En Goodreads: Mi perfil → Mis libros → Importar y exportar → Exportar biblioteca. Luego selecciona el archivo .csv aquí.</string>
+    <string name="txt_17724589">Página inicial</string>
+    <string name="txt_18fb3478">Elige tu idioma / Select your language</string>
+    <string name="txt_1db69449">🐢  LOS QUE MÁS TIEMPO TE ROBARON</string>
+    <string name="txt_1e4e823d">Widget añadido</string>
+    <string name="txt_1ee4f1c7">🔁 Releyendo</string>
+    <string name="txt_1f34cadf">Inicio (dd-mm-aaaa)</string>
+    <string name="txt_1f750a24">vel. relativa</string>
+    <string name="txt_1f8cb5ce">Ayuda a diagnosticar errores</string>
+    <string name="txt_1fa1de14">⏱️ Puedes activarlo cuando quieras</string>
+    <string name="txt_2136819a">Impresiones, cita favorita…</string>
+    <string name="txt_2209707e">📊 Resumen global</string>
+    <string name="txt_227430b0">Elegir</string>
+    <string name="txt_24610ea2">Estado inicial</string>
+    <string name="txt_24ea3fcb">Activa</string>
+    <string name="txt_2686dd75">p/día</string>
+    <string name="txt_26afc116">Orden:</string>
+    <string name="txt_27de21f4">Última pág.</string>
+    <string name="txt_281db514">Añadir libro</string>
+    <string name="txt_28be9b81">Página fin</string>
+    <string name="txt_28d57875">LIBROS + SESIONES DE LECTURA + HISTORIAL</string>
+    <string name="txt_29b6d9fc">Nuevo libro</string>
+    <string name="txt_2ac042cb">Backup Drive</string>
+    <string name="txt_2d283ff6">Adjuntar imágenes (máx. 3)</string>
+    <string name="txt_2d639552">Backup Local desactivado</string>
+    <string name="txt_2d903c83">🎁 Wrapped</string>
+    <string name="txt_2fc6405a">✍️</string>
+    <string name="txt_3015bbac">ej. 120</string>
+    <string name="txt_30cc00ae">Enviar</string>
+    <string name="txt_30fc9acb">Termina libros y añade fechas para ver estadísticas.</string>
+    <string name="txt_30fddd15">Formato compatible con Goodreads</string>
+    <string name="txt_316406f4">RESUMEN</string>
+    <string name="txt_32630ca9">Todos</string>
+    <string name="txt_3397e69c">Estado</string>
+    <string name="txt_33fe5747">Necesito tu permiso para mostrarte el tiempo de lectura en la barra de notificaciones mientras lees.</string>
+    <string name="txt_362b636c">RACHA MÁS LARGA</string>
+    <string name="txt_36f1a4d2">🌐 IDIOMA</string>
+    <string name="txt_37af485a">Restaurar desde backup</string>
+    <string name="txt_38fe9f72">Buscar título o autor…</string>
+    <string name="txt_390674e3">Toca para registrar tus páginas</string>
+    <string name="txt_39464d70">Fecha (dd-MM-aaaa)</string>
+    <string name="txt_39e254c6">Abandonar</string>
+    <string name="txt_3c75ceda">Primera pág.</string>
+    <string name="txt_3d8b847e">Indica el rango real de contenido para cálculos de progreso precisos.</string>
+    <string name="txt_3f346645">Entendido</string>
+    <string name="txt_3f98c4c5">Guardar en Drive</string>
+    <string name="txt_40a68828">Este libro ya se está mostrando en el widget. ¿Deseas quitarlo?</string>
+    <string name="txt_41118960">Portada del libro</string>
+    <string name="txt_41f5582a">💬 Comentario</string>
+    <string name="txt_4204835c">Explica qué ocurre o qué mejorarías…</string>
+    <string name="txt_4239bda5">Idioma de la edición</string>
+    <string name="txt_426f7ea7">Todos los autores</string>
+    <string name="txt_4466d686">Confirmar recarga</string>
+    <string name="txt_46f22310">⏱️  TIEMPO Y SESIONES</string>
+    <string name="txt_47bcdf9a">páginas</string>
+    <string name="chart_pages_per_day">Páginas por día</string>
+    <string name="chart_pages_per_day_recent">Páginas por día  ←  más reciente</string>
+    <string name="chart_pages_per_month">Páginas por mes</string>
+    <string name="txt_4d8b0a6f">Lecturameter</string>
+    <string name="txt_53d6215e">EXPORTAR</string>
+    <string name="txt_55800f4c">¿Qué quieres hacer?</string>
+    <string name="txt_56446f3b">Guardar localmente</string>
+    <string name="txt_5718979a">Aún no hay wrappeds guardados</string>
+    <string name="txt_572a06a1">Puedes contactar directamente conmigo vía email en lecturameter.app@gmail.com</string>
+    <string name="txt_57d644ad">Género (hasta 2)</string>
+    <string name="txt_583569fd">Exportar y compartir</string>
+    <string name="txt_59119316">🎨  GÉNEROS DEL AÑO</string>
+    <string name="txt_59d90b1a">Usar</string>
+    <string name="txt_5a411185">ej. 320</string>
+    <string name="txt_5a97a7fb">Información sobre la aplicación</string>
+    <string name="txt_5b5c9f9d">Eliminar</string>
+    <string name="txt_5c0e66ea">⏱️ Notificaciones del cronómetro</string>
+    <string name="txt_5ccb97b8">Intervalo de refresco del Widget</string>
+    <string name="txt_5cd0defc">📁 Elegir archivo del móvil</string>
+    <string name="txt_5d69d53a">TOP GÉNEROS</string>
+    <string name="txt_5d69fc39">📅 Fechas</string>
+    <string name="txt_5dedc405">ej. 420</string>
+    <string name="txt_5f6c3709">Estás intentando añadir un libro que sólo tiene 1 página, ¿estás seguro?</string>
+    <string name="txt_5f9fd925">💾 Permiso de almacenamiento</string>
+    <string name="txt_5fcafeb2">Permitir</string>
+    <string name="txt_60520d3a">Frecuencia de backup</string>
+    <string name="txt_613a3a29">Actualización de sesiones</string>
+    <string name="migration_session_counter">Sesión %1$d de %2$d</string>
+    <string name="reload_progress_label">Procesando: %1$s libros · %2$d%%</string>
+    <string name="reload_done_label">✅ Completado en %1$ds</string>
+    <string name="reload_updated_label">%1$d actualizados · %2$d sin resultado</string>
+    <string name="library_books_count">%1$d libro en tu biblioteca</string>
+    <string name="library_books_count_plural">%1$d libros en tu biblioteca</string>
+    <string name="shelf_books_count">%1$d libro</string>
+    <string name="shelf_books_count_plural">%1$d libros</string>
+    <string name="local_backup_last">Última copia local: %1$s</string>
+    <string name="drive_backup_auto_hint">Copia automática cada %1$dh + persiste tras reinstalar</string>
+    <string name="drive_backup_last">Última copia automática: %1$s</string>
+    <string name="search_pages_count">%1$d páginas</string>
+    <string name="search_results_summary">%1$d resultados · con portada primero</string>
+    <string name="app_version_label">Versión %1$s</string>
+    <string name="tutorial_mock_genres">Arte · Desarrollo personal</string>
+    <string name="tutorial_mock_pages">📄 350 págs (325p)</string>
+    <string name="tutorial_mock_days">⏳ 1 día</string>
+    <string name="tutorial_mock_days_pill">27 días</string>
+    <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
+    <string name="tutorial_mock_pages_chip">📄 25 Págs</string>
+    <string name="chart_bar_label">%1$s: %2$d páginas</string>
+    <string name="notif_channel_session_end">Fin de sesión de lectura</string>
+    <string name="notif_channel_session_end_desc">Aviso para registrar páginas al terminar una sesión</string>
+    <string name="notif_session_done">Sesión finalizada</string>
+    <string name="notif_channel_timer">Cronómetro de lectura</string>
+    <string name="notif_channel_timer_desc">Controles del cronómetro de sesión activa</string>
+    <string name="notif_status_paused">⏸  Pausado — %1$s</string>
+    <string name="notif_status_reading">📖  Leyendo… — %1$s</string>
+    <string name="backup_time_never">Nunca</string>
+    <string name="backup_time_moment">Hace un momento</string>
+    <string name="backup_time_mins">Hace %1$dmin</string>
+    <string name="backup_time_hours">Hace %1$dh</string>
+    <string name="backup_time_days">Hace %1$d días</string>
+    <string name="import_new_books">%1$d libros nuevos</string>
+    <string name="import_new_sessions">%1$d sesiones nuevas</string>
+    <string name="import_updated_books">%1$d libros actualizados</string>
+    <string name="import_updated_sessions">%1$d sesiones actualizadas</string>
+    <string name="import_all_up_to_date">Todo ya estaba actualizado</string>
+    <string name="import_restored_books">%1$d libros restaurados</string>
+    <string name="import_restored_sessions">%1$d sesiones</string>
+    <string name="msg_no_books_export">⚠️ No hay libros para exportar</string>
+    <string name="msg_no_data_export">⚠️ No hay datos para exportar</string>
+    <string name="dialog_delete_session_date">¿Eliminar la sesión del %1$s?</string>
+    <string name="tutorial_mock_date">30 de junio de 2026</string>
+    <string name="func_pages_upto"> (hasta %1$dp)</string>
+    <string name="word_pages_abbr">págs</string>
+    <string name="msg_drive_saved">✅ Copia guardada en Google Drive</string>
+    <string name="msg_drive_error">❌ Error: %1$s</string>
+    <string name="msg_drive_connected">✅ Conectado como %1$s</string>
+    <string name="msg_drive_no_perms">❌ No se concedieron permisos de Google Drive</string>
+    <string name="msg_drive_connect_error">❌ Error al conectar: %1$s</string>
+    <string name="msg_export_ready">✅ Archivo listo para compartir</string>
+    <string name="msg_export_error_gen">❌ Error al generar el archivo</string>
+    <string name="msg_backup_ready_share">✅ Backup listo, guárdalo en Google Drive o similar</string>
+    <string name="msg_backup_error_gen">❌ Error al generar el backup</string>
+    <string name="err_drive_no_account">No hay cuenta de Google conectada</string>
+    <string name="err_drive_no_backup_found">No se encontró ningún backup en Google Drive</string>
+    <string name="txt_62da2239">Goodreads CSV</string>
+    <string name="txt_632543a9">¿Quieres activar el backup local?</string>
+    <string name="txt_632bfb20">¿Eliminar todas las sesiones actuales?</string>
+    <string name="txt_64b46771">Continuar</string>
+    <string name="txt_65dc881f">Buscando en OpenLibrary y Google Books…</string>
+    <string name="txt_66308bc7">Tu biblioteca está vacía</string>
+    <string name="txt_667166ae">📚 Por género</string>
+    <string name="txt_69e20782">Buscar automáticamente</string>
+    <string name="txt_6f50e674">Rango del contenido real del libro (excluye prólogos e índices finales).</string>
+    <string name="txt_6fc03171">Buscar género automático</string>
+    <string name="txt_737672f6">Conectar con Google</string>
+    <string name="txt_739eacc1">Página inicio</string>
+    <string name="txt_73fa4a4d">Solo con páginas funcionales</string>
+    <string name="txt_75a77549">Open Library + Google Books (millones de libros)</string>
+    <string name="txt_75fe6e58">Sin conexión a internet. No se pueden cargar ediciones.</string>
+    <string name="txt_7603b36e">🚫 Abandonar libro</string>
+    <string name="txt_76306812">❤️ APOYA EL PROYECTO</string>
+    <string name="txt_76760a79">📨 Enviar feedback</string>
+    <string name="txt_76aee4f9">libros</string>
+    <string name="txt_78359316">Fecha (dd-mm-aaaa) *</string>
+    <string name="txt_78932aed">COPIA DE SEGURIDAD</string>
+    <string name="txt_78cf172d">ej. 152</string>
+    <string name="txt_79f555a5">Necesitamos acceso a la cámara para escanear el código de barras de tus libros y añadirlos automáticamente.</string>
+    <string name="txt_7a9622a0">Puntuación (opcional)</string>
+    <string name="txt_7cd6ad03">Nota (opcional)</string>
+    <string name="txt_7d6c2883">Período:</string>
+    <string name="txt_7ddf5345">📤 Importar / Exportar</string>
+    <string name="txt_80b7fc7c">Entre el 26 de diciembre y el 26 de enero, visita Estadísticas para generar y guardar el wrapped del año.</string>
+    <string name="txt_82056f1f">Puedes cambiarlo después en Ajustes</string>
+    <string name="txt_847607d7">Cancelar</string>
+    <string name="txt_8487931b">Confirmar</string>
+    <string name="txt_84a8f3ea">Selecciona géneros…</string>
+    <string name="txt_84f524c0">Buscar en mi biblioteca…</string>
+    <string name="txt_8803fa48">Primera página</string>
+    <string name="txt_896b3fde">No hay libros leídos con género asignado.</string>
+    <string name="txt_8afc8680">Todos los géneros</string>
+    <string name="txt_8b2335bb">Recargando…</string>
+    <string name="txt_8bac5764">Sesión en curso</string>
+    <string name="txt_8ccc576b">Se genera un archivo .csv con todos tus libros, listo para compartir o importar en Goodreads.</string>
+    <string name="txt_8d5e2184">No hay sesiones en esta fecha</string>
+    <string name="txt_8e00796a">¿Cómo quieres realizar la recarga?</string>
+    <string name="txt_8e892422">Editar sesión</string>
+    <string name="txt_900cd8a8">Página inicial *</string>
+    <string name="txt_9042f197">🔧 Filtros</string>
+    <string name="txt_9096e7e0">TU HISTORIAL LECTOR</string>
+    <string name="txt_9303ba12">✍️ Por autor</string>
+    <string name="txt_939f09a3">Páginas</string>
+    <string name="txt_950a32e2">Puntuación</string>
+    <string name="txt_95b01315">🇪🇸 Español</string>
+    <string name="txt_96b976d8">Puedes volver a verlo desde Ajustes.</string>
+    <string name="txt_97225860">Añadir manualmente</string>
+    <string name="txt_9731be9d">Puedes hacer visible la notificación del cronómetro habilitando el permiso de notificaciones de Lecturameter en Ajustes del sistema → Apps → Lecturameter → Notificaciones.</string>
+    <string name="txt_98f7ba16">Género</string>
+    <string name="txt_995fe186">Eliminar todas las sesiones</string>
+    <string name="txt_99b7393c"> </string>
+    <string name="txt_9b9c0afb">Guardando…</string>
+    <string name="txt_a27470a5">Buscar por comentario, #número o \"título\"…</string>
+    <string name="txt_a3b8e497">Comentario</string>
+    <string name="txt_a4fddd8f">Título, autor, ISBN…</string>
+    <string name="txt_a5389e2a">¿Qué tipo de feedback es?</string>
+    <string name="txt_a60bc74b">Deseleccionar todos</string>
+    <string name="txt_a6db8091">📊 Estadísticas</string>
+    <string name="txt_a6e39241">Saltar</string>
+    <string name="txt_a6f46d56">TOP AUTORES</string>
+    <string name="txt_a70ecc0a">Puntuación media:</string>
+    <string name="txt_a7931e50">ej. 13</string>
+    <string name="txt_a8830f9a">📁 Elegir imagen del móvil</string>
+    <string name="txt_aa02a2da">Pega un enlace de internet:</string>
+    <string name="txt_aa1b8e40">📊 Estadísticas por ciclo</string>
+    <string name="txt_ad69e733">PayPal</string>
+    <string name="txt_adbe3283">Cambiar portada</string>
+    <string name="txt_ae0dca8d">Menos</string>
+    <string name="txt_ae333e6f">Elige cada cuánto quieres que se hagan los backups</string>
+    <string name="txt_af20f31b">Comprueba tu Wi-Fi o datos móviles</string>
+    <string name="txt_af80d2f5">Busca por título, autor o ISBN</string>
+    <string name="txt_af85d57c">Limpiar filtros</string>
+    <string name="txt_afe10477">Copia en Google Drive</string>
+    <string name="txt_b375487f">Eliminar libro</string>
+    <string name="txt_b7369062">＋ Añadir otra edición</string>
+    <string name="txt_b73ecdab">Todos los estados</string>
+    <string name="txt_b7a882b4">Necesito acceso al almacenamiento para guardar copias de seguridad de tus libros en la carpeta Descargas.</string>
+    <string name="txt_b7e522e3">Guardado automáticamente en tu historial de Wrapped</string>
+    <string name="txt_b9015f44">📖 Páginas funcionales</string>
+    <string name="txt_ba94296a">✕ Quitar portada</string>
+    <string name="txt_babead9b">Omitir</string>
+    <string name="txt_bafd7322">No</string>
+    <string name="txt_bb61c189">ko-fi.com/lecturameter</string>
+    <string name="txt_bb6b0333">Seleccionar todos</string>
+    <string name="txt_bd23eb60">Seguir</string>
+    <string name="txt_bd3d357e">Elige cada cuánto se actualizan los datos del widget</string>
+    <string name="txt_bd81d36d">📈  PÁGINAS POR MES</string>
+    <string name="txt_bdd207ee">Sí</string>
+    <string name="txt_bddf53d0">— Sin género —</string>
+    <string name="txt_beea2815">Historial de sesiones</string>
+    <string name="txt_bfd55cba">Backup Local</string>
+    <string name="txt_c1404abf">Al cambiar de edición activa, los detalles del libro (portada, páginas, sesiones, comentarios) muestran los de la nueva edición. Las sesiones de la otra edición NO se borran, se conservan y vuelven a ser visibles cuando reactives esa edición.\n\nEn estadísticas, cada edición cuenta como un libro independiente.</string>
+    <string name="txt_c37472ea">Cuenta de Google</string>
+    <string name="drive_account_connected">%1$s · toca para cambiar de cuenta</string>
+    <string name="drive_account_disconnected">No conectado, toca para conectar</string>
+    <string name="txt_c481b00a">Autor</string>
+    <string name="txt_c4b4e77a">Cambiar estado</string>
+    <string name="txt_c5ed541f">BACKUP COMPLETO (JSON)</string>
+    <string name="txt_c673411e">← Atrás</string>
+    <string name="txt_c7363de2">Wrapped · Lecturameter</string>
+    <string name="txt_c822bd3d">EN NÚMEROS</string>
+    <string name="txt_c8a3ca02">Restaurar desde Drive</string>
+    <string name="txt_c8d92673">Página final *</string>
+    <string name="txt_ca1da6c8">Cambiar edición activa</string>
+    <string name="txt_ca8f9bb3">No mostrar</string>
+    <string name="txt_cad19441">Generando…</string>
+    <string name="txt_cc8d68c5">CSV</string>
+    <string name="txt_cdd0bfa9">☁️</string>
+    <string name="txt_ce89c06f">Cambiar género</string>
+    <string name="txt_d047c2a8">dd-mm-aaaa</string>
+    <string name="txt_d086767f">Filtro:</string>
+    <string name="txt_d1bdc329">Cambiar</string>
+    <string name="txt_d1cdc7bc">Aceptar</string>
+    <string name="txt_d20f652b">Añadir</string>
+    <string name="txt_d3270bdb">Guardar</string>
+    <string name="txt_d4b36426">Quitar del widget</string>
+    <string name="txt_d4d1809c">¡Comenzar!</string>
+    <string name="txt_d532077e">Página final</string>
+    <string name="txt_d6578c6a">🔄 Cambiar edición</string>
+    <string name="txt_d80248ef">Descripción *</string>
+    <string name="txt_d8125eae">Cronómetro de lectura</string>
+    <string name="txt_db955caf">Carpeta local</string>
+    <string name="txt_dcd9cd29">Backup Drive desactivado</string>
+    <string name="txt_def36a08">📤 Exportar estadísticas</string>
+    <string name="txt_df94c6d3">p\u00e1gs</string>
+    <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes invitarme a un café</string>
+    <string name="txt_e33e3006">Sin comentario. Toca ✏️ para añadir uno.</string>
+    <string name="txt_e346618a">IMPORTAR</string>
+    <string name="txt_e38ba5d3">EDICIONES</string>
+    <string name="txt_e3ea89d7">Guardar libro</string>
+    <string name="txt_e4270dac">Adjuntar archivo de logs (recomendado)</string>
+    <string name="txt_e4bf49dd">ej. 45</string>
+    <string name="txt_e6b9af9f">Seleccionar archivo CSV</string>
+    <string name="txt_e706900d">Fin (dd-mm-aaaa)</string>
+    <string name="txt_e7396239">Estado:</string>
+    <string name="txt_e796083f">ABANDONADOS</string>
+    <string name="txt_e810b914">➕ Registrar sesión</string>
+    <string name="txt_e82171d9">Tap para escanear el código de barras del libro</string>
+    <string name="txt_e860710c">Tu lectura, letra a letra</string>
+    <string name="txt_e8b7bada">Vista anual</string>
+    <string name="txt_ea889da9">Escribe tus notas…</string>
+    <string name="txt_ea8ca034">Exportar backup completo</string>
+    <string name="txt_eb8e218c">Añade un libro o importa desde Goodreads.</string>
+    <string name="txt_eb9316fa">9788401352836</string>
+    <string name="txt_ebd28578">📄 Páginas totales</string>
+    <string name="txt_ec0bec6b">Tu puntuación</string>
+    <string name="txt_eccc5922">Siguiente →</string>
+    <string name="txt_ed177a89">Conecta tu cuenta de Google para hacer copias automáticas cada 2 horas. El archivo se guarda en tu Drive y sobrevive a reinstalaciones.</string>
+    <string name="txt_eec2e836">¿Quieres activar el backup de Google Drive?</string>
+    <string name="txt_eedfdf2b">Ko-fi</string>
+    <string name="txt_ef31b7ae">págs/min</string>
+    <string name="txt_f01d3d6b">Buscando datos del libro…</string>
+    <string name="txt_f0ed2dc3">Aplicar</string>
+    <string name="txt_f1caef3b">Más</string>
+    <string name="txt_f1fb0dc3">Exportar a CSV</string>
+    <string name="txt_f306dfe2">Desconectar</string>
+    <string name="txt_f3baf2ca">\u25be</string>
+    <string name="txt_f40582e2">GOOGLE DRIVE</string>
+    <string name="txt_f46b3218">Quitar</string>
+    <string name="txt_f51e272b">Accesible todo el año desde el icono 🎁 en la pantalla principal</string>
+    <string name="txt_f52cebe0">Notas o impresiones…</string>
+    <string name="txt_f5d52eba">⚙️ Ajustes</string>
+    <string name="txt_f68be150">Guardar backups en tu dispositivo</string>
+    <string name="txt_f72dc94e">paypal.me/Lecturameter</string>
+    <string name="txt_f7464b62">Guarda o restaura todo tu progreso. Usa esto antes de actualizar la app o cambiar de dispositivo.</string>
+    <string name="txt_f759fe35">🇬🇧 English</string>
+    <string name="txt_f7772d77">Tiempo en minutos (opcional)</string>
+    <string name="txt_fb71a7c6">Ya hay una sesión en curso. ¿Deseas terminarla?</string>
+    <string name="txt_fb84daae">ISBN (para portada automática)</string>
+    <string name="txt_fca0bbb8">🚀 Libros leídos más rápido</string>
+    <string name="txt_fcfc243e">Sube capturas o fotos desde tu galería</string>
+    <string name="txt_fd31153a">Aviso</string>
+    <string name="txt_fd349680">ACERCA DE</string>
+    <string name="txt_fd67b9a7">No se encontraron ediciones adicionales.</string>
+
+    <!-- Strings con parámetro %1$s -->
+    <string name="txt_2509a87a">Al desactivar un tipo de backup, los botones se quedan grises. Al pulsarlos se mostrará un aviso: \"¿Quieres activar este tipo de backup? Cancelar/Aceptar\".</string>
+    <string name="txt_2750cc8c">¿Seguro que quieres eliminar \"%1$s\"?</string>
+    <string name="txt_4259b7dc">¿Eliminar \"%1$s\"? Se borrarán también sus sesiones.</string>
+    <string name="txt_57be44d3">Sin resultados para \"%1$s\"</string>
+    <string name="txt_c13603f4">¿Marcar \"%1$s\" como dropeado?</string>
+
+    <!-- v21.8: Toasts y widget config -->
+    <string name="msg_no_camera_permission_scan">Sin permiso de cámara no puedes escanear ISBN</string>
+    <string name="msg_back_again_exit">Pulsa para atrás otra vez para salir</string>
+    <string name="msg_easter_egg_tap_more">Pulsa %1$d veces más para un Easter Egg chulo</string>
+    <string name="msg_no_storage_permission_backup">Sin permiso no se puede guardar el backup en el almacenamiento interno</string>
+    <string name="msg_share_error">Error al compartir: %1$s</string>
+    <string name="msg_not_found_prefix">⚠ No encontrado: %1$s</string>
+    <string name="word_cover">portada</string>
+    <string name="word_genre">género</string>
+    <string name="word_join_nor"> ni </string>
+    <string name="msg_book_no_longer_widget">%1$s ya no se muestra en el widget</string>
+    <string name="msg_now_displayed_widget">📺 Mostrando en el widget</string>
+    <string name="msg_describe_feedback">Por favor, describe tu feedback</string>
+    <string name="msg_thanks_feedback">¡Gracias por tu colaboración! :)</string>
+    <string name="widget_added">Widget añadido</string>
+    <string name="widget_choose_book_help">Para elegir qué libro aparece, abre la app, ve a los detalles del libro y toca \"Mostrar en widget\".</string>
+
+    <!-- v21.9: Wrapped, pills/stats, sort/status, errores -->
+    <string name="sort_date_desc">Más reciente</string>
+    <string name="sort_date_asc">Más antiguo</string>
+    <string name="sort_rating_desc">Mejor puntuados</string>
+    <string name="sort_rating_asc">Peor puntuados</string>
+    <string name="sort_length_desc">Más largo</string>
+    <string name="sort_length_asc">Más corto</string>
+    <string name="status_reading">Leyendo</string>
+    <string name="status_rereading">Releyendo</string>
+    <string name="status_finished">Leído</string>
+    <string name="status_pending">Quiero leer</string>
+    <string name="status_dropped">Abandonados</string>
+    <string name="empty_shelf_reading">No tienes libros en progreso.\nEmpieza a leer uno.</string>
+    <string name="empty_shelf_rereading">No estás releyendo ningún libro.</string>
+    <string name="empty_shelf_finished">Aún no has terminado ningún libro.</string>
+    <string name="empty_shelf_pending">No tienes libros pendientes.\nGuarda los que quieras leer.</string>
+    <string name="empty_shelf_dropped">No has dropeado ningún libro. ¡Bien!</string>
+    <string name="widget_currently_showing">✅ Mostrándose en el widget</string>
+    <string name="widget_show_button">📺 Mostrar en widget</string>
+    <string name="word_day">día</string>
+    <string name="word_days">días</string>
+    <string name="session_header_timer">Sesión #%1$d  ·  Fecha: %2$s</string>
+    <string name="wrapped_no_finished">Sin libros terminados en %1$s</string>
+    <string name="timer_recorded_time">Tiempo registrado: %1$s</string>
+    <string name="filter_month_placeholder">Mes</string>
+    <string name="filter_year_placeholder">Año</string>
+    <string name="wrapped_share_text">Mi año lector %1$d en Lecturameter 📚</string>
+    <string name="wrapped_year_header">Tu año lector %1$d</string>
+    <string name="wrapped_empty_hint">Termina al menos un libro con fecha de finalización en %1$d para ver tu wrapped.</string>
+    <string name="wrapped_pags_dia_lc">págs/día</string>
+    <string name="wrapped_dias_libro">días/libro</string>
+    <string name="wrapped_arboles">árboles*</string>
+    <string name="wrapped_genero_favorito">GÉNERO FAVORITO</string>
+    <string name="wrapped_autor_favorito">AUTOR FAVORITO</string>
+    <string name="wrapped_mejor_puntuado">MEJOR PUNTUADO</string>
+    <string name="wrapped_dropped_text">%1$d libro%2$s dejado%2$s sin terminar</string>
+    <string name="wrapped_books_vs">libros vs %1$d</string>
+    <string name="rating_muy_malo">Muy malo 😞</string>
+    <string name="rating_regular">Regular 😐</string>
+    <string name="rating_bien">Bien 🙂</string>
+    <string name="rating_muy_bueno">Muy bueno 😊</string>
+    <string name="rating_excelente">¡Excelente! 🌟</string>
+    <string name="rating_obra_maestra">Obra maestra ✨</string>
+    <string name="wrapped_libro_mas_rapido">LIBRO MÁS RÁPIDO</string>
+    <string name="wrapped_fastest_detail">%1$s págs/día · %2$d páginas</string>
+    <string name="wrapped_streak_suffix">consecutivos</string>
+    <string name="wrapped_record_session">récord sesión</string>
+    <string name="wrapped_longest_session">Sesión más larga: %1$d páginas el %2$s</string>
+    <string name="wrapped_most_read_day">Día más leído: %1$s (%2$d págs)</string>
+    <string name="wrapped_best_month">Tu mejor mes fue %1$s con %2$d páginas</string>
+    <string name="wrapped_pags_vs">págs vs %1$s</string>
+    <string name="wrapped_history_count_one">%1$d Año Guardado</string>
+    <string name="wrapped_history_count_other">%1$d Años Guardados</string>
+    <string name="wrapped_history_year_label">Año %1$d</string>
+    <string name="wrapped_history_summary_reread">%1$d libros (%2$d relect.) · %3$s páginas</string>
+    <string name="wrapped_history_summary">%1$d libros · %2$s páginas</string>
+    <string name="wrapped_ready">Tu wrapped %1$d está listo</string>
+    <string name="wrapped_countdown">Próximo wrapped el 26 de diciembre. Quedan %1$d días</string>
+    <string name="wrapped_banner_saved">Guardado · toca para ver</string>
+    <string name="wrapped_banner_available">Disponible hasta el 26 de enero</string>
+    <string name="pill_pags_dia">Págs/día</string>
+    <string name="pill_leidos">Leídos</string>
+    <string name="pill_dias_libro">Días/libro</string>
+    <string name="pill_porcentaje_leido">% leído</string>
+    <string name="pill_dias_leyendo">Días leyendo</string>
+    <string name="pill_pags_leidas">Págs leídas</string>
+    <string name="pill_dias_releyendo">Días releyendo</string>
+    <string name="pill_pags_min">Págs/min</string>
+    <string name="pill_paginas_totales">Páginas Totales</string>
+    <string name="pill_racha_maxima">Racha\nmáxima</string>
+    <string name="pill_media_pags_ses">Media págs/ses</string>
+    <string name="err_page_start_min1">La página inicial no puede ser menor que 1.</string>
+    <string name="err_page_end_over_total">La página final supera el total de páginas del libro.</string>
+    <string name="err_page_end_over_func">La página final no puede superar la última página funcional (%1$d).</string>
+    <string name="err_page_end_lt_start">La página final no puede ser menor que la inicial.</string>
+    <string name="err_backup_format_invalid">Formato de backup inválido</string>
+    <string name="err_backup_read_failed">No se pudo leer el archivo</string>
+    <string name="msg_import_goodreads_ok">✅ %1$d libros importados correctamente</string>
+    <string name="msg_import_goodreads_empty">⚠️ No se encontraron libros válidos en el archivo</string>
+    <string name="err_no_internet_search">Sin conexión a internet. No se pueden buscar libros.</string>
+    <string name="err_check_wifi_retry">Comprueba tu Wi-Fi o datos móviles y vuelve a intentarlo</string>
+    <string name="err_try_other_language">Prueba con el título en otro idioma o el ISBN</string>
+    <string name="err_title_required">El título es obligatorio.</string>
+    <string name="err_pages_invalid">Indica un número de páginas válido.</string>
+    <string name="err_start_date_required">Indica la fecha de inicio.</string>
+    <string name="err_end_date_required">Indica la fecha de finalización.</string>
+    <string name="err_end_before_start">La fecha de fin no puede ser anterior al inicio.</string>
+    <string name="err_date_required">La fecha es obligatoria (dd-mm-aaaa).</string>
+    <string name="err_date_invalid_format">Fecha inválida, usa dd-mm-aaaa.</string>
+    <string name="err_date_invalid_generic">Introduce una fecha válida.</string>
+    <string name="err_page_end_over_total_n">La página final no puede superar el total de páginas del libro (%1$d).</string>
+    <string name="err_date_invalid_label">Fecha inválida en \'%1$s\', usa dd-mm-aaaa</string>
+    <string name="err_date_invalid_correct">Fecha inválida, introduce una correcta (dd-MM-aaaa)</string>
+    <string name="err_pages_start_end_required">Las páginas de inicio y fin son obligatorias</string>
+    <string name="err_page_start_lt_end">Página inicial debe ser menor que final</string>
+    <string name="err_page_end_gt_start">Página final debe ser mayor que inicial</string>
+    <string name="err_feedback_send_retry">revisa tu conexión e inténtalo de nuevo</string>
+    <string name="err_feedback_send_failed">No se pudo enviar: %1$s</string>
+    <string name="wrapped_horas">horas</string>
+    <string name="wrapped_no_timer">No has usado nunca\nel cronómetro :(</string>
+    <string name="word_book">libro</string>
+    <string name="chart_status_leidos">Leídos</string>
+    <string name="chart_status_leyendo">Leyendo</string>
+    <string name="chart_status_releyendo">Releyendo</string>
+    <string name="chart_status_pendiente">Pendiente</string>
+    <string name="chart_status_abandonado">Abandonado</string>
+    <string name="chart_distribution_title">Distribución por estado (%1$d libros)</string>
+    <string name="chart_genre_title">Por género (%1$d libros)</string>
+
+    <!-- v21.10: géneros (display label, valor canónico sin tocar) -->
+    <string name="genre_arte">Arte</string>
+    <string name="genre_autoayuda">Autoayuda</string>
+    <string name="genre_aventura">Aventura</string>
+    <string name="genre_biografia">Biografía</string>
+    <string name="genre_ciencia">Ciencia</string>
+    <string name="genre_ciencia_ficcion">Ciencia ficción</string>
+    <string name="genre_comics_y_novela_grafica">Cómics y novela gráfica</string>
+    <string name="genre_costumbrismo">Costumbrismo</string>
+    <string name="genre_crimen">Crimen</string>
+    <string name="genre_deportes">Deportes</string>
+    <string name="genre_desarrollo_personal">Desarrollo personal</string>
+    <string name="genre_drama">Drama</string>
+    <string name="genre_economia">Economía</string>
+    <string name="genre_educacion">Educación</string>
+    <string name="genre_ensayo">Ensayo</string>
+    <string name="genre_fantasia">Fantasía</string>
+    <string name="genre_filosofia">Filosofía</string>
+    <string name="genre_grimdark">Grimdark</string>
+    <string name="genre_historia">Historia</string>
+    <string name="genre_humor">Humor</string>
+    <string name="genre_infantil">Infantil</string>
+    <string name="genre_juvenil">Juvenil</string>
+    <string name="genre_linguistica">Lingüística</string>
+    <string name="genre_literatura_clasica">Literatura clásica</string>
+    <string name="genre_manga">Manga</string>
+    <string name="genre_misterio">Misterio</string>
+    <string name="genre_mitologia">Mitología</string>
+    <string name="genre_musica">Música</string>
+    <string name="genre_naturaleza">Naturaleza</string>
+    <string name="genre_negocios">Negocios</string>
+    <string name="genre_novela_grafica">Novela gráfica</string>
+    <string name="genre_novela_historica">Novela histórica</string>
+    <string name="genre_novela_negra">Novela negra</string>
+    <string name="genre_periodismo">Periodismo</string>
+    <string name="genre_poesia">Poesía</string>
+    <string name="genre_politica">Política</string>
+    <string name="genre_psicologia">Psicología</string>
+    <string name="genre_religion_y_espiritualidad">Religión y espiritualidad</string>
+    <string name="genre_romance">Romance</string>
+    <string name="genre_salud_y_bienestar">Salud y bienestar</string>
+    <string name="genre_sociologia">Sociología</string>
+    <string name="genre_suspense">Suspense</string>
+    <string name="genre_teatro">Teatro</string>
+    <string name="genre_tecnologia">Tecnología</string>
+    <string name="genre_terror">Terror</string>
+    <string name="genre_thriller">Thriller</string>
+    <string name="genre_viajes">Viajes</string>
+    <string name="genre_otro">Otro</string>
+    <string name="genre_add_button">＋ Añadir género</string>
+    <string name="pill_libros_terminados">Libros\nterminados</string>
+    <string name="pill_media_mins_ses">Media mins/ses</string>
+
+    <!-- v21.14: slides tutorial nuevos/editados -->
+    <string name="tut_card_desc">Cada tarjeta tiene la información del libro (autor, páginas, géneros, nota) y botones rápidos: recargar portada y géneros, cambiar portada manualmente y borrar el libro. Clica en ella para entrar al detalle del libro.</string>
+    <string name="tut_pills_desc">Desde el icono de hamburguesa arriba a la izquierda abres el historial completo de todos los libros que has leído y releído, con estadísticas en todos ellos.</string>
+    <string name="tut_widget_title">Widget</string>
+    <string name="tut_widget_desc">El widget muestra el libro que tú elijas entre los que estás leyendo y muestra varias estadísticas de tu última sesión de lectura. Puedes personalizar cada cuánto se actualiza en Ajustes.</string>
+    <string name="tut_backup_title">Backup</string>
+    <string name="tut_backup_desc">Puedes hacer un backup de toda tu biblioteca (libros, sesiones, portadas, géneros...) desde el icono ⇅ tanto localmente como en Google Drive. Puedes personalizar cada cuánto se ejecutan los backups en Ajustes.</string>
+    <string name="tut_donations_title">Apóyame</string>
+    <string name="tut_donations_desc">Si te gusta la aplicación puedes apoyarme con una reseña en Play Store y a través de Ko-fi o PayPal. Puedes encontrar los enlaces en Ajustes.</string>
+    <string name="settings_tools_subtitle">Acciones masivas de recarga de géneros y portadas de forma automática</string>
+
+    <!-- v21.20: strings nuevos bilingüe -->
+    <!-- Temas -->
+    <string name="theme_light">☀️ Claro</string>
+    <string name="theme_dark">🌙 Oscuro</string>
+    <string name="theme_aurora">🌌 Aurora</string>
+    <string name="theme_oled">⬛ OLED</string>
+
+    <!-- Settings sections -->
+    <string name="settings_backup_subtitle">Configura tus copias de seguridad</string>
+    <string name="settings_widget_subtitle">Personaliza el comportamiento del widget</string>
+    <string name="settings_tools_title">HERRAMIENTAS</string>
+    <string name="settings_tutorial_title">TUTORIAL</string>
+    <string name="settings_tutorial_subtitle">Bienvenida a la app</string>
+    <string name="settings_tutorial_row_title">Ver tutorial de nuevo</string>
+    <string name="settings_tutorial_row_subtitle">Repasa el tutorial de bienvenida desde el principio.</string>
+    <string name="settings_help_title">AYUDA Y FEEDBACK</string>
+    <string name="settings_help_subtitle">Soporte al desarrollador</string>
+    <string name="settings_feedback_title">Enviar feedback</string>
+    <string name="settings_feedback_subtitle">Sugerencias, errores o comentarios al desarrollador.</string>
+
+    <!-- Bulk refresh -->
+    <string name="bulk_refresh_title_genres">Recarga masiva de Géneros</string>
+    <string name="bulk_refresh_title_covers">Recarga masiva de Portadas</string>
+    <string name="bulk_refresh_subtitle_genres">Actualiza el género de los libros consultando las APIs. Puede tardar varios minutos.</string>
+    <string name="bulk_refresh_subtitle_covers">Actualiza las portadas de los libros consultando las APIs. Puede tardar varios minutos.</string>
+    <string name="bulk_refresh_screen_title">Recargar %1$s</string>
+    <string name="bulk_refresh_dialog_title">Recarga masiva de %1$s</string>
+    <string name="bulk_refresh_all">🔄  Recargar todo</string>
+    <string name="bulk_refresh_select">☑️  Recargar seleccionando</string>
+    <string name="bulk_refresh_button">🔄 Recargar (%1$s)</string>
+    <string name="bulk_confirm_text_genres">Esta operación puede tardar varios minutos y sobrescribirá los cambios manuales realizados en los géneros. ¿Deseas continuar?</string>
+    <string name="bulk_confirm_text_covers">Esta operación puede tardar varios minutos y sobrescribirá los cambios manuales realizados en las portadas. ¿Deseas continuar?</string>
+    <string name="bulk_progress_genres_partial">%1$d/%2$d géneros recargados</string>
+    <string name="bulk_progress_covers_partial">%1$d/%2$d portadas recargadas</string>
+    <string name="bulk_done_genres">✅ Géneros: %1$d actualizados · %2$d sin resultado</string>
+    <string name="bulk_done_covers">✅ Portadas: %1$d actualizadas · %2$d sin resultado</string>
+    <string name="bulk_starting">Iniciando…</string>
+
+    <!-- Session sections -->
+    <string name="sessions_reading">📖 Sesiones de Lectura</string>
+    <string name="sessions_rereading_n">📖 Sesiones de Relectura %1$d</string>
+    <string name="sessions_rereading">📖 Sesiones de Relectura</string>
+    <string name="dates_section_reading">📖 Lectura</string>
+    <string name="dates_section_rereading_n">📖 Relectura %1$d</string>
+
+    <!-- DateEvent labels -->
+    <string name="date_event_start">Inicio</string>
+    <string name="date_event_end">Fin</string>
+    <string name="date_event_drop">Abandono</string>
+    <string name="date_event_drop_n">Abandono %1$d</string>
+    <string name="date_event_resume">Retomado</string>
+    <string name="date_event_resume_n">Retomado %1$d</string>
+    <string name="date_event_reread">Inicio de Relectura</string>
+    <string name="date_event_reread_n">Inicio de Relectura %1$d</string>
+    <string name="date_event_reread_end">Fin de Relectura</string>
+    <string name="date_event_reread_end_n">Fin de Relectura %1$d</string>
+
+    <!-- Cycle labels -->
+    <string name="cycle_label_reading">Lectura</string>
+    <string name="cycle_label_rereading">Relectura</string>
+    <string name="cycle_label_rereading_n">Relectura %1$d</string>
+
+    <!-- Sort order -->
+    <string name="sort_oldest_first">Más antiguo primero</string>
+    <string name="sort_newest_first">Más nuevo primero</string>
+
+    <!-- Stat boxes hardcoded -->
+    <string name="stat_days">Días</string>
+    <string name="stat_total_time">Tiempo total</string>
+    <string name="stat_sessions">Sesiones</string>
+
+    <!-- History header stats -->
+    <string name="history_stat_sessions">ses.</string>
+    <string name="history_stat_total_time">Tiempo Total</string>
+
+    <!-- History search results -->
+    <string name="history_search_one">%1$d sesión encontrada</string>
+    <string name="history_search_other">%1$d sesiones encontradas</string>
+
+    <!-- Export stat cells -->
+    <string name="export_stat_finished">Terminados</string>
+    <string name="export_stat_reading">Leyendo</string>
+    <string name="export_stat_pending">Pendientes</string>
+    <string name="export_stat_total">Total</string>
+
+    <!-- Wrapped time section -->
+    <string name="wrapped_sessions_label">sesiones</string>
+    <string name="wrapped_total_label">totales</string>
+
+    <!-- Timer notification -->
+    <string name="timer_reading">Leyendo…</string>
+    <string name="timer_paused">Pausado</string>
+
+    <!-- Timed session form -->
+    <string name="timed_session_title">Sesión cronometrada</string>
+    <string name="timed_session_pages">(%1$d páginas registradas)</string>
+
+    <!-- Add edition dialog -->
+    <string name="add_edition_info">Cada edición tiene sus propias sesiones, páginas y portada. Añadir una nueva edición no afecta a las existentes; todas se conservan y aparecen como entradas separadas en las estadísticas.</string>
+
+    <!-- Heatmap -->
+    <string name="heatmap_month_label">%1$s · Toca un mes para verlo en detalle</string>
+    <string name="heatmap_detail_label">%1$s %2$s · Toca cualquier día coloreado para ir a sus sesiones</string>
+
+    <!-- Delete date confirm -->
+    <string name="delete_date_confirm">¿Eliminar esta fecha (%1$s)?</string>
+
+    <!-- Book form date fields -->
+    <string name="form_start_date">Fecha de inicio * (dd-mm-aaaa)</string>
+    <string name="form_end_date">Fecha de finalización * (dd-mm-aaaa)</string>
+
+    <!-- Stats screen -->
+    <string name="stats_pages_month">Páginas por mes (%1$d páginas totales)</string>
+    <string name="stats_key_indicators">⚡ Indicadores clave (%1$d libros)</string>
+    <string name="stats_finished_books">%1$d libros terminados</string>
+
+    <!-- Wrapped → Statistics reference -->
+    <string name="wrapped_visit_stats">Entre el 26 de diciembre y el 26 de enero, visita Wrapped para generar y guardar el wrapped del año</string>
+
+    <!-- Tutorial pages (hardcoded) -->
+    <string name="tut_p1_title">Organiza tu biblioteca</string>
+    <string name="tut_p1_desc">Tus libros se ordenan en estanterías: Leyendo, Leído, Releyendo, Quiero Leer y Abandonado.</string>
+    <string name="tut_p2_title">Añadir libros</string>
+    <string name="tut_p2_desc">Añade un libro manualmente rellenando sus datos, o escanea el código de barras ISBN con la cámara para autocompletarlo.</string>
+    <string name="tut_p2b_title">Goodreads e importación</string>
+    <string name="tut_p2b_desc">¿Tienes libros en Goodreads? Desde el icono ⇅ puedes importar tu biblioteca en formato CSV. El proceso inverso también funciona: exporta tus libros desde Lecturameter para poder usarlos en cualquier otra parte.</string>
+    <string name="tut_search_desc">Usa el buscador para encontrar libros por título o autor y añadirlos a tu biblioteca con sus datos ya completos.</string>
+    <string name="tut_stat_pills_title">Estadísticas rápidas</string>
+    <string name="tut_history_row_title">Historial desplegable</string>
+    <string name="tut_history_row_desc">Desde el icono de menú arriba a la izquierda abres el historial completo de todas tus sesiones de lectura.</string>
+    <string name="tut_p3_title">Tarjetas de libro</string>
+    <string name="tut_p4_title">Cronómetro integrado</string>
+    <string name="tut_p4_desc">Al leer, pulsa \'Iniciar\' y registra tiempo real. Al parar, guarda automáticamente la sesión.</string>
+    <string name="tut_p5_title">Estadísticas al detalle</string>
+    <string name="tut_p5_desc">Revisa gráficas de páginas por mes, géneros y autores, además de tu resumen anual \'Wrapped\'.</string>
+    <string name="tut_p6_title">Mapa de calor</string>
+    <string name="tut_p6_desc">El heatmap muestra tu actividad diaria de lectura. Toca cualquier día para ver el detalle de esa jornada.</string>
+    <string name="tut_p7_title">Sesiones de lectura</string>
+    <string name="tut_p7_desc">Cada sesión guarda fecha, duración y páginas leídas. Se agrupan por ciclo si relees el mismo libro.</string>
+    <string name="tut_p8_title">Múltiples ediciones</string>
+    <string name="tut_p8_desc">Un libro puede tener ediciones en distintos idiomas. Cambia entre ellas sin perder sesiones.</string>
+    <string name="tut_p9_title">Personaliza tu experiencia</string>
+    <string name="tut_p9_desc">Elige entre 4 temas: Claro, Oscuro, Aurora y OLED (fondo negro puro).</string>
+    <string name="tut_p10_title">Herramientas en Ajustes</string>
+    <string name="tut_p10_desc">En Ajustes encontrarás recarga masiva de géneros y portadas, backups y configuración del widget.</string>
+    <string name="tut_p11_title">Enviar feedback</string>
+    <string name="tut_p11_desc">¿Algo falla o tienes una idea? Desde Ajustes → Herramientas → Enviar feedback puedes escribirnos directamente.</string>
+    <string name="tut_p12_title">Restricciones de batería en Lecturameter</string>    <string name="tut_p12_desc">En Xiaomi (MIUI/HyperOS), Oppo (ColorOS) y similares las restricciones de batería podrían impedir que el Cronómetro y las copias de seguridad funcionen correctamente. Ve a Información de la app > Ahorro de batería > Sin restricciones para que todo funcione como debe.</string>
+
+    <!-- v21.33: strings faltantes que rompían compilación -->
+    <string name="label_books_total">%1$d libros</string>
+    <string name="msg_backup_pending">Copia pendiente</string>
+    <string name="msg_backup_saved_custom">Copia guardada en %1$s</string>
+    <string name="msg_backup_saved_default">Copia guardada en carpeta por defecto</string>
+    <string name="msg_backup_error">Error al guardar copia</string>
+    <string name="msg_editions_not_found_es">No se han encontrado ediciones en español</string>
+    <string name="msg_editions_not_found_other">No se han encontrado ediciones en este idioma</string>
+    <string name="msg_refresh_updated">✅ Actualizado: %1$s</string>
+    <string name="msg_genre_updated">✅ Género actualizado</string>
+    <string name="msg_genre_not_found">⚠️ No se encontró un género fiable</string>
+    <string name="word_and"> y </string>
+    <string name="cd_end_session">Finalizar sesión</string>
+    <string name="by_author">por %1$s</string>
+    <string name="cd_swap_genres">Intercambiar géneros</string>
+    <string name="cd_collapse_note">Contraer nota</string>
+    <string name="cd_expand_note">Expandir nota</string>
+    <string name="cd_attached_image">Imagen adjunta</string>
+    <string name="label_default_backup_folder">Carpeta por defecto</string>
+    <string name="cd_use_default_folder">Volver a carpeta por defecto</string>
+    <string name="stats_no_data">Sin datos para %1$s</string>
+    <string name="stats_by_language">Por idioma (%1$d libros)</string>
+    <string name="stats_top_authors">Autores principales (%1$d libros)</string>
+
+    <!-- v21.41: meses independientes del locale del sistema (usan el idioma de la app) -->
+    <string-array name="month_names_full">
+        <item>Enero</item>
+        <item>Febrero</item>
+        <item>Marzo</item>
+        <item>Abril</item>
+        <item>Mayo</item>
+        <item>Junio</item>
+        <item>Julio</item>
+        <item>Agosto</item>
+        <item>Septiembre</item>
+        <item>Octubre</item>
+        <item>Noviembre</item>
+        <item>Diciembre</item>
+    </string-array>
+    <string-array name="month_names_short">
+        <item>Ene</item>
+        <item>Feb</item>
+        <item>Mar</item>
+        <item>Abr</item>
+        <item>May</item>
+        <item>Jun</item>
+        <item>Jul</item>
+        <item>Ago</item>
+        <item>Sep</item>
+        <item>Oct</item>
+        <item>Nov</item>
+        <item>Dic</item>
+    </string-array>
+</resources>
