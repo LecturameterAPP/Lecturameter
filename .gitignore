@@ -1,0 +1,40 @@
+# Android / Gradle
+*.iml
+.gradle/
+local.properties
+app/build/
+build/
+captures/
+*.hprof
+.cxx/
+
+# IDE
+.idea/
+*.swp
+.DS_Store
+
+# Claude / Skills (trabajo interno)
+.claude/
+.skills/
+
+# Documentación interna
+Lecturameter_documentacion.md
+
+# Carpeta de feedback (capturas, MDs de sesión)
+Feedback 2.6/
+
+# MDs y archivos de trabajo en app/
+app/auditoria_apis_resultados.md
+app/auditoría de APIs.md
+app/Feedback 2.6.md
+app/Portadas Clásicos.md
+app/Tareas_previas_compilacion_Lecturameter.md
+app/ISBN SCAN LOG.D
+
+# Capturas de WhatsApp en app/
+app/*.jpeg
+app/*.jpg
+app/imagen_*.jpg
+
+# Archivos de prueba
+app/src/main/assets/test.html
