@@ -3,9 +3,12 @@
 .gradle/
 local.properties
 app/build/
+app/release/
 build/
 captures/
 *.hprof
+*.aab
+*.apk
 .cxx/
 
 # IDE
