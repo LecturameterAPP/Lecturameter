@@ -655,7 +655,7 @@
     <string name="delete_date_confirm">¿Eliminar esta fecha (%1$s)?</string>
 
     <!-- Book form date fields -->
-    <string name="form_start_date">Fecha de inicio * (dd-mm-aaaa)</string>
+    <string name="form_start_date">Fecha inicio * (dd-mm-aaaa)</string>
     <string name="form_end_date">Fecha de finalización * (dd-mm-aaaa)</string>
 
     <!-- Stats screen -->
@@ -693,7 +693,7 @@
     <string name="tut_p5_title">Estadísticas al detalle</string>
     <string name="tut_p5_desc">Revisa gráficas de páginas por mes, géneros y autores, además de tu resumen anual \'Wrapped\'.</string>
     <string name="tut_p6_title">Mapa de calor</string>
-    <string name="tut_p6_desc">El heatmap muestra tu actividad diaria de lectura. Toca cualquier día para ver el detalle de esa jornada.</string>
+    <string name="tut_p6_desc">El mapa de calor muestra tu actividad diaria de lectura. Toca cualquier día para ver el detalle de esa jornada.</string>
     <string name="tut_p7_title">Sesiones de lectura</string>
     <string name="tut_p7_desc">Cada sesión guarda fecha, duración y páginas leídas. Se agrupan por ciclo si relees el mismo libro.</string>
     <string name="tut_p8_title">Múltiples ediciones</string>
@@ -791,11 +791,11 @@
     <string name="challenge_progress">%1$d/%2$d</string>
     <string name="challenge_create_title">Crear reto personalizado</string>
     <string name="challenge_create_button">Crear nuevo reto</string>
-    <string name="challenge_name_hint">Nombre del reto (ej. Verano de clásicos)</string>
+    <string name="challenge_name_hint">Nombre del reto * (ej. Verano de clásicos)</string>
     <string name="challenge_type_label">Tipo de reto</string>
-    <string name="challenge_target_hint">Objetivo (ej. 50)</string>
+    <string name="challenge_target_hint">Objetivo * (ej. 50)</string>
     <string name="challenge_end_date_hint">Fecha límite (opcional, dd-mm-aaaa)</string>
-    <string name="challenge_start_date_hint">Fecha de inicio (opcional, dd-mm-aaaa)</string>
+    <string name="challenge_start_date_hint">Fecha inicio (opcional, dd-mm-aaaa)</string>
     <string name="challenge_dates_note">Sin fechas, el reto cuenta el año natural en curso (incluye lo ya leído este año).</string>
     <string name="challenge_meta_from">desde %1$s</string>
     <string name="challenge_err_name">Escribe un nombre para el reto</string>
@@ -891,5 +891,5 @@
     <string name="dup_add_anyway">Añadir igualmente</string>
     <string name="edition_scan_not_found">No se encontró ninguna edición con ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edición aún sin indexar en las bases de datos. Se ofrece con el ISBN %1$s y los datos del libro; puedes editarla después.</string>
-    <string name="isbn_scan_not_found">No se han encontrado datos para este ISBN</string>
+    <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
 </resources>

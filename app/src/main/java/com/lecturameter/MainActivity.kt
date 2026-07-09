@@ -1,5 +1,5 @@
 package com.lecturameter
-import com.lecturameter.bookquest.BookQuestScreen
+
 
 import android.content.Context
 import android.content.Intent
@@ -470,7 +470,8 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
                     append(authorsArr.optString(j, "")); append(' ')
                 }
             }.trim()
-            val pages = info.optInt("pageCount", 0)
+            // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido)
+            val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
             val publishYear = info.optString("publishedDate", "").take(4)
             val imageLinks = info.optJSONObject("imageLinks")
             val coverUrl = imageLinks?.optString("thumbnail")
@@ -725,6 +726,29 @@ data class IsbnFullMetadata(
 // API key). Solo se cachean resultados con algún dato útil.
 private val isbnMetaCache = java.util.concurrent.ConcurrentHashMap<String, IsbnFullMetadata>()
 
+// Feedback 2.7: umbral de plausibilidad de páginas — por debajo se considera ficha
+// rota (sample, tomo suelto, error de catálogo tipo "Mitología japonesa" con 22 págs)
+// salvo que TODAS las fuentes coincidan en un valor bajo (libro ilustrado legítimo).
+private const val MIN_PLAUSIBLE_PAGES = 40
+
+// Feedback 2.7: consenso de páginas multi-fuente. `votes` = (valor, esFuentePorEdición)
+// en orden de fase (P1 → P4). Reglas: 1) descartar implausibles si hay alternativas,
+// 2) un valor repetido en ≥2 fuentes gana (modo; empate → orden de fase), 3) si no,
+// gana la primera fuente por edición y solo en último término las de nivel work
+// (median de OL search, GB por título).
+private fun consensusPages(votes: List<Pair<Int, Boolean>>): Int? {
+    if (votes.isEmpty()) return null
+    val plausible = votes.filter { it.first >= MIN_PLAUSIBLE_PAGES }
+    val pool = if (plausible.isNotEmpty()) plausible else votes
+    val counts = pool.groupingBy { it.first }.eachCount()
+    val maxCount = counts.values.max()
+    if (maxCount >= 2) {
+        val winners = counts.filterValues { it == maxCount }.keys
+        return pool.first { it.first in winners }.first
+    }
+    return (pool.firstOrNull { it.second } ?: pool.first()).first
+}
+
 private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     if (isbn.isBlank()) return IsbnFullMetadata()
     isbnMetaCache[isbn]?.let {
@@ -738,6 +762,17 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     var coverUrl: String? = null
     val tStart = System.currentTimeMillis()
     com.lecturameter.utils.AppLogger.log("fetchIsbnFullMetadata: isbn=$isbn", "IsbnScan")
+
+    // Feedback 2.7: cada fase VOTA sus páginas en vez de "la primera con valor gana".
+    // `pages` pasa a ser provisional (solo valores plausibles) para el gating de fases;
+    // el valor final lo decide consensusPages() al terminar la cadena.
+    val pageVotes = mutableListOf<Pair<Int, Boolean>>()
+    fun votePages(value: Int, editionLevel: Boolean) {
+        if (value > 0) {
+            pageVotes.add(value to editionLevel)
+            if (pages == null && value >= MIN_PLAUSIBLE_PAGES) pages = value
+        }
+    }
 
     // Feedback 2.6: variante ISBN-10/13 — GB y OL a veces indexan una edición solo
     // bajo una de las dos formas; probamos ambas en cada fase.
@@ -755,7 +790,7 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             val authors = info.optJSONArray("authors")
             if (authors != null && authors.length() > 0) author = authors.optString(0).ifBlank { null }
         }
-        if (pages == null) info.optInt("pageCount", 0).takeIf { it > 0 }?.let { pages = it }
+        votePages(info.optInt("pageCount", 0), editionLevel = true)  // Feedback 2.7: voto, no asignación
         info.optJSONArray("categories")?.let { cats ->
             for (i in 0 until cats.length()) rawGenres.add(cats.optString(i, ""))
         }
@@ -836,10 +871,7 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
                 if (authors != null && authors.length() > 0)
                     author = authors.optJSONObject(0)?.optString("name")?.ifBlank { null }
             }
-            if (pages == null) {
-                val pg = book.optInt("number_of_pages", 0)
-                if (pg > 0) pages = pg
-            }
+            votePages(book.optInt("number_of_pages", 0), editionLevel = true)  // Feedback 2.7
             if (coverUrl == null) {
                 val coverObj = book.optJSONObject("cover")
                 coverUrl = coverObj?.let {
@@ -873,7 +905,7 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             }
             if (ed != null) {
                 if (title.isNullOrBlank()) title = ed.optString("title").ifBlank { null }
-                if (pages == null) ed.optInt("number_of_pages", 0).takeIf { it > 0 }?.let { pages = it }
+                votePages(ed.optInt("number_of_pages", 0), editionLevel = true)  // Feedback 2.7
                 if (coverUrl == null) {
                     val coverId = ed.optJSONArray("covers")?.optLong(0, 0L) ?: 0L
                     if (coverId > 0) coverUrl = "https://covers.openlibrary.org/b/id/$coverId-L.jpg"
@@ -908,7 +940,8 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             val doc = try { JSONObject(body).optJSONArray("docs")?.optJSONObject(0) } catch (_: Exception) { null } ?: continue
             if (title.isNullOrBlank()) title = doc.optString("title").ifBlank { null }
             if (author.isNullOrBlank()) author = doc.optJSONArray("author_name")?.optString(0, "")?.ifBlank { null }
-            if (pages == null) doc.optInt("number_of_pages_median", 0).takeIf { it > 0 }?.let { pages = it }
+            // Feedback 2.7: median de OL search = nivel work (puede ser de otra edición/idioma)
+            votePages(doc.optInt("number_of_pages_median", 0), editionLevel = false)
             if (coverUrl == null) doc.optLong("cover_i", -1L).takeIf { it > 0 }?.let { coverUrl = "https://covers.openlibrary.org/b/id/$it-L.jpg" }
             doc.optJSONArray("subject")?.let { subj ->
                 for (i in 0 until minOf(subj.length(), 10)) rawGenres.add(subj.optString(i, ""))
@@ -935,7 +968,8 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             if (items != null) {
                 for (i in 0 until items.length()) {
                     val pg = items.optJSONObject(i)?.optJSONObject("volumeInfo")?.optInt("pageCount", 0) ?: 0
-                    if (pg > 0) { pages = pg; break }
+                    // Feedback 2.7: GB por título+autor = nivel work (edición indeterminada)
+                    if (pg > 0) { votePages(pg, editionLevel = false); break }
                 }
             }
             com.lecturameter.utils.AppLogger.log(
@@ -950,9 +984,12 @@ private suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         com.lecturameter.utils.AppLogger.log("P4 GB_title+author SKIP (sin título para query)", "IsbnScan")
     }
 
+    // Feedback 2.7: resolución final de páginas por consenso entre todas las fuentes
+    pages = consensusPages(pageVotes)
+
     val genres = bestGenreFromRawCandidates(rawGenres)
     com.lecturameter.utils.AppLogger.log(
-        "RESULTADO: title=${title != null} author=${author != null} pages=${pages ?: "-"} genres=${genres.size} cover=${coverUrl != null} total=${System.currentTimeMillis() - tStart}ms",
+        "RESULTADO: title=${title != null} author=${author != null} pages=${pages ?: "-"} votos=${pageVotes.map { it.first }} genres=${genres.size} cover=${coverUrl != null} total=${System.currentTimeMillis() - tStart}ms",
         "IsbnScan")
     val result = IsbnFullMetadata(title = title, author = author, pages = pages, genres = genres, coverUrl = coverUrl)
     if (title != null || pages != null || coverUrl != null) isbnMetaCache[isbn] = result
@@ -1681,7 +1718,9 @@ private suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withConte
         val info = items.getJSONObject(0).optJSONObject("volumeInfo") ?: return@withContext null
 
         val title = info.optString("title", "").takeIf { it.isNotBlank() } ?: return@withContext null
-        val pages = info.optInt("pageCount", 0)
+        // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido); fichas rotas de GB
+        // asignaban páginas absurdas a la edición
+        val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
         val publishYear = info.optString("publishedDate", "").take(4)
         val publisher = info.optString("publisher", "")
         val imageLinks = info.optJSONObject("imageLinks")
@@ -1761,7 +1800,8 @@ private suspend fun fetchEditionsViaOpenLibraryByIsbn(isbn: String): List<Editio
             entry.optJSONArray("isbn_13")?.optString(0, null)
                 ?: entry.optJSONArray("isbn_10")?.optString(0, null)
         )
-        val pages = entry.optInt("number_of_pages", 0)
+        // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
+        val pages = entry.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
         val publishDate = entry.optString("publish_date", "").take(4)
         val publisher = entry.optJSONArray("publishers")?.optString(0, "") ?: ""
         val publishPlace = entry.optJSONArray("publish_places")?.optString(0, "") ?: ""
@@ -1869,7 +1909,8 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
             // Si OL no tiene el libro aún, no inyectamos resultado vacío (title="", pages=0)
             val book = root.optJSONObject("ISBN:$isbn") ?: return@withContext null
             val title = cleanCompositeTitle(book.optString("title", "").ifBlank { "" })
-            val pages = book.optInt("number_of_pages", 0)
+            // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
+            val pages = book.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
             val publisher = book.optJSONArray("publishers")?.optJSONObject(0)?.optString("name", "") ?: ""
             val year = book.optString("publish_date", "").takeLast(4)
             val coverObj = book.optJSONObject("cover")
@@ -1886,7 +1927,8 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
         conn.connectTimeout = 6000; conn.readTimeout = 6000
         val j = JSONObject(conn.inputStream.bufferedReader().readText())
         val title = cleanCompositeTitle(j.optString("title", "").ifBlank { return@withContext null })
-        val pages = j.optInt("number_of_pages", 0)
+        // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
+        val pages = j.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
         val isbn = cleanIsbn(j.optJSONArray("isbn_13")?.optString(0, null)
             ?: j.optJSONArray("isbn_10")?.optString(0, null))
         val publisher = j.optJSONArray("publishers")?.optString(0, "") ?: ""
@@ -2193,7 +2235,8 @@ suspend fun fetchEditionsForBook(
                     } else {
                         cleanCompositeTitle(rawTitle)
                     }
-                    val pages = e.optInt("number_of_pages", 0)
+                    // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
+                    val pages = e.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
                     val publishDate = e.optString("publish_date", "").take(4)
                     val coverId = e.optJSONArray("covers")?.optLong(0, -1L) ?: -1L
                     var coverUrl: String? = if (coverId > 0) "https://covers.openlibrary.org/b/id/$coverId-L.jpg" else null
@@ -2236,7 +2279,8 @@ suspend fun fetchEditionsForBook(
                         val esTitle = cleanCompositeTitle(doc.optString("title", ""))
                         if (esTitle.isBlank()) continue
                         val esIsbn = cleanIsbn(doc.optJSONArray("isbn")?.optString(0, null))
-                        val pages = doc.optInt("number_of_pages", 0)
+                        // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
+                        val pages = doc.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
                         val coverId = doc.optLong("cover_i", -1L)
                         val coverUrl = if (coverId > 0) "https://covers.openlibrary.org/b/id/$coverId-L.jpg" else null
                         val publisher = doc.optJSONArray("publisher")?.optString(0, "") ?: ""
@@ -2262,7 +2306,9 @@ suspend fun fetchEditionsForBook(
 
         suspend fun addVolume(info: JSONObject) {
             val gbTitle = info.optString("title", "").takeIf { it.isNotBlank() } ?: return
-            val pages = info.optInt("pageCount", 0)
+            // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido) — fichas rotas
+            // de GB asignaban páginas absurdas a ediciones (ej. 22 págs)
+            val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
             val publishYear = info.optString("publishedDate", "").take(4)
             val identifiers = info.optJSONArray("industryIdentifiers")
             var gbIsbn: String? = null
@@ -2569,7 +2615,8 @@ suspend fun searchOpenLibrary(
                     if (edDoc == null) edDoc = edsArr.getJSONObject(0)
                 }
                 val edTitle = edDoc?.optString("title")?.ifBlank { null }
-                val edPages = edDoc?.optInt("number_of_pages", 0) ?: 0
+                // Feedback 2.7: páginas implausibles (<40) → 0 → cae al median del work
+                val edPages = (edDoc?.optInt("number_of_pages", 0) ?: 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
                 val edCoverId = edDoc?.optLong("cover_i", -1L) ?: -1L
                 val edIsbn = edDoc?.optJSONArray("isbn")?.let { arr ->
                     var f13: String? = null; var f10: String? = null
@@ -2581,7 +2628,8 @@ suspend fun searchOpenLibrary(
                     f13 ?: f10
                 }
 
-                val pages = if (edPages > 0) edPages else doc.optInt("number_of_pages_median", 0)
+                val pages = if (edPages > 0) edPages
+                    else doc.optInt("number_of_pages_median", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0  // Feedback 2.7
                 val coverId = if (edCoverId > 0) edCoverId else doc.optLong("cover_i", -1L)
                 val isbn = edIsbn ?: doc.optJSONArray("isbn")?.let { arr ->
                     var f13: String? = null; var f10: String? = null
@@ -2659,17 +2707,46 @@ suspend fun searchOpenLibrary(
             .sortedWith(comparator))
     }
 
+    // Feedback 2.7: query tipo ISBN (escaneada o pegada). Antes se enviaba cruda como
+    // q=<isbn> y con ISBN-10 OL no resolvía nada ("escanear un ISBN-10 no hace nada").
+    // Ahora: detectar el ISBN, buscar con el cualificador isbn: probando forma 13 y 10,
+    // y si OL no lo conoce, caer en la cadena completa por ISBN (GB con reintentos +
+    // OL edición directa), la misma que usa el alta por escaneo.
+    val strippedQ = query.trim().replace(Regex("[\\s-]"), "")
+    val isbnQuery = if (Regex("^\\d{13}$|^\\d{9}[\\dXx]$").matches(strippedQ)) strippedQ.uppercase() else null
+
     // Auditoría APIs r2: throttle 200ms/host también en la búsqueda principal
-    ApiThrottle.gate("openlibrary.org")
-    fetchAndParseOL("https://openlibrary.org/search.json?q=$encoded&lang=$preferredLang&limit=20&fields=$olFields")
-    emitPartial()
-    ApiThrottle.gate("openlibrary.org")
-    fetchAndParseOL("https://openlibrary.org/search.json?q=$encoded&language=$prefOl&limit=10&fields=$olFields")
-    emitPartial()
-    if (results.size < 5) {
-        ApiThrottle.gate("openlibrary.org")
-        fetchAndParseOL("https://openlibrary.org/search.json?title=$encoded&limit=10&fields=$olFields")
+    if (isbnQuery != null) {
+        val isbnAlt = if (isbnQuery.length == 10) isbn10To13(isbnQuery) else isbn13To10(isbnQuery)
+        for (candidate in listOfNotNull(isbnQuery, isbnAlt)) {
+            ApiThrottle.gate("openlibrary.org")
+            fetchAndParseOL("https://openlibrary.org/search.json?q=isbn:$candidate&limit=10&fields=$olFields")
+            if (results.isNotEmpty()) break
+        }
         emitPartial()
+        if (results.isEmpty()) {
+            val meta = fetchIsbnFullMetadata(isbnQuery)
+            if (!meta.title.isNullOrBlank()) {
+                val (lId, _, _) = isbnToLanguageMeta(isbnQuery)
+                results.add(OpenLibraryResult(
+                    meta.title, meta.author ?: "", meta.pages ?: 0, meta.coverUrl,
+                    canonicalIsbn(isbnQuery) ?: isbnQuery, meta.genres.joinToString("; "), "",
+                    "isbn_$isbnQuery", language = lId.takeIf { it.length == 2 } ?: ""))
+                emitPartial()
+            }
+        }
+    } else {
+        ApiThrottle.gate("openlibrary.org")
+        fetchAndParseOL("https://openlibrary.org/search.json?q=$encoded&lang=$preferredLang&limit=20&fields=$olFields")
+        emitPartial()
+        ApiThrottle.gate("openlibrary.org")
+        fetchAndParseOL("https://openlibrary.org/search.json?q=$encoded&language=$prefOl&limit=10&fields=$olFields")
+        emitPartial()
+        if (results.size < 5) {
+            ApiThrottle.gate("openlibrary.org")
+            fetchAndParseOL("https://openlibrary.org/search.json?title=$encoded&limit=10&fields=$olFields")
+            emitPartial()
+        }
     }
 
     // 1b. Alias ES→EN: mismo diccionario que usa "Cambiar edición" (unifica ambos flujos).
@@ -2703,7 +2780,9 @@ suspend fun searchOpenLibrary(
 
     // 2. Completar/reemplazar con Google Books si hay pocos resultados, pocas portadas, o géneros vacíos
     if (needsGoogleBooks || needsGenreEnrich) {
-        val gbResults = fetchGoogleBooksResults(query, maxResults = 15, preferredLang = preferredLang)
+        // Feedback 2.7: para queries ISBN, GB con cualificador isbn: (forma canónica 13)
+        val gbQuery = if (isbnQuery != null) "isbn:${canonicalIsbn(isbnQuery) ?: isbnQuery}" else query
+        val gbResults = fetchGoogleBooksResults(gbQuery, maxResults = 15, preferredLang = preferredLang)
         val olTitlesNorm = results.map { it.title.lowercase().trim() }.toSet()
         for (gb in gbResults) {
             val norm = gb.title.lowercase().trim()
@@ -5447,7 +5526,7 @@ fun WideScreenCenter(enabled: Boolean = true, maxContentWidth: Dp = 640.dp, cont
 sealed class Screen {
     object List : Screen(); object Add : Screen(); object BookSearch : Screen(); object Stats : Screen()
     object ImportExport : Screen(); object WrappedHistory : Screen(); object SessionHistory : Screen()
-    object BookQuest : Screen(); object Settings : Screen(); object Challenges : Screen()
+    object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
     data class AuthorBooks(val author: String) : Screen()
     data class Wrapped(val year: Int) : Screen()
@@ -5463,7 +5542,7 @@ private fun Screen.routeKey(): String = when (this) {
     is Screen.ImportExport -> "import_export"
     is Screen.WrappedHistory -> "wrapped_history"
     is Screen.SessionHistory -> "session_history"
-    is Screen.BookQuest -> "bookquest"
+    is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
     is Screen.Detail -> if (highlightDate != null) "detail:$id:$highlightDate" else "detail:$id"
@@ -5481,7 +5560,7 @@ private fun screenFromRoute(route: String): Screen? = when {
     route == "import_export" -> Screen.ImportExport
     route == "wrapped_history" -> Screen.WrappedHistory
     route == "session_history" -> Screen.SessionHistory
-    route == "bookquest" -> Screen.BookQuest
+    route == "bingo" -> Screen.Bingo
     route == "settings" -> Screen.Settings
     route == "challenges" -> Screen.Challenges
     route.startsWith("detail:") -> {
@@ -5825,14 +5904,6 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         goBack()
     }
 
-    // Bug 2 fix: BookQuest se renderiza FUERA del ModalNavigationDrawer
-    // para que el drawer no coexista nunca con el juego
-    if (screen is Screen.BookQuest) {
-        Box(Modifier.fillMaxSize().systemBarsPadding()) {
-            BookQuestScreen(vm = vm, onExit = { goBack() })
-        }
-    } else {
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         // v2.5: el gesto de apertura solo en la pantalla principal (o si ya está abierto,
@@ -5860,8 +5931,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 is Screen.Detail      -> WideScreenCenter { DetailScreen(vm, prefs, theme, s.id, highlightDate = s.highlightDate, onBack = { goBack() }, onAuthorClick = { navigateTo(Screen.AuthorBooks(it)) }) }
                 else -> saveableStateHolder.SaveableStateProvider(screen.routeKey()) {
                     // v2.4: pantallas secundarias centradas en anchos ≥600dp.
-                    // List gestiona su propio grid; BookQuest (WebView) usa todo el ancho.
-                    WideScreenCenter(enabled = screen !is Screen.List && screen !is Screen.BookQuest) {
+                    WideScreenCenter(enabled = screen !is Screen.List) {
                     when (val s2 = screen) {
                         is Screen.List          -> {
                             val mainActivity = context as? MainActivity
@@ -5905,10 +5975,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                     navigateTo(Screen.Add)
                                 },
                                 onEasterEgg = {
-                                    drawerScope.launch {
-                                        drawerState.close()
-                                        navigateTo(Screen.BookQuest)
-                                    }
+                                    navigateTo(Screen.Bingo)
                                 }
                             )
                         }
@@ -5986,7 +6053,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                         is Screen.Challenges    -> ChallengesScreen(vm, prefs, theme, onBack = { goBack() })
                         is Screen.SessionHistory -> { /* handled by drawer */ }
                         is Screen.Detail        -> { /* handled above */ }
-                        is Screen.BookQuest   -> { /* handled above, outside drawer */ }
+                        is Screen.Bingo -> BingoPlaceholderScreen(theme, onBack = { goBack() })
                         is Screen.BulkReload  -> BulkReloadScreen(vm, prefs, theme, s2.type, onBack = { goBack() })
                         is Screen.DailySessions -> DailySessionsScreen(
                             date = s2.date,
@@ -6002,7 +6069,26 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             }
         }
     }
-} // else de BookQuest
+}
+
+@Composable
+fun BingoPlaceholderScreen(theme: Theme, onBack: () -> Unit) {
+    BackHandler { onBack() }
+    Box(
+        modifier = androidx.compose.ui.Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            IconButton(onClick = onBack, modifier = androidx.compose.ui.Modifier.align(Alignment.Start).padding(8.dp)) {
+                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
+            }
+            Spacer(androidx.compose.ui.Modifier.weight(1f))
+            Text("Bingo", color = theme.textMain, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(androidx.compose.ui.Modifier.height(12.dp))
+            Text("Disponible en Fase 5", color = theme.textMuted, fontSize = 14.sp)
+            Spacer(androidx.compose.ui.Modifier.weight(1f))
+        }
+    }
 }
 
 // v2.5: aviso de libro duplicado (Cancelar rojo / Añadir igualmente Accent)
@@ -6484,8 +6570,10 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                             shape = RoundedCornerShape(999.dp),
                             border = BorderStroke(1.5.dp, theme.border),
                             colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = theme.textMuted),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            modifier = Modifier.height(44.dp)
+                            // Feedback 2.7: mismo padding y anchura mínima que "Siguiente" —
+                            // los dos botones laterales quedan del mismo tamaño
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            modifier = Modifier.height(44.dp).defaultMinSize(minWidth = 108.dp)
                         ) { Text(stringResource(R.string.txt_c673411e), fontSize = 14.sp, maxLines = 1) }
                     }
                 }
@@ -6507,7 +6595,8 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                         shape = RoundedCornerShape(999.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Accent),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                        modifier = Modifier.height(44.dp)
+                        // Feedback 2.7: anchura mínima compartida con "Atrás" (mismo tamaño)
+                        modifier = Modifier.height(44.dp).defaultMinSize(minWidth = 108.dp)
                     ) {
                         Text(
                             stringResource(if (isLastPage) R.string.txt_d4d1809c else R.string.txt_eccc5922),
@@ -6641,61 +6730,12 @@ fun ListScreen(
                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.txt_beea2815), tint = Accent, modifier = Modifier.size(22.dp))
                 }
                 Spacer(Modifier.width(6.dp))
-                // Easter egg: 4 toques → BookQuest
-                val ldContext  = LocalContext.current
-                var ldTapCount by remember { mutableStateOf(0) }
-                var ldLastTap  by remember { mutableStateOf(0L) }
-                var ldPrevTap  by remember { mutableStateOf(0L) }
-                var ldToast: Toast? by remember { mutableStateOf(null) }
-                // Bug 1 fix: cancelar el toast si el composable se desmonta
-                DisposableEffect(Unit) { onDispose { ldToast?.cancel() } }
                 Text(
                     stringResource(R.string.txt_4d8b0a6f),
                     color = theme.textMain,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        val now = System.currentTimeMillis()
-                        val interval = now - ldLastTap
-                        // Si el tap es demasiado rápido (< 150ms), cancelar y avisar
-                        if (ldLastTap > 0L && interval < 150L) {
-                            ldTapCount = 0
-                            ldPrevTap = 0L
-                            ldLastTap = now
-                            ldToast?.cancel()
-                            val msg = if ((ldContext.resources.configuration.locales[0].language) == "en")
-                                "Slower, please!" else "¡Más despacio, por favor!"
-                            ldToast = Toast.makeText(ldContext, msg, Toast.LENGTH_SHORT)
-                            ldToast?.show()
-                            return@clickable
-                        }
-                        if (now - ldLastTap > 5_000L) ldTapCount = 0
-                        ldPrevTap = ldLastTap
-                        ldTapCount++
-                        ldLastTap = now
-                        when {
-                            ldTapCount < 4 -> {
-                                ldToast?.cancel()
-                                ldToast = Toast.makeText(
-                                    ldContext,
-                                    ldContext.getString(R.string.msg_easter_egg_tap_more, 4 - ldTapCount),
-                                    Toast.LENGTH_SHORT
-                                )
-                                ldToast?.show()
-                            }
-                            else -> {
-                                // Bug 1 fix: cancelar el último toast antes de navegar
-                                ldToast?.cancel()
-                                ldToast = null
-                                ldTapCount = 0
-                                onEasterEgg()
-                            }
-                        }
-                    }
+                    maxLines = 1
                 )
             }
             // ── Icons row ────────────────────────────────────────────────────
@@ -6785,10 +6825,11 @@ fun ListScreen(
                     IconButton(onClick = onStats, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.BarChart, contentDescription = "Statistics", tint = Accent, modifier = Modifier.size(18.dp))
                     }
-                    // v2.4 rework: el botón de backups (Import/Export) se sustituye por Retos 🏆.
-                    // Los backups viven ahora en Ajustes.
                     IconButton(onClick = onChallenges, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.EmojiEvents, contentDescription = "Challenges", tint = Accent, modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = onEasterEgg, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.GridView, contentDescription = "Bingo", tint = Accent, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onSearch, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Search, contentDescription = stringResource(R.string.txt_113f7428), tint = Accent, modifier = Modifier.size(18.dp))
@@ -7236,7 +7277,7 @@ fun exportFullBackup(context: Context, vm: BooksViewModel): Uri? {
         val gson = Gson()
         val json = gson.toJson(backup)
         val sdf = SimpleDateFormat("ddMMyy", Locale.getDefault())
-        val fileName = "Backup_Lecturameter_${sdf.format(Date())}.json"
+        val fileName = "Backup_Refrac_${sdf.format(Date())}.json"
         val file = File(context.cacheDir, fileName)
         FileWriter(file).use { it.write(json) }
         FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
@@ -8590,25 +8631,30 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         wrapped.bestDayPerMonth.forEach { (m, date, pages) ->
                             val isBest = date == wrapped.mostReadDay
                             val isSelected = date == selectedDay
+                            // Feedback 2.7: el mes seleccionado destaca más (fondo/borde más
+                            // intensos y texto en cian, tamaño +1sp); el resto de filas queda
+                            // igual de compacto para que los 12 meses sigan siendo legibles.
                             Surface(
                                 onClick = { selectedDay = date },
                                 shape = RoundedCornerShape(14.dp),
                                 color = when {
-                                    isSelected -> Color(0xFF22D3EE).copy(0.16f)
+                                    isSelected -> Color(0xFF22D3EE).copy(0.22f)
                                     isBest     -> Color(0xFF22D3EE).copy(0.08f)
                                     else       -> Accent.copy(0.06f)
                                 },
-                                border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, when {
-                                    isSelected -> Color(0xFF22D3EE).copy(0.7f)
+                                border = BorderStroke(if (isSelected) 2.dp else 1.dp, when {
+                                    isSelected -> Color(0xFF22D3EE).copy(0.9f)
                                     isBest     -> Color(0xFF22D3EE).copy(0.35f)
                                     else       -> Accent.copy(0.18f)
                                 }),
                                 modifier = Modifier.fillMaxWidth()) {
                                 Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(monthNames.getOrElse(m) { "" }, color = theme.textMain, fontSize = 13.sp,
+                                    Text(monthNames.getOrElse(m) { "" },
+                                        color = if (isSelected) Color(0xFF22D3EE) else theme.textMain,
+                                        fontSize = if (isSelected) 14.sp else 13.sp,
                                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(fmtDate(date), color = theme.textMuted, fontSize = 12.sp)
+                                    Text(fmtDate(date), color = if (isSelected) theme.textMain else theme.textMuted, fontSize = 12.sp)
                                     Spacer(Modifier.width(10.dp))
                                     Text(stringResource(R.string.wrapped_fav_pages, pages),
                                         color = if (isBest || isSelected) Color(0xFF22D3EE) else Accent2,
@@ -8637,8 +8683,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 if (mins > 0) pagesSel.toDouble() / mins else 0.0
                             } else if (isGlobalBest) wrapped.bestDayPagesPerMin else 0.0
                             Spacer(Modifier.height(8.dp))
+                            // Feedback 2.7: dorado (antes cian, idéntico a la pill de págs —
+                            // combina con la paleta Wrapped pero ya no se confunde con ella)
                             Text(stringResource(R.string.wrapped_bestday_breakdown, fmtDate(selectedDay)),
-                                color = Color(0xFF22D3EE), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(8.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 WrappedMiniCard("$pagesSel", stringResource(R.string.wcard_pages), Color(0xFF22D3EE), Modifier.weight(1f))
@@ -9452,16 +9500,9 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                     }
                 }
             }
-            // Botón historial Wrapped (siempre visible si hay historial)
-
-
-
-            // Botón historial Wrapped (siempre visible si hay historial)
-            if (vm.wrappedHistory.isNotEmpty()) {
-                IconButton(onClick = onWrappedHistory) {
-                    Text("🎁", fontSize = 20.sp)
-                }
-            }
+            // Feedback 2.7: eliminado el botón 🎁 de historial Wrapped de este header —
+            // comprimía el espacio y truncaba "N libros terminados". El historial sigue
+            // accesible desde el icono 🎁 de la pantalla principal y el banner en ventana.
         }
 
         // Banner Wrapped (solo en ventana)
@@ -10261,6 +10302,10 @@ fun BookSearchScreen(
         var searchStartDate by remember { mutableStateOf("") }
         var searchEndDate   by remember { mutableStateOf("") }
         var searchRating    by remember { mutableStateOf(0) }
+        // Feedback 2.7: el género detectado por la API era inamovible — ahora editable
+        // (multi-select hasta 2, mismo patrón que AddScreen), prefijado con lo detectado
+        var searchGenres by remember { mutableStateOf(mapApiGenre(r.genre).ifEmpty { if (r.genre.isNotBlank()) listOf("Otro") else emptyList() }) }
+        var searchGenreExpanded by remember { mutableStateOf(false) }
         val needsDates  = status in listOf(BookStatus.READING, BookStatus.FINISHED, BookStatus.REREADING, BookStatus.DROPPED)
         val needsEndDate = status in listOf(BookStatus.FINISHED, BookStatus.REREADING, BookStatus.DROPPED)
         AlertDialog(onDismissRequest = { selectedResult = null }, containerColor = theme.bgMid,
@@ -10326,6 +10371,39 @@ fun BookSearchScreen(
                             }
                         }
                     }
+                    // Feedback 2.7: género editable antes de guardar (máx 2)
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.txt_57d644ad), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+                    ExposedDropdownMenuBox(expanded = searchGenreExpanded, onExpandedChange = { searchGenreExpanded = it }) {
+                        OutlinedTextField(
+                            value = if (searchGenres.isEmpty()) "" else searchGenres.map { displayGenre(it) }.joinToString(" · "),
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = { Text(stringResource(R.string.txt_84a8f3ea), color = theme.textDim, fontSize = 13.sp) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = searchGenreExpanded) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            colors = fieldColors(theme),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        ExposedDropdownMenu(expanded = searchGenreExpanded, onDismissRequest = { searchGenreExpanded = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_bddf53d0), color = theme.textDim, fontSize = 13.sp) }, onClick = { searchGenres = emptyList(); searchGenreExpanded = false })
+                            BOOK_GENRES.filter { it != "Otro" }.forEach { g ->
+                                val selected = g in searchGenres
+                                DropdownMenuItem(
+                                    text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (selected) Text("✓", color = Accent, fontWeight = FontWeight.Bold)
+                                        Text(displayGenre(g), color = if (selected) Accent else theme.textMain, fontSize = 13.sp)
+                                    }},
+                                    onClick = {
+                                        searchGenres = if (selected) searchGenres - g
+                                        else if (searchGenres.size < 2) searchGenres + g
+                                        else searchGenres // ya hay 2, ignorar
+                                        if (searchGenres.size == 2) searchGenreExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_066bbf84), color = theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -10348,7 +10426,8 @@ fun BookSearchScreen(
                 Button(onClick = {
                     val storedStart = searchStartDate.trim().let { d -> if (d.length == 10) displayToStored(d) else if (needsDates) today() else null }
                     val storedEnd   = searchEndDate.trim().let { d -> if (d.length == 10) displayToStored(d) else if (needsEndDate) today() else null }
-                    val newBook = Book(title = r.title, author = r.author, pages = if (r.pages > 0) r.pages else 1, status = status, startDate = storedStart, endDate = storedEnd, rating = if (status == BookStatus.FINISHED) searchRating else 0, coverUrl = cleanCoverUrl(r.coverUrl), isbn = r.isbn, genres = mapApiGenre(r.genre).ifEmpty { if (r.genre.isNotBlank()) listOf("Otro") else emptyList() }, firstFunctionalPage = searchFirstFunc.toIntOrNull(), lastFunctionalPage = searchLastFunc.toIntOrNull())
+                    // Feedback 2.7: género elegido/confirmado por el usuario en el diálogo
+                    val newBook = Book(title = r.title, author = r.author, pages = if (r.pages > 0) r.pages else 1, status = status, startDate = storedStart, endDate = storedEnd, rating = if (status == BookStatus.FINISHED) searchRating else 0, coverUrl = cleanCoverUrl(r.coverUrl), isbn = r.isbn, genres = searchGenres, firstFunctionalPage = searchFirstFunc.toIntOrNull(), lastFunctionalPage = searchLastFunc.toIntOrNull())
                     val firstEdition = BookEdition(id = newBook.id, language = "mul", languageLabel = "Edición principal", flag = "🌐", title = newBook.title, pages = newBook.pages, coverUrl = newBook.coverUrl, isbn = newBook.isbn, isActive = true)
                     val toAdd = newBook.copy(editions = listOf(firstEdition))
                     // v2.5: aviso de duplicado (antes se añadía sin avisar)
@@ -10706,7 +10785,8 @@ fun AddScreen(
                     }
                 } else if (isbnAutoError) {
                     // v2.5: rojo (antes gris/textDim) + i18n (antes hardcoded ES)
-                    Text(stringResource(R.string.isbn_scan_not_found), color = Red, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    // Feedback 2.7: informativo (el ISBN se conserva), no error fatal → ámbar
+                    Text(stringResource(R.string.isbn_scan_not_found), color = Amber, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
                 }
                 Text(stringResource(R.string.txt_a3b8e497), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
                 OutlinedTextField(value = comment, onValueChange = { comment = it }, placeholder = { Text(stringResource(R.string.txt_f52cebe0), color = theme.textDim, fontSize = 13.sp) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).heightIn(min = 80.dp), colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), maxLines = 4)
@@ -15645,6 +15725,10 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             containerColor = theme.bgMid,
+            // Feedback 2.7: ancho fijo — el AlertDialog de M3 crece con el ancho intrínseco
+            // del OutlinedTextField y, con un nombre de reto largo, se salía de la pantalla
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier.fillMaxWidth(0.92f),
             title = { Text(stringResource(R.string.challenge_create_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = {
                 // v2.4: scroll de respaldo para landscape móvil

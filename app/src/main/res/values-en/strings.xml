@@ -791,9 +791,9 @@
     <string name="challenge_progress">%1$d/%2$d</string>
     <string name="challenge_create_title">Create custom challenge</string>
     <string name="challenge_create_button">Create new challenge</string>
-    <string name="challenge_name_hint">Challenge name (e.g. Summer of classics)</string>
+    <string name="challenge_name_hint">Challenge name * (e.g. Summer of classics)</string>
     <string name="challenge_type_label">Challenge type</string>
-    <string name="challenge_target_hint">Target (e.g. 50)</string>
+    <string name="challenge_target_hint">Target * (e.g. 50)</string>
     <string name="challenge_end_date_hint">Deadline (optional, dd-mm-yyyy)</string>
     <string name="challenge_start_date_hint">Start date (optional, dd-mm-yyyy)</string>
     <string name="challenge_dates_note">Without dates, the challenge counts the current calendar year (including what you already read this year).</string>
@@ -891,5 +891,5 @@
     <string name="dup_add_anyway">Add anyway</string>
     <string name="edition_scan_not_found">No edition found for ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edition not yet indexed in the databases. Offered with ISBN %1$s and this book\'s data; you can edit it later.</string>
-    <string name="isbn_scan_not_found">No data found for this ISBN</string>
+    <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
 </resources>
