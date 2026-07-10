@@ -222,15 +222,10 @@ class BooksViewModel : ViewModel() {
     var challenges by mutableStateOf<List<Challenge>>(emptyList())
         private set
     private fun saveChallenges(prefs: android.content.SharedPreferences) {
-        prefs.edit().putString("challenges", gson.toJson(challenges)).apply()
+        com.lecturameter.repository.ChallengeRepository.save(prefs, challenges)
     }
     fun loadChallenges(prefs: android.content.SharedPreferences) {
-        val json = prefs.getString("challenges", null)
-        if (json != null) {
-            val type = object : TypeToken<List<Challenge>>() {}.type
-            challenges = (gson.fromJson<List<Challenge>>(json, type) ?: emptyList())
-                .filter { it.name != null && it.type != null }  // Gson puede colar nulls desde JSON corrupto
-        }
+        com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs)?.let { challenges = it }
         // Migración Feedback 2.6 (ONE-SHOT, flag en prefs): hasta v2.6 los retos
         // personalizados se creaban con startDate = día de creación, así que los libros
         // ya terminados no contaban (reto de saga «Rueda del Tiempo» siempre 0/N).
@@ -347,25 +342,15 @@ class BooksViewModel : ViewModel() {
         // v2.4 rework: favoritos y retos se cargan SIEMPRE, antes del early return por libros vacíos
         showFavoritesOnly = prefs.getBoolean("show_favorites_only", false)
         loadChallenges(prefs)
-        val json = prefs.getString("books", null) ?: return
-        val type = object : TypeToken<List<Book>>() {}.type
-        // distinctBy { id }: si un proceso previo (restauración con IDs colisionantes) dejó
-        // libros fantasma con el mismo ID, se conserva solo el primero. Evita duplicados ocultos.
-        books = (gson.fromJson(json, type) ?: emptyList<Book>())
-            .map { sanitizeBook(it) }
-            .distinctBy { it.id }
+        // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
+        books = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
         themeMode = when (prefs.getString("theme_mode", "dark")) {
             "light"  -> ThemeMode.LIGHT
             "aurora" -> ThemeMode.AURORA
             "amoled" -> ThemeMode.AMOLED
             else     -> ThemeMode.DARK
         }
-        val sessJson = prefs.getString("sessions", null)
-        if (sessJson != null) {
-            val sessType = object : TypeToken<List<ReadingSession>>() {}.type
-            sessions = (gson.fromJson(sessJson, sessType) ?: emptyList<ReadingSession>())
-                .distinctBy { it.id }
-        }
+        com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessions = it }
         loadWrapped(prefs)
         autoRepairFinishedBooks(prefs)
         repairLegacyFlags(prefs)
@@ -687,12 +672,11 @@ class BooksViewModel : ViewModel() {
     }
 
     fun save(prefs: android.content.SharedPreferences, triggerBackup: Boolean = true) {
-        // v21.41: apply() en lugar de commit() — asíncrono, no bloquea hilo principal
-        prefs.edit().putString("books", gson.toJson(books)).apply()
+        com.lecturameter.repository.BookRepository.save(prefs, books)
         if (triggerBackup) triggerDriveBackup(prefs)
     }
     fun saveSessions(prefs: android.content.SharedPreferences, triggerBackup: Boolean = true) {
-        prefs.edit().putString("sessions", gson.toJson(sessions)).apply()
+        com.lecturameter.repository.SessionRepository.save(prefs, sessions)
         if (triggerBackup) triggerDriveBackup(prefs)
     }
 
@@ -1436,12 +1420,10 @@ class BooksViewModel : ViewModel() {
     var wrappedHistory by mutableStateOf<List<YearWrapped>>(emptyList())
 
     private fun loadWrapped(prefs: android.content.SharedPreferences) {
-        val json = prefs.getString("wrapped_history", null) ?: return
-        val type = object : TypeToken<List<YearWrapped>>() {}.type
-        wrappedHistory = try { Gson().fromJson(json, type) ?: emptyList() } catch (_: Exception) { emptyList() }
+        com.lecturameter.repository.WrappedRepository.loadOrNull(prefs)?.let { wrappedHistory = it }
     }
     private fun saveWrapped(prefs: android.content.SharedPreferences) {
-        prefs.edit().putString("wrapped_history", Gson().toJson(wrappedHistory)).apply()
+        com.lecturameter.repository.WrappedRepository.save(prefs, wrappedHistory)
         triggerDriveBackup(prefs)
     }
     fun saveWrappedForYear(wrapped: YearWrapped, prefs: android.content.SharedPreferences) {

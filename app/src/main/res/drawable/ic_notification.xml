@@ -3,22 +3,25 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Página izquierda -->
+    <!-- QA Fase 0 (P-014): los iconos de notificación se tiñen por canal alfa, así que
+         las líneas de texto deben ser HUECOS del path (fillType evenOdd), no rellenos
+         oscuros. Líneas con margen, grosor uniforme y última línea corta (párrafo). -->
+    <!-- Página izquierda con líneas de texto recortadas -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,6 C10,4.5 7,4 4,4.5 C3.4,4.6 3,5.1 3,5.7 L3,18.3 C3,19 3.7,19.5 4.4,19.3 C7.1,18.6 9.9,18.9 12,20 Z" />
-    <!-- Líneas página izquierda -->
-    <path android:fillColor="#1a1a1a" android:pathData="M5.0,9.0 L10.8,9.8 L10.8,10.6 L5.0,9.8 Z" />
-    <path android:fillColor="#1a1a1a" android:pathData="M5.0,11.3 L10.8,12.1 L10.8,12.9 L5.0,12.1 Z" />
-    <path android:fillColor="#1a1a1a" android:pathData="M5.0,13.6 L10.8,14.4 L10.8,15.2 L5.0,14.4 Z" />
-    <!-- Página derecha -->
+        android:fillType="evenOdd"
+        android:pathData="M12,6 C10,4.5 7,4 4,4.5 C3.4,4.6 3,5.1 3,5.7 L3,18.3 C3,19 3.7,19.5 4.4,19.3 C7.1,18.6 9.9,18.9 12,20 Z
+            M5,8.6 L10.4,9.35 L10.4,10.3 L5,9.55 Z
+            M5,11.1 L10.4,11.85 L10.4,12.8 L5,12.05 Z
+            M5,13.6 L8.4,14.07 L8.4,15.02 L5,14.55 Z" />
+    <!-- Página derecha con líneas de texto recortadas -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,6 C14,4.5 17,4 20,4.5 C20.6,4.6 21,5.1 21,5.7 L21,18.3 C21,19 20.3,19.5 19.6,19.3 C16.9,18.6 14.1,18.9 12,20 Z" />
-    <!-- Líneas página derecha -->
-    <path android:fillColor="#1a1a1a" android:pathData="M13.2,9.8 L19.0,9.0 L19.0,9.8 L13.2,10.6 Z" />
-    <path android:fillColor="#1a1a1a" android:pathData="M13.2,12.1 L19.0,11.3 L19.0,12.1 L13.2,12.9 Z" />
-    <path android:fillColor="#1a1a1a" android:pathData="M13.2,14.4 L19.0,13.6 L19.0,14.4 L13.2,15.2 Z" />
+        android:fillType="evenOdd"
+        android:pathData="M12,6 C14,4.5 17,4 20,4.5 C20.6,4.6 21,5.1 21,5.7 L21,18.3 C21,19 20.3,19.5 19.6,19.3 C16.9,18.6 14.1,18.9 12,20 Z
+            M13.6,9.35 L19,8.6 L19,9.55 L13.6,10.3 Z
+            M13.6,11.85 L19,11.1 L19,12.05 L13.6,12.8 Z
+            M13.6,14.07 L17,13.6 L17,14.55 L13.6,15.02 Z" />
     <!-- Lomo central -->
     <path
         android:fillColor="#FFFFFF"
