@@ -123,6 +123,11 @@ import com.google.android.gms.common.api.ApiException
 import java.util.concurrent.TimeUnit
 import com.lecturameter.model.*
 import com.lecturameter.utils.*
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 // v21.41: pointerInput + detectTapGestures removidos (simulate wrapped eliminado)
 
 // ── Modelo ────────────────────────────────────────────────────────────────────
@@ -1058,7 +1063,11 @@ sealed class Screen {
     data class DailySessions(val date: String) : Screen()
 }
 
-private fun Screen.routeKey(): String = when (this) {
+// Fase 1.4: navegación migrada a Compose Navigation (NavController).
+// Screen sigue siendo el vocabulario de destinos; route() lo serializa a la ruta string.
+// El NavController persiste el backstack en SavedState (rotación y muerte de proceso),
+// sustituyendo al backstack manual en rememberSaveable + saveableStateHolder de 2.7.
+private fun Screen.route(): String = when (this) {
     is Screen.List -> "list"
     is Screen.Add -> "add"
     is Screen.BookSearch -> "book_search"
@@ -1069,44 +1078,11 @@ private fun Screen.routeKey(): String = when (this) {
     is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
-    is Screen.Detail -> if (highlightDate != null) "detail:$id:$highlightDate" else "detail:$id"
-    is Screen.AuthorBooks -> "author:${Uri.encode(author)}"
-    is Screen.Wrapped -> "wrapped:$year"
-    is Screen.BulkReload -> "bulk_reload:$type"
-    is Screen.DailySessions -> "daily_sessions:$date"
-}
-
-private fun screenFromRoute(route: String): Screen? = when {
-    route == "list" -> Screen.List
-    route == "add" -> Screen.Add
-    route == "book_search" -> Screen.BookSearch
-    route == "stats" -> Screen.Stats
-    route == "import_export" -> Screen.ImportExport
-    route == "wrapped_history" -> Screen.WrappedHistory
-    route == "session_history" -> Screen.SessionHistory
-    route == "bingo" -> Screen.Bingo
-    route == "settings" -> Screen.Settings
-    route == "challenges" -> Screen.Challenges
-    route.startsWith("detail:") -> {
-        val parts = route.substringAfter(':').split(":")
-        val bookId = parts.getOrNull(0)?.toLongOrNull()
-        val date = parts.getOrNull(1)
-        bookId?.let { Screen.Detail(it, date) }
-    }
-    route.startsWith("author:") -> Screen.AuthorBooks(Uri.decode(route.substringAfter(':')))
-    route.startsWith("wrapped:") -> route.substringAfter(':').toIntOrNull()?.let { Screen.Wrapped(it) }
-    route.startsWith("bulk_reload:") -> Screen.BulkReload(route.substringAfter(':'))
-    route.startsWith("daily_sessions:") -> Screen.DailySessions(route.substringAfter(':'))
-    else -> null
-}
-
-private fun restoreBackStack(routes: List<String>): List<Screen> {
-    val screens = routes.mapNotNull { screenFromRoute(it) }
-    return when {
-        screens.isEmpty() -> listOf(Screen.List)
-        screens.first() is Screen.List -> screens
-        else -> listOf(Screen.List) + screens
-    }
+    is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
+    is Screen.AuthorBooks -> "author/${Uri.encode(author)}"
+    is Screen.Wrapped -> "wrapped/$year"
+    is Screen.BulkReload -> "bulk_reload/$type"
+    is Screen.DailySessions -> "daily_sessions/$date"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1181,33 +1157,36 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         }
     }
 
-    val initialBackStack = remember(initialScreen) {
-        if (initialScreen is Screen.List) listOf(Screen.List) else listOf(Screen.List, initialScreen)
-    }
-    var backStackRoutes by rememberSaveable {
-        mutableStateOf(initialBackStack.map { it.routeKey() })
-    }
+    val navController = androidx.navigation.compose.rememberNavController()
     var backPressedOnce by remember { mutableStateOf(false) }
-    val backStack = restoreBackStack(backStackRoutes)
-    val screen = backStack.last()
-    val saveableStateHolder = rememberSaveableStateHolder()
+    // Ruta actual (para gestos del drawer y doble-atrás en la principal)
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val isOnList = (currentEntry?.destination?.route ?: "list") == "list"
 
     fun navigateTo(destination: Screen) {
         backPressedOnce = false
-        val destinationRoute = destination.routeKey()
-        backStackRoutes = when {
-            destination is Screen.List -> listOf(Screen.List.routeKey())
-            backStackRoutes.lastOrNull() == destinationRoute -> backStackRoutes
-            else -> backStackRoutes + destinationRoute
+        if (destination is Screen.List) {
+            // Semántica 2.7: navegar a List resetea el backstack (volvemos a la entrada raíz existente)
+            navController.popBackStack("list", false)
+        } else {
+            navController.navigate(destination.route()) { launchSingleTop = true }
         }
     }
 
     fun goBack() {
         backPressedOnce = false
-        if (backStackRoutes.size > 1) {
-            backStackRoutes = backStackRoutes.dropLast(1)
-        } else {
+        if (!navController.popBackStack()) {
             (context as? android.app.Activity)?.finish()
+        }
+    }
+
+    // Navegación inicial (timer/deep link) — una sola vez; el NavController restaura
+    // el backstack por sí mismo en recreaciones y muerte de proceso.
+    var initialNavDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!initialNavDone) {
+            initialNavDone = true
+            if (initialScreen !is Screen.List) navController.navigate(initialScreen.route())
         }
     }
 
@@ -1410,8 +1389,9 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         drawerScope.launch { drawerState.close() }
     }
 
-    // Doble pulsación para salir desde la pantalla principal
-    BackHandler(enabled = drawerState.isClosed && screen is Screen.List) {
+    // Doble pulsación para salir desde la pantalla principal.
+    // (El atrás en el resto de pantallas lo gestiona el propio NavController.)
+    BackHandler(enabled = drawerState.isClosed && isOnList) {
         if (backPressedOnce) {
             (context as? android.app.Activity)?.finish()
         } else {
@@ -1423,17 +1403,12 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         }
     }
 
-    // Volver atrás desde cualquier otra pantalla
-    BackHandler(enabled = drawerState.isClosed && screen !is Screen.List) {
-        goBack()
-    }
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         // v2.5: el gesto de apertura solo en la pantalla principal (o si ya está abierto,
         // para poder cerrarlo). Antes, en landscape y en otras pantallas los swipes
         // horizontales abrían el historial sin querer y lo hacían inutilizable.
-        gesturesEnabled = vm.tutorialCompleted && (screen is Screen.List || drawerState.isOpen),
+        gesturesEnabled = vm.tutorialCompleted && (isOnList || drawerState.isOpen),
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = theme.bgDark,
@@ -1451,13 +1426,18 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         }
     ) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))).systemBarsPadding()) {
-            when (val s = screen) {
-                is Screen.Detail      -> WideScreenCenter { DetailScreen(vm, prefs, theme, s.id, highlightDate = s.highlightDate, onBack = { goBack() }, onAuthorClick = { navigateTo(Screen.AuthorBooks(it)) }) }
-                else -> saveableStateHolder.SaveableStateProvider(screen.routeKey()) {
-                    // v2.4: pantallas secundarias centradas en anchos ≥600dp.
-                    WideScreenCenter(enabled = screen !is Screen.List) {
-                    when (val s2 = screen) {
-                        is Screen.List          -> {
+            // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
+            // v2.4: pantallas secundarias centradas en anchos ≥600dp via WideScreenCenter.
+            NavHost(
+                navController = navController,
+                startDestination = "list",
+                enterTransition = { androidx.compose.animation.EnterTransition.None },
+                exitTransition = { androidx.compose.animation.ExitTransition.None },
+                popEnterTransition = { androidx.compose.animation.EnterTransition.None },
+                popExitTransition = { androidx.compose.animation.ExitTransition.None }
+            ) {
+                composable("list") {
+                    WideScreenCenter(enabled = false) {
                             val mainActivity = context as? MainActivity
                             ListScreen(vm, prefs, theme,
                                 onAdd = { navigateTo(Screen.Add) },
@@ -1502,8 +1482,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                     navigateTo(Screen.Bingo)
                                 }
                             )
-                        }
-                        is Screen.Add           -> {
+                    }
+                }
+                composable("add") {
+                    WideScreenCenter {
                             val mainActivity = context as? MainActivity
                             val scannedIsbn = mainActivity?.pendingScannedIsbn?.value
                             AddScreen(
@@ -1530,8 +1512,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                     }
                                 }
                             )
-                        }
-                        is Screen.BookSearch    -> {
+                    }
+                }
+                composable("book_search") {
+                    WideScreenCenter {
                             val bsMain = context as? MainActivity
                             val isbnForSearch = bsMain?.pendingScannedIsbn?.value ?: ""
                             val isbnFromScanner = bsMain?.isbnFromScannerForBookSearch?.value
@@ -1567,28 +1551,57 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                     }
                                 }
                             )
-                        }
-                        is Screen.Stats         -> StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) })
-                        is Screen.ImportExport  -> ImportExportScreen(vm, prefs, theme, onBack = { goBack() })
-                        is Screen.Wrapped       -> WrappedScreen(vm, prefs, theme, s2.year, onBack = { goBack() })
-                        is Screen.WrappedHistory -> WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) })
-                        is Screen.AuthorBooks   -> AuthorBooksScreen(vm, prefs, theme, s2.author, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) })
-                        is Screen.Settings      -> SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) })
-                        is Screen.Challenges    -> ChallengesScreen(vm, prefs, theme, onBack = { goBack() })
-                        is Screen.SessionHistory -> { /* handled by drawer */ }
-                        is Screen.Detail        -> { /* handled above */ }
-                        is Screen.Bingo -> BingoPlaceholderScreen(theme, onBack = { goBack() })
-                        is Screen.BulkReload  -> BulkReloadScreen(vm, prefs, theme, s2.type, onBack = { goBack() })
-                        is Screen.DailySessions -> DailySessionsScreen(
-                            date = s2.date,
-                            sessions = vm.sessions.filter { it.date == s2.date },
+                    }
+                }
+                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }) } }
+                composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
+                composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
+                composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
+                composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }) } }
+                composable("bingo") { WideScreenCenter { BingoPlaceholderScreen(theme, onBack = { goBack() }) } }
+                composable(
+                    "detail/{id}?highlightDate={highlightDate}",
+                    arguments = listOf(
+                        navArgument("id") { type = NavType.LongType },
+                        navArgument("highlightDate") { type = NavType.StringType; nullable = true; defaultValue = null }
+                    )
+                ) { entry ->
+                    val bookId = entry.arguments?.getLong("id") ?: return@composable
+                    WideScreenCenter { DetailScreen(vm, prefs, theme, bookId, highlightDate = entry.arguments?.getString("highlightDate"), onBack = { goBack() }, onAuthorClick = { navigateTo(Screen.AuthorBooks(it)) }) }
+                }
+                composable(
+                    "author/{author}",
+                    arguments = listOf(navArgument("author") { type = NavType.StringType })
+                ) { entry ->
+                    WideScreenCenter { AuthorBooksScreen(vm, prefs, theme, entry.arguments?.getString("author") ?: "", onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) }
+                }
+                composable(
+                    "wrapped/{year}",
+                    arguments = listOf(navArgument("year") { type = NavType.IntType })
+                ) { entry ->
+                    WideScreenCenter { WrappedScreen(vm, prefs, theme, entry.arguments?.getInt("year") ?: 0, onBack = { goBack() }) }
+                }
+                composable(
+                    "bulk_reload/{type}",
+                    arguments = listOf(navArgument("type") { type = NavType.StringType })
+                ) { entry ->
+                    WideScreenCenter { BulkReloadScreen(vm, prefs, theme, entry.arguments?.getString("type") ?: "", onBack = { goBack() }) }
+                }
+                composable(
+                    "daily_sessions/{date}",
+                    arguments = listOf(navArgument("date") { type = NavType.StringType })
+                ) { entry ->
+                    val date = entry.arguments?.getString("date") ?: ""
+                    WideScreenCenter {
+                        DailySessionsScreen(
+                            date = date,
+                            sessions = vm.sessions.filter { it.date == date },
                             books = vm.books,
                             theme = theme,
-                            onNavigateToDetail = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) },
+                            onNavigateToDetail = { bookId, d -> navigateTo(Screen.Detail(bookId, d)) },
                             onBack = { goBack() }
                         )
                     }
-                    } // WideScreenCenter
                 }
             }
         }
