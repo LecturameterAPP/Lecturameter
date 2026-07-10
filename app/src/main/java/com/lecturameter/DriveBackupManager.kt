@@ -44,15 +44,16 @@ object DriveBackupManager {
     private const val CLIENT_ID = "1045574439348-5j45e0ub4spquv7est81bgmpi4qfmhhq.apps.googleusercontent.com"
 
     private fun filePrefix(context: Context): String {
-        // v1.0: nombre fijo sin sufijo de flavor
-        return "Backup_Lecturameter_"
+        // Fase 0 QA: prefijo propio del refrac — el lookup/rename por prefijo en Drive
+        // no debe tocar los backups de la app 2.7 original.
+        return "Backup_Refrac_"
     }
 
     // DRIVE_FILE: acceso a archivos visibles en el Drive del usuario.
     // Con DRIVE_APPDATA los archivos quedan ocultos y el usuario no puede verlos.
     val REQUIRED_SCOPE = Scope(DriveScopes.DRIVE_FILE)
 
-    /** Nombre del archivo: Backup_Lecturameter[_Public]_DDMMYY.json (fecha de hoy). */
+    /** Nombre del archivo: Backup_Refrac_DDMMYY.json (fecha de hoy). */
     private fun backupFileName(context: Context): String {
         val sdf = SimpleDateFormat("ddMMyy", Locale.getDefault())
         return "${filePrefix(context)}${sdf.format(Date())}.json"

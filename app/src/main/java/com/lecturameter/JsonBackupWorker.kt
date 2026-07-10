@@ -19,11 +19,11 @@ import java.util.Locale
  * Worker que se ejecuta automáticamente cada 2 horas para guardar
  * una copia de seguridad JSON local.
  *
- * Carpeta: Download/Backups Lecturameter/
- * Fichero: Backup_Lecturameter_DDMMYY.json  (fecha de HOY)
+ * Carpeta: Download/Backups Refrac/
+ * Fichero: Backup_Refrac_DDMMYY.json  (fecha de HOY)
  *
  * Estrategia idéntica a DriveBackupManager:
- *   - Se busca cualquier archivo cuyo nombre empiece por "Backup_Lecturameter_"
+ *   - Se busca cualquier archivo cuyo nombre empiece por "Backup_Refrac_"
  *     en la carpeta de backups (búsqueda por prefijo, no por nombre exacto).
  *   - Si existe: se actualiza el contenido Y se renombra a la fecha de hoy.
  *     Resultado: siempre exactamente un archivo, con la fecha del último backup.
@@ -43,8 +43,11 @@ class JsonBackupWorker(
         // prefijo nuevo (startsWith / LIKE), así que se limpian/renombran solos.
         fun suffix(ctx: Context): String = ""
 
-        fun folderName(ctx: Context)   = "Backups Lecturameter"
-        fun filePrefix(ctx: Context)   = "Backup_Lecturameter_"
+        // Fase 0 QA: carpeta y prefijo propios del refrac. CRÍTICO: este worker borra
+        // por prefijo los backups antiguos de su carpeta; con el prefijo/carpeta de 2.7
+        // podía machacar los backups reales de la app original instalada en el mismo móvil.
+        fun folderName(ctx: Context)   = "Backups Refrac"
+        fun filePrefix(ctx: Context)   = "Backup_Refrac_"
         fun relativePath(ctx: Context) = "${Environment.DIRECTORY_DOWNLOADS}/${folderName(ctx)}/"
 
         fun todayFileName(ctx: Context): String {

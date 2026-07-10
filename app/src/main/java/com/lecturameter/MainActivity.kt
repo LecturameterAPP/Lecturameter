@@ -10428,7 +10428,20 @@ fun BookSearchScreen(
                     val storedEnd   = searchEndDate.trim().let { d -> if (d.length == 10) displayToStored(d) else if (needsEndDate) today() else null }
                     // Feedback 2.7: género elegido/confirmado por el usuario en el diálogo
                     val newBook = Book(title = r.title, author = r.author, pages = if (r.pages > 0) r.pages else 1, status = status, startDate = storedStart, endDate = storedEnd, rating = if (status == BookStatus.FINISHED) searchRating else 0, coverUrl = cleanCoverUrl(r.coverUrl), isbn = r.isbn, genres = searchGenres, firstFunctionalPage = searchFirstFunc.toIntOrNull(), lastFunctionalPage = searchLastFunc.toIntOrNull())
-                    val firstEdition = BookEdition(id = newBook.id, language = "mul", languageLabel = "Edición principal", flag = "🌐", title = newBook.title, pages = newBook.pages, coverUrl = newBook.coverUrl, isbn = newBook.isbn, isActive = true)
+                    // Fase 0 QA: la primera edición hereda el idioma del resultado de búsqueda
+                    // (r.language, v2.6) o, en su defecto, el deducido del prefijo ISBN.
+                    // Solo sin señal alguna se cae al genérico "mul"/🌐 de siempre.
+                    val edMeta: Triple<String, String, String>? = when (r.language) {
+                        "es" -> Triple("es", "Español", "🇪🇸")
+                        "ca" -> Triple("ca", "Català", "🏴󠁥󠁳󠁣󠁴󠁿")
+                        "en" -> Triple("original", "English", "🌐")
+                        "fr" -> Triple("fr", "Français", "🇫🇷")
+                        "de" -> Triple("de", "Deutsch", "🇩🇪")
+                        "it" -> Triple("it", "Italiano", "🇮🇹")
+                        "pt" -> Triple("pt", "Português", "🇵🇹")
+                        else -> r.isbn?.let { isbnToLanguageMeta(it) }?.takeIf { it.second != "Original" }
+                    }
+                    val firstEdition = BookEdition(id = newBook.id, language = edMeta?.first ?: "mul", languageLabel = edMeta?.second ?: "Edición principal", flag = edMeta?.third ?: "🌐", title = newBook.title, pages = newBook.pages, coverUrl = newBook.coverUrl, isbn = newBook.isbn, isActive = true)
                     val toAdd = newBook.copy(editions = listOf(firstEdition))
                     // v2.5: aviso de duplicado (antes se añadía sin avisar)
                     if (vm.findDuplicate(toAdd) != null) { duplicateCandidate = toAdd } else { vm.addBook(toAdd, prefs) }
