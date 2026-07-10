@@ -13,12 +13,9 @@ import android.view.View
 import android.widget.RemoteViews
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.lecturameter.Book
+import com.lecturameter.model.*
 import com.lecturameter.MainActivity
 import com.lecturameter.R
-import com.lecturameter.BookStatus
-import com.lecturameter.DateEvent
-import com.lecturameter.ReadingSession
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL

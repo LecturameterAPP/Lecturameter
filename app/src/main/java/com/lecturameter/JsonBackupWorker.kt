@@ -10,6 +10,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.lecturameter.model.*
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

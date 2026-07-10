@@ -8,6 +8,7 @@ import android.content.Context
 import android.graphics.*
 import android.text.*
 import android.util.TypedValue
+import com.lecturameter.model.*
 
 object WrappedCardRenderer {
 

@@ -28,6 +28,7 @@ import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File as DriveFile
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.lecturameter.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
