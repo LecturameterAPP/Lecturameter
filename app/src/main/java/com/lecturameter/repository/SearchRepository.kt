@@ -1143,7 +1143,7 @@ private val LANGUAGE_META = mapOf(
     "ger" to Triple("de",       "Deutsch",    "🇩🇪"),
     "ita" to Triple("it",       "Italiano",   "🇮🇹"),
     "por" to Triple("pt",       "Português",  "🇵🇹"),
-    "cat" to Triple("ca",       "Català",     "🏴󠁥󠁳󠁣󠁴󠁿"),
+    "cat" to Triple("ca",       "Català",     "🇪🇸 (CAT)"),
 )
 
 private fun languageMeta(langCode: String?): Triple<String, String, String> =
@@ -1992,7 +1992,7 @@ suspend fun fetchEditionsForBook(
             if (hasAlias) olLangSearch("$originalTitle $author", "spa", "es", "Español", "🇪🇸")
             olLangSearch("$searchTitle $author", "spa", "es", "Español", "🇪🇸")
             // v2.6: ediciones catalanas (OL usa código MARC "cat")
-            olLangSearch("$searchTitle $author", "cat", "ca", "Català", "🏴󠁥󠁳󠁣󠁴󠁿")
+            olLangSearch("$searchTitle $author", "cat", "ca", "Català", "🇪🇸 (CAT)")
         } catch (_: Exception) {}
         r
     } }
@@ -2025,7 +2025,7 @@ suspend fun fetchEditionsForBook(
             val gbLang = info.optString("language", "")
             val (langId, langLabel, flag) = when (gbLang) {
                 "es" -> Triple("es", "Español", "🇪🇸")
-                "ca" -> Triple("ca", "Català", "🏴󠁥󠁳󠁣󠁴󠁿")
+                "ca" -> Triple("ca", "Català", "🇪🇸 (CAT)")
                 "en" -> Triple("original", "English", "🌐")
                 "fr" -> Triple("fr", "Français", "🇫🇷")
                 "de" -> Triple("de", "Deutsch", "🇩🇪")

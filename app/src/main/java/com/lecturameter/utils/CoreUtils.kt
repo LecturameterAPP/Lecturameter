@@ -76,7 +76,13 @@ fun hasValidReadingSpan(book: Book): Boolean =
 
 fun fmtDays(days: Int): String = if (days == 1) "1 día" else "$days días"
 
-fun fmtDate(date: String): String = try { sdfDisplay.format(sdf.parse(date)!!) } catch (_: Exception) { date }
+// Feedback 11-07: las fechas visibles deben usar el idioma de la APP, no el del
+// sistema (salían meses en español con la app en inglés). BooksViewModel lo fija
+// al cargar o cambiar el idioma.
+@Volatile var appDisplayLocale: Locale = Locale.getDefault()
+
+fun fmtDate(date: String): String =
+    try { SimpleDateFormat("d MMMM yyyy", appDisplayLocale).format(sdf.parse(date)!!) } catch (_: Exception) { date }
 
 // Only FINISHED books get pagesPerDay — no estimates for READING
 // Books with same startDate and endDate are excluded from pagesPerDay (same-day = unreliable speed)

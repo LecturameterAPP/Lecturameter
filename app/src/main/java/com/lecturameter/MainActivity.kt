@@ -637,7 +637,9 @@ fun GenreSelectorSheet(
         containerColor = if (theme.isDark) Color(0xFF151B31) else theme.bgMid,
         contentColor = theme.textMain
     ) {
-        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+        // Feedback 11-07: la lista usa weight() dentro del alto acotado del sheet
+        // (nada de alturas fijas) para que el pie de botones nunca se salga de pantalla.
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.genre_sheet_title), color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -677,7 +679,7 @@ fun GenreSelectorSheet(
             fun visible(g: String) = q.isBlank() ||
                 normalizeSearchText(labels[g] ?: g).contains(q) || normalizeSearchText(g).contains(q)
 
-            Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                 if (sugg.isNotEmpty() && q.isBlank()) {
                     Text(
                         stringResource(R.string.genre_sheet_suggested).uppercase(),
@@ -1605,14 +1607,17 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         // versiones anteriores la ventana se redimensiona y el inset IME queda a 0 (no duplica).
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))).systemBarsPadding().imePadding()) {
             // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
+            // Feedback 11-07: EnterTransition.None NO es instantáneo — el reloj de la
+            // transición sigue corriendo y la pantalla saliente queda visible (fade feo
+            // con solape). snap() hace el cambio en un frame.
             // v2.4: pantallas secundarias centradas en anchos ≥600dp via WideScreenCenter.
             NavHost(
                 navController = navController,
                 startDestination = "list",
-                enterTransition = { androidx.compose.animation.EnterTransition.None },
-                exitTransition = { androidx.compose.animation.ExitTransition.None },
-                popEnterTransition = { androidx.compose.animation.EnterTransition.None },
-                popExitTransition = { androidx.compose.animation.ExitTransition.None }
+                enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.snap()) },
+                exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.snap()) },
+                popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.snap()) },
+                popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.snap()) }
             ) {
                 composable("list") {
                     WideScreenCenter(enabled = false) {
@@ -5744,7 +5749,7 @@ fun BookSearchScreen(
                     // Solo sin señal alguna se cae al genérico "mul"/🌐 de siempre.
                     val edMeta: Triple<String, String, String>? = when (r.language) {
                         "es" -> Triple("es", "Español", "🇪🇸")
-                        "ca" -> Triple("ca", "Català", "🏴󠁥󠁳󠁣󠁴󠁿")
+                        "ca" -> Triple("ca", "Català", "🇪🇸 (CAT)")
                         "en" -> Triple("original", "English", "🌐")
                         "fr" -> Triple("fr", "Français", "🇫🇷")
                         "de" -> Triple("de", "Deutsch", "🇩🇪")
@@ -5847,8 +5852,10 @@ fun LanguageSelector(
     onLanguageSelected: (code: String, label: String, flag: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Feedback 11-07: fuera "Edición principal" (no aporta como opción elegible) y
+    // cooficiales estandarizadas como 🇪🇸 (CAT) / 🇪🇸 (EUS) / 🇪🇸 (GAL), con Euskera
+    // y Galego añadidas.
     val languages = listOf(
-        Triple("mul", "Edición principal", "🌐"),
         Triple("es",  "Español",           "🇪🇸"),
         Triple("en-us","English (US)",     "🇺🇸"),
         Triple("en-uk","English (UK)",     "🇬🇧"),
@@ -5857,7 +5864,9 @@ fun LanguageSelector(
         Triple("de",  "Deutsch",           "🇩🇪"),
         Triple("it",  "Italiano",          "🇮🇹"),
         Triple("pt",  "Português",         "🇵🇹"),
-        Triple("ca",  "Català",            "🏴󠁥󠁳󠁣󠁴󠁿"),
+        Triple("ca",  "Català",            "🇪🇸 (CAT)"),
+        Triple("eu",  "Euskera",           "🇪🇸 (EUS)"),
+        Triple("gl",  "Galego",            "🇪🇸 (GAL)"),
         Triple("ja",  "日本語",              "🇯🇵"),
         Triple("zh",  "中文",               "🇨🇳"),
         Triple("ko",  "한국어",              "🇰🇷")

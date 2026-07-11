@@ -150,6 +150,8 @@ class BooksViewModel : ViewModel() {
     fun setLanguage(lang: String, prefs: android.content.SharedPreferences) {
         currentLanguage = lang
         prefs.edit().putString("app_language", lang).commit()
+        // Feedback 11-07: las fechas visibles (fmtDate) siguen el idioma de la app
+        com.lecturameter.utils.appDisplayLocale = java.util.Locale(lang.take(2))
     }
     fun setLanguageChosen(prefs: android.content.SharedPreferences) {
         languageChosen = true
@@ -158,6 +160,7 @@ class BooksViewModel : ViewModel() {
     fun loadLanguageStatus(prefs: android.content.SharedPreferences) {
         currentLanguage = prefs.getString("app_language", "es") ?: "es"
         languageChosen  = prefs.getBoolean("language_chosen", false)
+        com.lecturameter.utils.appDisplayLocale = java.util.Locale(currentLanguage.take(2))
     }
     // Persisted list state
     var savedSortOrder by mutableStateOf(SortOrder.DATE_DESC)
