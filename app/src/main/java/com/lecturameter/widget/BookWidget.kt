@@ -13,6 +13,7 @@ import android.view.View
 import android.widget.RemoteViews
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import androidx.glance.appwidget.updateAll
 import com.lecturameter.model.*
 import com.lecturameter.utils.WidgetStats
 import com.lecturameter.utils.computeWidgetStats
@@ -82,13 +83,13 @@ private val widgetUpdateScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 // ── Tema del widget (Bug fix v21.14): el widget no seguía el tema de la app,
 // siempre se veía oscuro. Lee el mismo "theme_mode" que usa MainActivity y
 // aplica fondo + colores de texto a juego, sin tocar el layout XML base. ──
-private data class WidgetThemeColors(
+internal data class WidgetThemeColors(
     val bgDrawable: Int,
     val textMain: Int,
     val textMuted: Int
 )
 
-private fun resolveWidgetTheme(context: Context): WidgetThemeColors {
+internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
     return when (prefs.getString("theme_mode", "dark")) {
         "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
@@ -128,63 +129,24 @@ fun requestBookWidgetUpdate(context: Context) {
     }
 }
 
+// Fase 2: el refresco delega en Glance — updateAll recompone todas las instancias
+// (provideGlance vuelve a cargar libro, sesiones, portada, tema y config).
 suspend fun updateBookWidgets(context: Context) = withContext(Dispatchers.IO) {
-    val appContext = context.applicationContext
-    val manager = AppWidgetManager.getInstance(appContext)
-    val ids = manager.getAppWidgetIds(ComponentName(appContext, BookWidgetReceiver::class.java))
-    if (ids.isEmpty()) return@withContext
-
-    val bookId = loadWidgetBook(appContext)
-    val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
-    val sessions = if (book == null) emptyList() else loadSessions(appContext)
-    val coverBitmap = book?.coverUrl?.let { loadCoverBitmap(appContext, it) }
-
-    ids.forEach { appWidgetId ->
-        // v2.3b: adaptativo — leer ancho real de ESTE widget y compactar chips si es estrecho.
-        // El launcher reporta minWidth en dp via options; OPTIONS_CHANGED ya dispara update.
-        val minWidthDp = try {
-            manager.getAppWidgetOptions(appWidgetId)
-                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-        } catch (_: Exception) { 0 }
-        val compact = minWidthDp in 1 until 250
-        // v2.4 rework: configuración de chips propia de cada widget
-        val cfg = loadWidgetDisplayConfig(appContext, appWidgetId)
-        manager.updateAppWidget(
-            appWidgetId,
-            buildWidgetViews(appContext, book, sessions, coverBitmap, compact, cfg)
-        )
-    }
+    BookGlanceWidget().updateAll(context.applicationContext)
 }
 
-class BookWidgetReceiver : AppWidgetProvider() {
+// Fase 2: mismo nombre de componente que en 2.7 (declarado en el manifest) para que
+// los widgets ya colocados en el escritorio sobrevivan a la actualización.
+class BookWidgetReceiver : androidx.glance.appwidget.GlanceAppWidgetReceiver() {
+
+    override val glanceAppWidget: androidx.glance.appwidget.GlanceAppWidget = BookGlanceWidget()
 
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
-            ACTION_REFRESH_WIDGET,
-            AppWidgetManager.ACTION_APPWIDGET_UPDATE,
-            AppWidgetManager.ACTION_APPWIDGET_OPTIONS_CHANGED -> {
-                val pendingResult = goAsync()
-                val appContext = context.applicationContext
-                widgetUpdateScope.launch {
-                    try {
-                        updateBookWidgets(appContext)
-                    } catch (_: Exception) {
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
-                return
-            }
-        }
         super.onReceive(context, intent)
-    }
-
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        requestBookWidgetUpdate(context)
+        // El broadcast propio de la app (TimerService, Ajustes…) sigue funcionando
+        if (intent.action == ACTION_REFRESH_WIDGET) {
+            requestBookWidgetUpdate(context)
+        }
     }
 
     companion object {
@@ -193,7 +155,7 @@ class BookWidgetReceiver : AppWidgetProvider() {
 }
 
 // v21.41: el widget corre fuera del proceso de la app; fuerza el locale elegido por el usuario
-private fun appLocalizedContext(context: Context): Context {
+internal fun appLocalizedContext(context: Context): Context {
     return try {
         val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
         val lang = prefs.getString("app_language", "es") ?: "es"
@@ -206,131 +168,7 @@ private fun appLocalizedContext(context: Context): Context {
     }
 }
 
-private fun buildWidgetViews(
-    context: Context,
-    book: Book?,
-    sessions: List<ReadingSession>,
-    coverBitmap: Bitmap?,
-    compact: Boolean = false,
-    cfg: WidgetDisplayConfig = WidgetDisplayConfig()
-): RemoteViews {
-    // ctx garantiza strings en el idioma de la app, no del sistema
-    val ctx = appLocalizedContext(context)
-    val views = RemoteViews(context.packageName, R.layout.book_widget)
-
-    // v2.3b: chips escalan con el ancho del widget. Normal 12sp/6dp (legible),
-    // compact 10sp/4dp (widgets estrechos, evita truncado). Layout base queda en compact.
-    run {
-        val chipIds = intArrayOf(
-            R.id.widget_days_chip, R.id.widget_minutes_chip, R.id.widget_sessions_chip,
-            R.id.widget_pages_chip, R.id.widget_percent_chip
-        )
-        val sp = if (compact) 10f else 12f
-        val padH = ((if (compact) 4 else 6) * context.resources.displayMetrics.density).toInt()
-        val padV = (3 * context.resources.displayMetrics.density).toInt()
-        for (id in chipIds) {
-            views.setTextViewTextSize(id, android.util.TypedValue.COMPLEX_UNIT_SP, sp)
-            views.setViewPadding(id, padH, padV, padH, padV)
-        }
-    }
-    views.setOnClickPendingIntent(R.id.widget_root, buildOpenAppPendingIntent(context, book))
-
-    val widgetTheme = resolveWidgetTheme(context)
-    views.setInt(R.id.widget_root, "setBackgroundResource", widgetTheme.bgDrawable)
-    views.setInt(R.id.widget_cover_frame, "setBackgroundResource", R.drawable.widget_accent_bg_cover)
-    views.setTextColor(R.id.widget_title, widgetTheme.textMain)
-    views.setTextColor(R.id.widget_cover_placeholder, widgetTheme.textMain)
-    views.setTextColor(R.id.widget_author, widgetTheme.textMuted)
-    views.setTextColor(R.id.widget_updated, widgetTheme.textMuted)
-    for (chipId in listOf(R.id.widget_days_chip, R.id.widget_minutes_chip, R.id.widget_sessions_chip, R.id.widget_pages_chip, R.id.widget_percent_chip)) {
-        views.setInt(chipId, "setBackgroundResource", R.drawable.widget_accent_bg_chip)
-        views.setTextColor(chipId, widgetTheme.textMain)
-    }
-
-    if (book == null) {
-        views.setTextViewText(R.id.widget_title, "Lecturameter")
-        views.setTextViewText(
-            R.id.widget_author,
-            ctx.getString(R.string.widget_choose_book_help)
-        )
-        views.setTextViewText(R.id.widget_updated, currentTime())
-        views.setViewVisibility(R.id.widget_chips_row, View.GONE)
-        views.setViewVisibility(R.id.widget_cover, View.GONE)
-        views.setViewVisibility(R.id.widget_cover_placeholder, View.VISIBLE)
-        views.setTextViewText(R.id.widget_cover_placeholder, "📚")
-        // v2.5 fix: la barra de progreso se quedaba con el valor del libro anterior
-        views.setInt(R.id.widget_progress_bar, "setProgress", 0)
-        views.setViewVisibility(R.id.widget_progress_bar, View.GONE)
-        return views
-    }
-
-    val stats = computeWidgetStats(book, sessions)
-    views.setTextViewText(R.id.widget_title, book.title)
-    views.setTextViewText(R.id.widget_author, book.author)
-    views.setTextViewText(R.id.widget_updated, currentTime())
-    views.setViewVisibility(R.id.widget_chips_row, View.VISIBLE)
-
-    if (coverBitmap != null) {
-        views.setImageViewBitmap(R.id.widget_cover, coverBitmap)
-        views.setViewVisibility(R.id.widget_cover, View.VISIBLE)
-        views.setViewVisibility(R.id.widget_cover_placeholder, View.GONE)
-    } else {
-        views.setViewVisibility(R.id.widget_cover, View.GONE)
-        views.setViewVisibility(R.id.widget_cover_placeholder, View.VISIBLE)
-        views.setTextViewText(R.id.widget_cover_placeholder, "📖")
-    }
-
-    // v2.4 rework: cada chip respeta su toggle; los emojis se pueden ocultar por widget
-    fun emo(e: String) = if (cfg.showEmojis) "$e " else ""
-    setOptionalChip(views, R.id.widget_days_chip, if (cfg.showDays) "${emo("📅")}${stats.days} d" else null)
-    // orden: días → tiempo → sesiones → páginas → %
-    setOptionalChip(views, R.id.widget_minutes_chip,
-        if (cfg.showTime) stats.lastSessionMinutes?.let { "${emo("\u23F1\uFE0F")}${formatMinutes(it)}" } else null)
-    setOptionalChip(views, R.id.widget_sessions_chip,
-        if (cfg.showSessions) "${emo("📖")}${stats.sessions} ${ctx.getString(R.string.history_stat_sessions)}" else null)
-    setOptionalChip(views, R.id.widget_pages_chip,
-        if (cfg.showPages) stats.lastSessionPages?.let { "${emo("📄")}${it}p" } else null)
-    setOptionalChip(views, R.id.widget_percent_chip,
-        if (cfg.showPercent) stats.completionPct?.let { "${emo("📊")}${it}%" } else null)
-    // v21.35: progress bar sky — visible when pct available
-    val pct = stats.completionPct
-    if (pct != null && pct > 0) {
-        views.setViewVisibility(R.id.widget_progress_bar, View.VISIBLE)
-        views.setInt(R.id.widget_progress_bar, "setProgress", pct)
-    } else {
-        views.setViewVisibility(R.id.widget_progress_bar, View.GONE)
-    }
-    return views
-}
-
-private fun setOptionalChip(views: RemoteViews, viewId: Int, label: String?) {
-    if (label == null) {
-        views.setViewVisibility(viewId, View.GONE)
-    } else {
-        views.setTextViewText(viewId, label)
-        views.setViewVisibility(viewId, View.VISIBLE)
-    }
-}
-
-private fun buildOpenAppPendingIntent(context: Context, book: Book?): PendingIntent {
-    val intent = if (book != null) {
-        Intent(Intent.ACTION_VIEW, Uri.parse("lecturameter://book/${book.id}")).apply {
-            setClass(context, MainActivity::class.java)
-        }
-    } else {
-        Intent(context, MainActivity::class.java)
-    }.apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-    }
-
-    val requestCode = book?.id?.let { (it xor (it ushr 32)).toInt() } ?: 0
-    return PendingIntent.getActivity(
-        context,
-        requestCode,
-        intent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-}
+// Fase 2: el render RemoteViews de 2.7 vive como fallback en LegacyBookWidgetReceiver.kt
 
 suspend fun loadCoverBitmap(context: Context, coverUrl: String): Bitmap? =
     withContext(Dispatchers.IO) {
