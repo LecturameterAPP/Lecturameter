@@ -6,13 +6,12 @@
 -keepclassmembers class com.lecturameter.** {
     @com.google.gson.annotations.SerializedName <fields>;
 }
-# Todas las data classes del paquete principal
--keep class com.lecturameter.DateEvent { *; }
--keep class com.lecturameter.BookEdition { *; }
--keep class com.lecturameter.Book { *; }
--keep class com.lecturameter.ReadingSession { *; }
--keep class com.lecturameter.YearWrapped { *; }
--keep class com.lecturameter.BookStats { *; }
+# Fase 1.1: los modelos serializados viven ahora en com.lecturameter.model.
+# CRÍTICO para release: sin esto R8 ofusca los campos y Gson escribe/lee JSON
+# con nombres ofuscados → backups y prefs ilegibles.
+-keep class com.lecturameter.model.** { *; }
+-keepclassmembers enum com.lecturameter.model.** { *; }
+# Data classes que siguen en el paquete raíz (SearchRepository/BackupRepository)
 -keep class com.lecturameter.OpenLibraryResult { *; }
 -keep class com.lecturameter.BookMetadata { *; }
 -keep class com.lecturameter.IsbnFullMetadata { *; }
@@ -21,10 +20,7 @@
 -keep class com.lecturameter.FullBackup { *; }
 -keep class com.lecturameter.FullBackup$* { *; }
 -keep class com.lecturameter.TutorialPage { *; }
-# v2.4 rework: retos serializados con Gson (prefs "challenges")
--keep class com.lecturameter.Challenge { *; }
--keep class com.lecturameter.ChallengeType { *; }
--keepclassmembers enum com.lecturameter.ChallengeType { *; }
+# v2.4 rework: retos serializados con Gson (prefs "challenges") — ahora en model/ (regla de arriba)
 
 # ── Google APIs / Drive ───────────────────────────────────────────────────────
 -keep class com.google.api.** { *; }
@@ -63,10 +59,17 @@
 -dontwarn coil.**
 
 # ── Gson internals ────────────────────────────────────────────────────────────
+# Crash v2.5 Play Store (crash lm en play store.md): R8 quitaba las firmas
+# genéricas de los TypeToken anónimos → IllegalStateException al arrancar.
+# Signature ya estaba; se añaden las subclases anónimas de TypeToken (regla
+# necesaria con R8 full mode de AGP 8.x) e InnerClasses/EnclosingMethod.
 -keepattributes Signature
+-keepattributes InnerClasses,EnclosingMethod
 -keepattributes *Annotation*
 -dontwarn sun.misc.**
 -keep class com.google.gson.** { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.TypeAdapter
 -keep class * implements com.google.gson.TypeAdapterFactory
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
