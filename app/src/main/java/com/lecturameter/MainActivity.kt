@@ -3421,7 +3421,9 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
     // ventana wrapped (1–26 ene el año anterior sigue "vivo") → cálculo fresco,
     // para que el auto-guardado de la ventana siga refrescando datos.
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
-    val wrapped = remember(year, vm.books, vm.wrappedHistory) {
+    // D-004: wrappedHistory es StateFlow; se colecciona en la raíz de la pantalla
+    val wrappedHistory by vm.wrappedHistory.collectAsState()
+    val wrapped = remember(year, vm.books, wrappedHistory) {
         val inOwnWindow = isInWrappedWindow() && wrappedWindowYear() == year
         if (year < currentYear && !inOwnWindow) vm.wrappedForYear(year) ?: vm.computeWrapped(year)
         else vm.computeWrapped(year)
@@ -4441,7 +4443,9 @@ fun WrappedBookCard(emoji: String, label: String, title: String, detail: String,
 
 @Composable
 fun WrappedHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onOpen: (Int) -> Unit) {
-    val history = vm.wrappedHistory.sortedByDescending { it.year }
+    // D-004: wrappedHistory es StateFlow; se colecciona en la raíz de la pantalla
+    val wrappedHistory by vm.wrappedHistory.collectAsState()
+    val history = wrappedHistory.sortedByDescending { it.year }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 24.dp)) {
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
@@ -11165,8 +11169,10 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             }
         }
 
+        // D-004: challenges es StateFlow; se colecciona en la raíz de la pantalla
+        val challenges by vm.challenges.collectAsState()
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 28.dp)) {
-            if (vm.challenges.isEmpty()) {
+            if (challenges.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -11177,7 +11183,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                     }
                 }
             }
-            items(vm.challenges, key = { it.id }) { challenge ->
+            items(challenges, key = { it.id }) { challenge ->
                 val (current, target) = vm.challengeProgress(challenge)
                 val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
                 val done = current >= target

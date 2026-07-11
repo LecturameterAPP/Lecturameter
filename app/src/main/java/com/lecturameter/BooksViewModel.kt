@@ -219,13 +219,14 @@ class BooksViewModel : ViewModel() {
     }
 
     // ── Retos de lectura (v2.4 rework) ─────────────────────────────────────────
-    var challenges by mutableStateOf<List<Challenge>>(emptyList())
-        private set
+    // Fase 1.2/D-004: migrado de mutableStateOf a StateFlow (la UI colecciona en su raíz)
+    private val _challenges = kotlinx.coroutines.flow.MutableStateFlow<List<Challenge>>(emptyList())
+    val challenges: kotlinx.coroutines.flow.StateFlow<List<Challenge>> = _challenges
     private fun saveChallenges(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.ChallengeRepository.save(prefs, challenges)
+        com.lecturameter.repository.ChallengeRepository.save(prefs, _challenges.value)
     }
     fun loadChallenges(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs)?.let { challenges = it }
+        com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs)?.let { _challenges.value = it }
         // Migración Feedback 2.6 (ONE-SHOT, flag en prefs): hasta v2.6 los retos
         // personalizados se creaban con startDate = día de creación, así que los libros
         // ya terminados no contaban (reto de saga «Rueda del Tiempo» siempre 0/N).
@@ -233,10 +234,10 @@ class BooksViewModel : ViewModel() {
         // impuesto por el bug → null (año natural). El flag evita "migrar" retos nuevos
         // donde el usuario eligió a propósito su día de creación como fecha de inicio.
         if (!prefs.getBoolean("challenges_startdate_migration_v26", false)) {
-            if (challenges.any { !it.isDefault && it.startDate != null }) {
+            if (_challenges.value.any { !it.isDefault && it.startDate != null }) {
                 val sdfMig = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                 var migrated = false
-                challenges = challenges.map { c ->
+                _challenges.value = _challenges.value.map { c ->
                     val creationDay = try { sdfMig.format(java.util.Date(c.id)) } catch (_: Exception) { null }
                     if (!c.isDefault && c.startDate != null && c.startDate == creationDay) {
                         migrated = true; c.copy(startDate = null)
@@ -263,17 +264,17 @@ class BooksViewModel : ViewModel() {
                     startDate = null, endDate = null, isDefault = true
                 )
             )
-            challenges = challenges + defaults.filter { d -> challenges.none { it.name == d.name } }
+            _challenges.value = _challenges.value + defaults.filter { d -> _challenges.value.none { it.name == d.name } }
             prefs.edit().putBoolean("challenges_defaults_seeded", true).apply()
             saveChallenges(prefs)
         }
     }
     fun addChallenge(challenge: Challenge, prefs: android.content.SharedPreferences) {
-        challenges = challenges + challenge
+        _challenges.value = _challenges.value + challenge
         saveChallenges(prefs)
     }
     fun deleteChallenge(id: Long, prefs: android.content.SharedPreferences) {
-        challenges = challenges.filter { it.id != id }
+        _challenges.value = _challenges.value.filter { it.id != id }
         saveChallenges(prefs)
     }
 
@@ -1417,13 +1418,17 @@ class BooksViewModel : ViewModel() {
     }
 
     // ── Year Wrapped ───────────────────────────────────────────────────────────
-    var wrappedHistory by mutableStateOf<List<YearWrapped>>(emptyList())
+    // Fase 1.2/D-004: migrado de mutableStateOf a StateFlow (la UI colecciona en su raíz)
+    private val _wrappedHistory = kotlinx.coroutines.flow.MutableStateFlow<List<YearWrapped>>(emptyList())
+    val wrappedHistory: kotlinx.coroutines.flow.StateFlow<List<YearWrapped>> = _wrappedHistory
+    /** Escritura controlada para BackupRepository (restauración de backups). */
+    fun setWrappedHistory(history: List<YearWrapped>) { _wrappedHistory.value = history }
 
     private fun loadWrapped(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.WrappedRepository.loadOrNull(prefs)?.let { wrappedHistory = it }
+        com.lecturameter.repository.WrappedRepository.loadOrNull(prefs)?.let { _wrappedHistory.value = it }
     }
     private fun saveWrapped(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.WrappedRepository.save(prefs, wrappedHistory)
+        com.lecturameter.repository.WrappedRepository.save(prefs, _wrappedHistory.value)
         triggerDriveBackup(prefs)
     }
     fun saveWrappedForYear(wrapped: YearWrapped, prefs: android.content.SharedPreferences) {
@@ -1434,10 +1439,10 @@ class BooksViewModel : ViewModel() {
         }
         val enriched = if (frozenIds != null) wrapped.copy(favoriteBookIds = frozenIds) else wrapped
         // Reemplaza si ya existe ese año, si no añade
-        wrappedHistory = listOf(enriched) + wrappedHistory.filter { it.year != enriched.year }
+        _wrappedHistory.value = listOf(enriched) + _wrappedHistory.value.filter { it.year != enriched.year }
         saveWrapped(prefs)
     }
-    fun wrappedForYear(year: Int): YearWrapped? = wrappedHistory.find { it.year == year }
+    fun wrappedForYear(year: Int): YearWrapped? = _wrappedHistory.value.find { it.year == year }
 
     fun computeWrapped(year: Int): YearWrapped? {
         val finished = books.filter {

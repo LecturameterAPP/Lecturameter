@@ -237,7 +237,7 @@ fun exportFullBackup(context: Context, vm: BooksViewModel): Uri? {
         val backup = FullBackup(
             books = embedLocalCoversForExport(context, vm.books),
             sessions = vm.sessions,
-            wrappedHistory = vm.wrappedHistory
+            wrappedHistory = vm.wrappedHistory.value
         )
         val gson = Gson()
         val json = gson.toJson(backup)
@@ -391,13 +391,13 @@ fun importFullBackupFromJson(
                 pages     = fromBackup.pages
             ) else existing
         } + newSessions
-        val existingYears = vm.wrappedHistory.map { it.year }.toSet()
+        val existingYears = vm.wrappedHistory.value.map { it.year }.toSet()
         val newWrapped = backupWrapped2.filter { it.year !in existingYears }
-        vm.wrappedHistory = vm.wrappedHistory + newWrapped
+        vm.setWrappedHistory(vm.wrappedHistory.value + newWrapped)
         prefs.edit()
             .putString("books", gson.toJson(vm.books))
             .putString("sessions", gson.toJson(vm.sessions))
-            .putString("wrapped_history", gson.toJson(vm.wrappedHistory))
+            .putString("wrapped_history", gson.toJson(vm.wrappedHistory.value))
             .apply()
         val msg = buildString {
             if (newBooks.isNotEmpty()) append(context.getString(R.string.import_restored_books, newBooks.size))
