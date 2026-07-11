@@ -1797,19 +1797,22 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
 @Composable
 fun BingoPlaceholderScreen(theme: Theme, onBack: () -> Unit) {
     BackHandler { onBack() }
-    Box(
-        modifier = androidx.compose.ui.Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = onBack, modifier = androidx.compose.ui.Modifier.align(Alignment.Start).padding(8.dp)) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
-            }
-            Spacer(androidx.compose.ui.Modifier.weight(1f))
+    // Feedback 11-07: flecha en cabecera estándar (arriba a la izquierda, como el
+    // resto de pantallas) — antes iba dentro de la Column centrada y flotaba rara.
+    Box(modifier = androidx.compose.ui.Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding()) {
+        IconButton(
+            onClick = onBack,
+            modifier = androidx.compose.ui.Modifier.align(Alignment.TopStart).padding(top = 28.dp, start = 16.dp)
+        ) {
+            Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = androidx.compose.ui.Modifier.align(Alignment.Center)
+        ) {
             Text("Bingo", color = theme.textMain, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Spacer(androidx.compose.ui.Modifier.height(12.dp))
             Text("Disponible en Fase 5", color = theme.textMuted, fontSize = 14.sp)
-            Spacer(androidx.compose.ui.Modifier.weight(1f))
         }
     }
 }
