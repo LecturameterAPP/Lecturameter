@@ -1265,6 +1265,9 @@ private fun Screen.route(): String = when (this) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? android.app.Activity
 
@@ -1429,12 +1432,12 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
     val drawerScope = rememberCoroutineScope()
 
     // ── Migración v13: rellenar startPage/endPage en sesiones antiguas ────────
-    // Usamos derivedStateOf sobre vm.sessions para que se recalcule si cambian las sesiones
+    // Usamos derivedStateOf sobre sessions para que se recalcule si cambian las sesiones
     // (p. ej. tras restaurar un backup). migrationDone se lee en cada recomposición.
     val sessionsNeedingMigration by remember {
         derivedStateOf {
             if (prefs.getBoolean("session_pages_migrated", false)) emptyList()
-            else vm.sessions.filter { it.startPage == null || it.endPage == null }
+            else sessions.filter { it.startPage == null || it.endPage == null }
                 .sortedWith(compareBy({ it.bookId }, { it.date }))
         }
     }
@@ -1452,7 +1455,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
 
     if (showMigrationDialog && migrationIndex < sessionsNeedingMigration.size) {
         val session = sessionsNeedingMigration[migrationIndex]
-        val book = remember(session.bookId) { vm.books.find { it.id == session.bookId } }
+        val book = remember(session.bookId) { books.find { it.id == session.bookId } }
         val sessionNumber = migrationIndex + 1
         val totalSessions = sessionsNeedingMigration.size
 
@@ -1778,8 +1781,8 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                     WideScreenCenter {
                         DailySessionsScreen(
                             date = date,
-                            sessions = vm.sessions.filter { it.date == date },
-                            books = vm.books,
+                            sessions = sessions.filter { it.date == date },
+                            books = books,
                             theme = theme,
                             onNavigateToDetail = { bookId, d -> navigateTo(Screen.Detail(bookId, d)) },
                             onBack = { goBack() }
@@ -2351,6 +2354,8 @@ fun ListScreen(
     onAddWithIsbn: (String) -> Unit = {},
     onEasterEgg: () -> Unit = {}
 ) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val booksAll by vm.books.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf(vm.savedSearchQuery) }
     var sortOrderName by rememberSaveable { mutableStateOf(vm.savedSortOrder.name) }
     val sortOrder = SortOrder.entries.firstOrNull { it.name == sortOrderName } ?: SortOrder.DATE_DESC
@@ -2385,8 +2390,8 @@ fun ListScreen(
     LaunchedEffect(vm.showFavoritesOnly) { listScope.launch { listState.animateScrollToItem(0) } }
 
     // Compute per-shelf book lists (filtered + sorted) — with fuzzy/accent-insensitive search
-    val searchFiltered = if (searchQuery.isBlank()) vm.books
-        else vm.books.filter {
+    val searchFiltered = if (searchQuery.isBlank()) booksAll
+        else booksAll.filter {
             fuzzyMatch(searchQuery, it.title) || fuzzyMatch(searchQuery, it.author)
         }
     // v2.4 rework: el filtro de favoritos se aplica a TODAS las pestañas
@@ -2465,7 +2470,7 @@ fun ListScreen(
             ) {
                 Text("📖", fontSize = 16.sp)
                 Text(
-                    stringResource(R.string.label_books_total, vm.books.size),
+                    stringResource(R.string.label_books_total, booksAll.size),
                     color = theme.textMuted,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 4.dp)
@@ -2760,7 +2765,7 @@ fun ListScreen(
         val activeStatus = SHELF_ORDER[activeTab]
         val activeBooks  = shelves[activeStatus] ?: emptyList()
 
-        if (vm.books.isEmpty()) {
+        if (booksAll.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📚", fontSize = 56.sp)
@@ -2885,6 +2890,9 @@ fun emptyShelfHint(status: BookStatus) = when (status) {
 // ── ImportExportScreen ────────────────────────────────────────────────────────
 @Composable
 fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
     var importMsg by remember { mutableStateOf<String?>(null) }
     var exportMsg by remember { mutableStateOf<String?>(null) }
@@ -3015,7 +3023,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.txt_7ddf5345), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text(if (vm.books.size == 1) stringResource(R.string.library_books_count, vm.books.size) else stringResource(R.string.library_books_count_plural, vm.books.size), color = theme.textMuted, fontSize = 13.sp)
+                Text(if (books.size == 1) stringResource(R.string.library_books_count, books.size) else stringResource(R.string.library_books_count_plural, books.size), color = theme.textMuted, fontSize = 13.sp)
             }
         }
 
@@ -3078,13 +3086,13 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 // Resumen de lo que se exportará
                 Surface(shape = RoundedCornerShape(10.dp), color = Color(0x0D10B981), border = BorderStroke(1.dp, Color(0x1A10B981)), modifier = Modifier.padding(bottom = 14.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        val reading  = vm.books.count { it.status == BookStatus.READING || it.status == BookStatus.REREADING }
-                        val finished = vm.books.count { it.status == BookStatus.FINISHED }
-                        val pending  = vm.books.count { it.status == BookStatus.PENDING }
+                        val reading  = books.count { it.status == BookStatus.READING || it.status == BookStatus.REREADING }
+                        val finished = books.count { it.status == BookStatus.FINISHED }
+                        val pending  = books.count { it.status == BookStatus.PENDING }
                         ExportStatCell("$finished", stringResource(R.string.export_stat_finished), Green)
                         ExportStatCell("$reading",  stringResource(R.string.export_stat_reading),  Amber)
                         ExportStatCell("$pending",  stringResource(R.string.export_stat_pending),  theme.textDim)
-                        ExportStatCell("${vm.books.size}", stringResource(R.string.export_stat_total), theme.textMain)
+                        ExportStatCell("${books.size}", stringResource(R.string.export_stat_total), theme.textMain)
                     }
                 }
 
@@ -3095,17 +3103,17 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
 
                 Button(
                     onClick = {
-                        if (vm.books.isEmpty()) { exportMsg = context.getString(R.string.msg_no_books_export); return@Button }
+                        if (books.isEmpty()) { exportMsg = context.getString(R.string.msg_no_books_export); return@Button }
                         isExporting = true; exportMsg = null; importMsg = null
                         scope.launch {
-                            val uri = exportBooksToCSV(context, vm.books)
+                            val uri = exportBooksToCSV(context, books)
                             isExporting = false
                             if (uri != null) {
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/csv"
                                     putExtra(Intent.EXTRA_STREAM, uri)
                                     putExtra(Intent.EXTRA_SUBJECT, "Mi biblioteca Lecturameter")
-                                    putExtra(Intent.EXTRA_TEXT, "Aquí tienes mi biblioteca exportada desde Lecturameter (${vm.books.size} libros).")
+                                    putExtra(Intent.EXTRA_TEXT, "Aquí tienes mi biblioteca exportada desde Lecturameter (${books.size} libros).")
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(intent, "Compartir biblioteca"))
@@ -3118,7 +3126,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Green),
-                    enabled = !isExporting && vm.books.isNotEmpty()
+                    enabled = !isExporting && books.isNotEmpty()
                 ) {
                     if (isExporting) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -3163,7 +3171,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 // Exportar backup JSON
                 Button(
                     onClick = {
-                        if (vm.books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@Button }
+                        if (books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@Button }
                         isBackingUp = true; backupMsg = null
                         scope.launch {
                             val uri = withContext(kotlinx.coroutines.Dispatchers.IO) { exportFullBackup(context, vm) }
@@ -3173,7 +3181,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                     type = "application/json"
                                     putExtra(Intent.EXTRA_STREAM, uri)
                                     putExtra(Intent.EXTRA_SUBJECT, "Backup Lecturameter")
-                                    putExtra(Intent.EXTRA_TEXT, "Copia de seguridad completa de Lecturameter (${vm.books.size} libros, ${vm.sessions.size} sesiones).")
+                                    putExtra(Intent.EXTRA_TEXT, "Copia de seguridad completa de Lecturameter (${books.size} libros, ${sessions.size} sesiones).")
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(intent, "Guardar backup"))
@@ -3186,7 +3194,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Amber),
-                    enabled = !isBackingUp && vm.books.isNotEmpty()
+                    enabled = !isBackingUp && books.isNotEmpty()
                 ) {
                     if (isBackingUp) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -3221,7 +3229,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 OutlinedButton(
                     onClick = {
                         if (!localBackupOn) { showActivateLocalBk = true; return@OutlinedButton }
-                        if (vm.books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
                         runWithStoragePerm {
                         isLocalAutoBackingUp = true; backupMsg = null
                         val req = OneTimeWorkRequestBuilder<JsonBackupWorker>().build()
@@ -3258,7 +3266,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, if (localBackupOn) Green else theme.border),
-                    enabled = !isLocalAutoBackingUp && vm.books.isNotEmpty()
+                    enabled = !isLocalAutoBackingUp && books.isNotEmpty()
                 ) {
                     if (isLocalAutoBackingUp) {
                         CircularProgressIndicator(color = Green, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -3421,6 +3429,9 @@ fun ExportStatCell(value: String, label: String, color: Color) {
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, year: Int, onBack: () -> Unit) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     // v2.6 (Wrapped r1): años cerrados con snapshot guardado → usar el snapshot
     // (formato/datos exactos de esa edición). Año en curso O año dentro de su
     // ventana wrapped (1–26 ene el año anterior sigue "vivo") → cálculo fresco,
@@ -3428,13 +3439,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
     // D-004: wrappedHistory es StateFlow; se colecciona en la raíz de la pantalla
     val wrappedHistory by vm.wrappedHistory.collectAsState()
-    val wrapped = remember(year, vm.books, wrappedHistory) {
+    val wrapped = remember(year, books, wrappedHistory) {
         val inOwnWindow = isInWrappedWindow() && wrappedWindowYear() == year
         if (year < currentYear && !inOwnWindow) vm.wrappedForYear(year) ?: vm.computeWrapped(year)
         else vm.computeWrapped(year)
     }
     // v2.6: favoritos CONGELADOS del año (permanentes; ver favoritesForWrapped)
-    val favBooks = remember(wrapped, vm.books) {
+    val favBooks = remember(wrapped, books) {
         if (wrapped != null) vm.favoritesForWrapped(year, prefs) else emptyList()
     }
     val context = LocalContext.current
@@ -3749,7 +3760,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             .background(Brush.linearGradient(listOf(Color(0xFF92400E), Color(0xFF1A1200)))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                val bestBook = vm.books.firstOrNull { it.title == top3[0].first }
+                                val bestBook = books.firstOrNull { it.title == top3[0].first }
                                 if (bestBook != null) {
                                     BookCover(bestBook.coverUrl, bestBook.title, size = 64, isbnFallback = bestBook.isbn)
                                     Spacer(Modifier.height(6.dp))
@@ -3789,7 +3800,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             .background(Brush.linearGradient(listOf(Color(0xFF064E3B), Color(0xFF0A2818)))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                val fastBook = vm.books.firstOrNull { it.title == fastTop3[0].first }
+                                val fastBook = books.firstOrNull { it.title == fastTop3[0].first }
                                 if (fastBook != null) {
                                     BookCover(fastBook.coverUrl, fastBook.title, size = 60, isbnFallback = fastBook.isbn)
                                     Spacer(Modifier.height(6.dp))
@@ -3978,7 +3989,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         // Desglose del día seleccionado (sesiones en vivo; si el año es un
                         // snapshot sin sesiones, cae a los valores guardados del mejor día)
                         if (selectedDay.isNotBlank()) {
-                            val daySessions = vm.sessions.filter { it.date == selectedDay }
+                            val daySessions = sessions.filter { it.date == selectedDay }
                             val rowPages = wrapped.bestDayPerMonth.firstOrNull { it.second == selectedDay }?.third ?: 0
                             val isGlobalBest = selectedDay == wrapped.mostReadDay
                             val pagesSel = when {
@@ -4652,8 +4663,11 @@ fun HourlyHeatmapCard(sessions: List<ReadingSession>, theme: Theme) {
 
 @Composable
 fun AdvancedStatsSections(vm: BooksViewModel, theme: Theme) {
-    val sagaStats = remember(vm.books, vm.sessions) { computeSagaStats(vm.books, vm.sessions) }
-    val outlierResult = remember(vm.books, vm.sessions) { computeOutliers(vm.books, vm.sessions) }
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    val sagaStats = remember(books, sessions) { computeSagaStats(books, sessions) }
+    val outlierResult = remember(books, sessions) { computeOutliers(books, sessions) }
     val globalMean = outlierResult.first
     val outliers = outlierResult.second
     // Feedback 2.6: el heatmap horario se movió a la pestaña Heatmap (junto al de
@@ -4726,8 +4740,11 @@ fun AdvancedStatsSections(vm: BooksViewModel, theme: Theme) {
 
 @Composable
 fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     // Solo FINISHED con fechas distintas (mismo día distorsiona velocidad)
-    val finished = vm.books.filter {
+    val finished = books.filter {
         it.status == BookStatus.FINISHED &&
         it.startDate != null && it.endDate != null &&
         it.startDate != it.endDate &&
@@ -4752,8 +4769,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
     // Normalise stored genres: if a book has a raw API value that isn't in BOOK_GENRES,
     // map it on-the-fly so the filter only shows clean genre names.
     // Los dropdowns incluyen TODOS los libros (también importados de Goodreads — Kirkman, Fujimoto, Tatsu…)
-    val allGenres = vm.books.flatMap { b -> b.genres }.distinct().sorted()
-    val allAuthors = vm.books.map { it.author }.filter { it.isNotBlank() }.distinct().sorted()
+    val allGenres = books.flatMap { b -> b.genres }.distinct().sorted()
+    val allAuthors = books.map { it.author }.filter { it.isNotBlank() }.distinct().sorted()
 
     val filtered = finished
         .let { list -> if (filterGenre != null) list.filter { it.genres.contains(filterGenre) } else list }
@@ -4765,7 +4782,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
     val speedList = filtered
         .filter { it.startDate != it.endDate && daysBetween(it.startDate!!, it.endDate!!) >= 2 }
         .map { b ->
-            val sessPages = vm.sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }
+            val sessPages = sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }
             val d = daysBetween(b.startDate!!, b.endDate!!).coerceAtLeast(1)
             val funcPages = if (b.firstFunctionalPage != null && b.lastFunctionalPage != null)
                 (b.lastFunctionalPage - b.firstFunctionalPage + 1) else null
@@ -4778,11 +4795,11 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
         }.sortedByDescending { it.ppd }
 
     val totalPages = filtered.sumOf { b ->
-        vm.sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }.takeIf { it > 0 } ?: b.pages
+        sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }.takeIf { it > 0 } ?: b.pages
     }
     val speedFiltered = filtered.filter { it.startDate != it.endDate && daysBetween(it.startDate!!, it.endDate!!) >= 2 }
     val avgPpd = if (speedFiltered.isNotEmpty()) speedFiltered.map { b ->
-        val sp = vm.sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }
+        val sp = sessions.filter { s -> s.bookId == b.id }.sumOf { it.pages }
         val fp = if (b.firstFunctionalPage != null && b.lastFunctionalPage != null) (b.lastFunctionalPage - b.firstFunctionalPage + 1) else null
         val pages = when { sp > 0 -> sp; fp != null && fp > 0 -> fp; else -> b.pages }
         val d = daysBetween(b.startDate!!, b.endDate!!).coerceAtLeast(1)
@@ -5407,7 +5424,9 @@ fun FooterStat(value: String, label: String, modifier: Modifier) {
 
 @Composable
 fun AuthorBooksScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, author: String, onBack: () -> Unit, onDetail: (Long) -> Unit) {
-    val authorBooks = vm.books.filter { it.author.equals(author, ignoreCase = true) }
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val authorBooks = books.filter { it.author.equals(author, ignoreCase = true) }
     var sortOrder by remember { mutableStateOf(SortOrder.DATE_DESC) }
     var showSortMenu by remember { mutableStateOf(false) }
     val byStatus = linkedMapOf(
@@ -6455,7 +6474,10 @@ fun EditionsSection(
 
 @Composable
 fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, id: Long, highlightDate: String? = null, onBack: () -> Unit, onAuthorClick: (String) -> Unit) {
-    val book = vm.books.find { it.id == id } ?: run { onBack(); return }
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    val book = books.find { it.id == id } ?: run { onBack(); return }
     val stats = getStats(book)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -8210,7 +8232,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // ── Estadísticas por ciclo (v20.0 G3: pills por ciclo, solo con relecturas) ─
                 run {
-                    val cycles = computeCycleStats(book, vm.sessions)
+                    val cycles = computeCycleStats(book, sessions)
                     if (cycles.size > 1) {
                         // Nivel 1: título principal
                         Text(stringResource(R.string.txt_aa1b8e40), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
@@ -8263,7 +8285,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // ── Historial de sesiones (v20.0 G2: una sección por ciclo) ──
                 // v20.3: precalculamos cycles para poder usar pagesPerDay en las pills de sesiones
-                val sessionCycles = computeCycleStats(book, vm.sessions)
+                val sessionCycles = computeCycleStats(book, sessions)
                 if (bookSessions.isNotEmpty()) {
                     // Agrupar sesiones por readingIndex, ordenado ascendente
                     val cycleSessionsByIndex = bookSessions.groupBy { it.readingIndex ?: 0 }
@@ -8520,19 +8542,22 @@ private data class BookLangKey(val bookId: Long, val language: String)
 
 @Composable
 fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, onDetail: (Long) -> Unit = {}) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
 
     var newestFirst by remember { mutableStateOf(vm.savedSessionNewestFirst) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val booksWithSessions = remember(vm.sessions, vm.books) {
+    val booksWithSessions = remember(sessions, books) {
         // Agrupar por (bookId, language) — misma lengua = mismo "libro", distinta lengua = libro separado
-        val bookEditionMap = vm.books.associate { book ->
+        val bookEditionMap = books.associate { book ->
             book.id to book.editions.associate { it.id to it.language }
         }
-        val keys = vm.sessions.mapNotNull { s ->
-            val book = vm.books.find { it.id == s.bookId } ?: return@mapNotNull null
+        val keys = sessions.mapNotNull { s ->
+            val book = books.find { it.id == s.bookId } ?: return@mapNotNull null
             val edMap = bookEditionMap[s.bookId] ?: emptyMap()
             val lang = s.editionId?.let { edMap[it] } ?: run {
                 // Legacy: sin editionId → asignar al idioma de la edición activa
@@ -8541,22 +8566,22 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
             BookLangKey(s.bookId, lang)
         }.toSet()
         keys.mapNotNull { key ->
-            val book = vm.books.find { it.id == key.bookId } ?: return@mapNotNull null
+            val book = books.find { it.id == key.bookId } ?: return@mapNotNull null
             book to key.language
         }.sortedBy { (book, _) -> book.title }
     }
 
     // Numeración FIJA por (bookId, lang): #1 = sesión más antigua de esa combinación
-    val fixedNumberMap = remember(vm.sessions, vm.books) {
+    val fixedNumberMap = remember(sessions, books) {
         val map = mutableMapOf<Long, Int>()
-        val bookEditionMap = vm.books.associate { book ->
+        val bookEditionMap = books.associate { book ->
             book.id to book.editions.associate { it.id to it.language }
         }
         // Agrupar por (bookId, language)
-        val byBookLang = vm.sessions.groupBy { s ->
+        val byBookLang = sessions.groupBy { s ->
             val edMap = bookEditionMap[s.bookId] ?: emptyMap()
             val lang = s.editionId?.let { edMap[it] }
-                ?: vm.books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
+                ?: books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
                 ?: "original"
             "${s.bookId}_$lang"
         }
@@ -8568,31 +8593,31 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
     }
 
     // Filtrar sesiones según búsqueda: "#3" → número fijo, "título" → libro exacto, texto libre → nota
-    val filteredSessions = remember(vm.sessions, searchQuery, fixedNumberMap) {
+    val filteredSessions = remember(sessions, searchQuery, fixedNumberMap) {
         val q = searchQuery.trim()
-        if (q.isBlank()) vm.sessions
+        if (q.isBlank()) sessions
         else if (q.startsWith("#")) {
             val num = q.removePrefix("#").toIntOrNull()
-            if (num != null) vm.sessions.filter { fixedNumberMap[it.id] == num }
-            else vm.sessions
+            if (num != null) sessions.filter { fixedNumberMap[it.id] == num }
+            else sessions
         } else if (q.length > 2 && q.startsWith("\"") && q.endsWith("\"")) {
             val exactTitle = q.removeSurrounding("\"").trim()
-            val matchingBookIds = vm.books.filter { it.title.equals(exactTitle, ignoreCase = true) }.map { it.id }.toSet()
-            vm.sessions.filter { it.bookId in matchingBookIds }
+            val matchingBookIds = books.filter { it.title.equals(exactTitle, ignoreCase = true) }.map { it.id }.toSet()
+            sessions.filter { it.bookId in matchingBookIds }
         } else {
-            vm.sessions.filter { it.note.contains(q, ignoreCase = true) }
+            sessions.filter { it.note.contains(q, ignoreCase = true) }
         }
     }
 
     // (bookId, lang) que tienen sesiones tras el filtro
-    val bookEditionMapForFilter = vm.books.associate { book ->
+    val bookEditionMapForFilter = books.associate { book ->
         book.id to book.editions.associate { it.id to it.language }
     }
     val filteredBooksWithSessions = remember(filteredSessions, booksWithSessions) {
         val filteredKeys = filteredSessions.map { s ->
             val edMap = bookEditionMapForFilter[s.bookId] ?: emptyMap()
             val lang = s.editionId?.let { edMap[it] }
-                ?: vm.books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
+                ?: books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
                 ?: "original"
             "${s.bookId}_$lang"
         }.toSet()
@@ -8619,8 +8644,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         }
     }
 
-    val totalPages = vm.sessions.sumOf { it.pages }
-    val totalMins  = vm.sessions.mapNotNull { it.minutes }.sum()
+    val totalPages = sessions.sumOf { it.pages }
+    val totalMins  = sessions.mapNotNull { it.minutes }.sum()
 
     Column(Modifier.fillMaxSize()) {
 
@@ -8644,12 +8669,12 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(IntrinsicSize.Max)) {
-                    HistoryStat("${vm.sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = Accent)
+                    HistoryStat("${sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = Accent)
                     HistoryStat(if (totalMins > 0) fmtMinutes(totalMins) else "—", stringResource(R.string.history_stat_total_time), Modifier.weight(1f), theme, valueColor = Sky)
                     HistoryStat("$totalPages", stringResource(R.string.pill_paginas_totales), Modifier.weight(1f), theme, valueColor = Green)
                     HistoryStat(if (totalMins > 0) String.format("%.1f", totalPages.toDouble() / totalMins) else "—", stringResource(R.string.pill_pags_min), Modifier.weight(1f), theme, valueColor = Green)
                     // v2.5: media global de págs/día — en la misma fila
-                    val historyGlobalMean = remember(vm.books, vm.sessions) { computeOutliers(vm.books, vm.sessions).first }
+                    val historyGlobalMean = remember(books, sessions) { computeOutliers(books, sessions).first }
                     if (historyGlobalMean > 0.0) {
                         HistoryStat(String.format("%.1f", historyGlobalMean), stringResource(R.string.history_stat_global_ppd), Modifier.weight(1f), theme, valueColor = Amber)
                     }
@@ -8756,7 +8781,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
 
         HorizontalDivider(color = theme.border, thickness = 0.5.dp)
 
-        if (vm.sessions.isEmpty()) {
+        if (sessions.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📭", fontSize = 40.sp)
@@ -8781,7 +8806,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
             ) {
                 filteredBooksWithSessions.forEach { (book, lang) ->
                     val expandKey = "${book.id}_$lang"
-                    val bookEdMap = vm.books.find { it.id == book.id }?.editions?.associate { it.id to it.language } ?: emptyMap()
+                    val bookEdMap = books.find { it.id == book.id }?.editions?.associate { it.id to it.language } ?: emptyMap()
                     val bookSessions = filteredSessions.filter { s ->
                         if (s.bookId != book.id) return@filter false
                         val sLang = s.editionId?.let { bookEdMap[it] }
@@ -9691,9 +9716,11 @@ fun BulkReloadScreen(
     type: String,     // "genres" | "covers"
     onBack: () -> Unit
 ) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
     val screenTitle = if (type == "genres") stringResource(R.string.bulk_refresh_title_genres)
         else stringResource(R.string.bulk_refresh_title_covers)
-    val allBooks = vm.books
+    val allBooks = books
 
     // Búsqueda y filtros
     var searchQuery by remember { mutableStateOf("") }
@@ -10220,6 +10247,8 @@ object FeedbackSender {
 
 @Composable
 fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onBulkReload: (String) -> Unit = {}, onResetTutorial: () -> Unit = {}, onImportExport: () -> Unit = {}) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -10631,7 +10660,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 OutlinedButton(
                     onClick = {
                         if (!localBackupEnabled) { showActivateLocalDialog = true; return@OutlinedButton }
-                        if (vm.books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
                         saveNowLocalRunning = true; saveNowMsg = null
                         val req = OneTimeWorkRequestBuilder<JsonBackupWorker>().build()
                         val wm = WorkManager.getInstance(context)
@@ -10665,7 +10694,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     onClick = {
                         if (!driveBackupEnabled) { showActivateDriveDialog = true; return@OutlinedButton }
                         if (driveAccount == null) { driveSignInLauncher.launch(driveSignInClient.signInIntent); return@OutlinedButton }
-                        if (vm.books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
                         saveNowDriveRunning = true; saveNowMsg = null
                         scope.launch {
                             val result = DriveBackupManager.backup(context, prefs)
@@ -11367,6 +11396,8 @@ fun DailySessionsScreen(
 // ── HeatmapView ─────────────────────────────────────────────────────────────
 @Composable
 fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, String) -> Unit, onNavigateToDailySessions: (String) -> Unit = {}) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val sessions by vm.sessions.collectAsState()
     // v21.41: los meses siguen el idioma de la app (string-array), no el locale del sistema
     val ctx = LocalContext.current
     val monthNames = ctx.resources.getStringArray(R.array.month_names_short).toList()
@@ -11379,7 +11410,7 @@ fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, St
             .map { it.take(1).uppercase() }
     }
 
-    val availableYears = vm.sessions
+    val availableYears = sessions
         .mapNotNull { it.date.takeIf { d -> d.length >= 4 }?.take(4) }
         .filter { it.matches(Regex("\\d{4}")) }
         .toSortedSet().toList().reversed()
@@ -11390,16 +11421,16 @@ fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, St
     var showYearMenu by remember { mutableStateOf(false) }
     var showMonthMenu by remember { mutableStateOf(false) }
 
-    val pagesByDate: Map<String, Int> = remember(vm.sessions, selYear) {
-        vm.sessions
+    val pagesByDate: Map<String, Int> = remember(sessions, selYear) {
+        sessions
             .filter { it.date.startsWith(selYear) }
             .groupBy { it.date }
             .mapValues { (_, list) -> list.sumOf { it.pages } }
     }
 
     // Pre-calcular libros por fecha — evita O(n*31) en la composición del heatmap
-    val booksByDate: Map<String, List<Long>> = remember(vm.sessions, selYear) {
-        vm.sessions
+    val booksByDate: Map<String, List<Long>> = remember(sessions, selYear) {
+        sessions
             .filter { it.date.startsWith(selYear) }
             .groupBy { it.date }
             .mapValues { (_, list) -> list.map { it.bookId }.distinct() }
@@ -11407,9 +11438,9 @@ fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, St
 
     // Feedback 2.6: sesiones del período seleccionado (año y, si aplica, mes) para el
     // heatmap horario que ahora vive en esta pestaña.
-    val periodSessions = remember(vm.sessions, selYear, selMonth) {
+    val periodSessions = remember(sessions, selYear, selMonth) {
         val mm = selMonth?.toString()?.padStart(2, '0')
-        vm.sessions.filter { s ->
+        sessions.filter { s ->
             s.date.startsWith(selYear) &&
                 (mm == null || (s.date.length >= 7 && s.date.substring(5, 7) == mm))
         }
@@ -11655,6 +11686,8 @@ fun StatsChartsView(
     onAuthorChange: (String?) -> Unit,
     allAuthors: List<String>
 ) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
     // Base: TODOS los libros aplanados por edición (v18.3) — cada edición cuenta como una entrada.
     // Para libros con varias ediciones, cada una aparece con su título, páginas, idioma y portada
@@ -11674,7 +11707,7 @@ fun StatsChartsView(
         .let { list -> if (statusFilters.isNotEmpty()) list.filter { it.status in statusFilters } else list }
         .let { list -> if (hideFunctionalless) list.filter { it.firstFunctionalPage != null || it.lastFunctionalPage != null } else list }
 
-    val sessionsByBook = vm.sessions.groupBy { it.bookId }
+    val sessionsByBook = sessions.groupBy { it.bookId }
 
     // ¿Una fecha "yyyy-MM-dd" cae en el período seleccionado (año y/o mes)?
     fun dateInPeriod(d: String?): Boolean {
@@ -11693,7 +11726,7 @@ fun StatsChartsView(
 
     // Sesiones de los libros filtrados + filtro de período (año y mes combinables)
     val filteredBookIds = booksForCharts.map { it.id }.toSet()
-    val filteredSessions = vm.sessions
+    val filteredSessions = sessions
         .filter { it.bookId in filteredBookIds }
         .let { list ->
             var l = list
@@ -12218,7 +12251,7 @@ fun DonutChart(values: List<Int>, colors: List<Color>, modifier: Modifier = Modi
 private fun buildStatsCSV(vm: BooksViewModel): String {
     val sb = StringBuilder()
     sb.appendLine("Título,Autor,Páginas,Género,Puntuación,Inicio,Fin,Días,Págs/día")
-    vm.books.filter { it.status == BookStatus.FINISHED }.forEach { b ->
+    vm.books.value.filter { it.status == BookStatus.FINISHED }.forEach { b ->
         val days = if (b.startDate != null && b.endDate != null) daysBetween(b.startDate, b.endDate) else 0
         val ppd = if (days > 0) String.format("%.1f", b.pages.toDouble() / days) else ""
         sb.appendLine("\"${b.title}\",\"${b.author}\",${b.pages},\"${b.genres.joinToString("; ")}\",${b.rating},${b.startDate ?: ""},${b.endDate ?: ""},$days,$ppd")
@@ -12228,7 +12261,7 @@ private fun buildStatsCSV(vm: BooksViewModel): String {
 
 private fun buildStatsJSON(vm: BooksViewModel): String {
     val arr = org.json.JSONArray()
-    vm.books.filter { it.status == BookStatus.FINISHED }.forEach { b ->
+    vm.books.value.filter { it.status == BookStatus.FINISHED }.forEach { b ->
         arr.put(org.json.JSONObject().apply {
             put("title", b.title)
             put("author", b.author)

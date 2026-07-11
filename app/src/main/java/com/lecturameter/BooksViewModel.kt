@@ -126,8 +126,22 @@ import com.lecturameter.utils.*
 
 class BooksViewModel : ViewModel() {
     private val gson = Gson()
-    var books by mutableStateOf<List<Book>>(emptyList())
-    var sessions by mutableStateOf<List<ReadingSession>>(emptyList())
+    // Fase 1.2/D-004: books y sessions migrados a StateFlow. La UI colecciona en la
+    // raíz de cada pantalla (collectAsState); el código no-composable usa .value.
+    // booksInternal/sessionsInternal son alias privados para el cuerpo del VM.
+    private val _books = kotlinx.coroutines.flow.MutableStateFlow<List<Book>>(emptyList())
+    val books: kotlinx.coroutines.flow.StateFlow<List<Book>> = _books
+    private val _sessions = kotlinx.coroutines.flow.MutableStateFlow<List<ReadingSession>>(emptyList())
+    val sessions: kotlinx.coroutines.flow.StateFlow<List<ReadingSession>> = _sessions
+    private var booksInternal: List<Book>
+        get() = _books.value
+        set(v) { _books.value = v }
+    private var sessionsInternal: List<ReadingSession>
+        get() = _sessions.value
+        set(v) { _sessions.value = v }
+    /** Escrituras controladas para BackupRepository (restauración de backups). */
+    fun setBooks(v: List<Book>) { _books.value = v }
+    fun setSessions(v: List<ReadingSession>) { _sessions.value = v }
     var themeMode by mutableStateOf(ThemeMode.DARK)
         private set
     var tutorialCompleted by mutableStateOf(false)
@@ -177,7 +191,7 @@ class BooksViewModel : ViewModel() {
     /** Alterna isFavorite y devuelve el nuevo estado (true = ahora es favorito). */
     fun toggleFavorite(id: Long, prefs: android.content.SharedPreferences): Boolean {
         var nowFavorite = false
-        books = books.map {
+        booksInternal = booksInternal.map {
             if (it.id == id) { nowFavorite = !it.isFavorite; it.copy(isFavorite = nowFavorite) } else it
         }
         save(prefs)
@@ -192,7 +206,7 @@ class BooksViewModel : ViewModel() {
             if (b.endDate?.startsWith(y) == true) return true
             return b.dateEvents.any { (it.type == "end" || it.type == "reread_end") && it.date.startsWith(y) }
         }
-        return books
+        return booksInternal
             .filter { it.isFavorite && (it.status == BookStatus.FINISHED || it.status == BookStatus.REREADING) && finishedInYear(it) }
             .shuffled()
             .take(3)
@@ -218,7 +232,7 @@ class BooksViewModel : ViewModel() {
         }
         if (frozen.isEmpty()) return emptyList()
         if (frozen != fromPref) prefs.edit().putString(key, gson.toJson(frozen)).apply()
-        return frozen.mapNotNull { id -> books.find { it.id == id } }
+        return frozen.mapNotNull { id -> booksInternal.find { it.id == id } }
     }
 
     // ── Retos de lectura (v2.4 rework) ─────────────────────────────────────────
@@ -288,16 +302,16 @@ class BooksViewModel : ViewModel() {
         val rangeEnd   = c.endDate   ?: "$year-12-31"
         fun inRange(date: String?) = date != null && date >= rangeStart && date <= rangeEnd
         val current = when (c.type) {
-            ChallengeType.PAGES    -> sessions.filter { inRange(it.date) }.sumOf { it.pages }
-            ChallengeType.MINUTES  -> sessions.filter { inRange(it.date) }.sumOf { it.minutes ?: 0 }
-            ChallengeType.SESSIONS -> sessions.count { inRange(it.date) }
+            ChallengeType.PAGES    -> sessionsInternal.filter { inRange(it.date) }.sumOf { it.pages }
+            ChallengeType.MINUTES  -> sessionsInternal.filter { inRange(it.date) }.sumOf { it.minutes ?: 0 }
+            ChallengeType.SESSIONS -> sessionsInternal.count { inRange(it.date) }
             ChallengeType.BOOKS    -> {
                 // Feedback 2.6: el filtro de saga ignora tildes ("oráculo" ≡ "oraculo") y
                 // también mira los títulos de las ediciones del libro.
                 fun normF(s: String) = java.text.Normalizer.normalize(s.lowercase().trim(), java.text.Normalizer.Form.NFD)
                     .replace(Regex("\\p{M}"), "")
                 val filterNorm = c.titleFilter?.takeIf { it.isNotBlank() }?.let { normF(it) }
-                books.count { b ->
+                booksInternal.count { b ->
                     (b.status == BookStatus.FINISHED || b.status == BookStatus.REREADING) && inRange(b.endDate) &&
                         (filterNorm == null ||
                             normF(b.title).contains(filterNorm) ||
@@ -311,7 +325,7 @@ class BooksViewModel : ViewModel() {
 
     /** Racha actual de días consecutivos con al menos una sesión (contando hoy o ayer como ancla). */
     fun currentReadingStreak(): Int {
-        val daysWithSession = sessions.map { it.date }.toHashSet()
+        val daysWithSession = sessionsInternal.map { it.date }.toHashSet()
         if (daysWithSession.isEmpty()) return 0
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
         val cal = java.util.Calendar.getInstance()
@@ -347,14 +361,14 @@ class BooksViewModel : ViewModel() {
         showFavoritesOnly = prefs.getBoolean("show_favorites_only", false)
         loadChallenges(prefs)
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
-        books = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
+        booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
         themeMode = when (prefs.getString("theme_mode", "dark")) {
             "light"  -> ThemeMode.LIGHT
             "aurora" -> ThemeMode.AURORA
             "amoled" -> ThemeMode.AMOLED
             else     -> ThemeMode.DARK
         }
-        com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessions = it }
+        com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }
         loadWrapped(prefs)
         autoRepairFinishedBooks(prefs)
         repairLegacyFlags(prefs)
@@ -380,7 +394,7 @@ class BooksViewModel : ViewModel() {
         if (prefs.getBoolean(flagKey, false)) return   // ya ejecutado
         // v8.0: repara portadas de todos los libros (no solo FINISHED) y género de cualquiera
         // que esté vacío, sea "Otro" o tenga sólo un género genérico
-        val targets = books.filter { book ->
+        val targets = booksInternal.filter { book ->
             book.noCoverFound || book.coverUrl.isNullOrBlank() ||
             book.genres.isEmpty() || book.genres == listOf("Otro") ||
             book.genres == listOf("Historia") || book.genres == listOf("Drama")
@@ -434,7 +448,7 @@ class BooksViewModel : ViewModel() {
         // Fecha de lanzamiento de la versión 6 (1 de enero de 2024 UTC)
         val V6_RELEASE_TIMESTAMP = 1704067200000L
 
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val editions = book.editions
             if (editions.size == 1 && editions[0].flag == "🇪🇸" && editions[0].language == "es"
                 && editions[0].id == book.id
@@ -460,7 +474,7 @@ class BooksViewModel : ViewModel() {
         val v6ReleaseTimestamp = 1704067200000L
         var changed = false
 
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val editions = book.editions
             if (editions.size != 1) return@map book
 
@@ -503,7 +517,7 @@ class BooksViewModel : ViewModel() {
         val flagKey = "genre_logic_repair_v8601"
         if (prefs.getBoolean(flagKey, false)) return
 
-        val targets = books.filter { book ->
+        val targets = booksInternal.filter { book ->
             book.genres.isEmpty() ||
             book.genres == listOf("Otro") ||
             book.genres == listOf("Historia") ||
@@ -562,7 +576,7 @@ class BooksViewModel : ViewModel() {
         val spanishCharsRegex = Regex("[áéíóúüñ¿¡]", RegexOption.IGNORE_CASE)
 
         var changed = false
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val activeEd = book.editions.firstOrNull { it.isActive } ?: return@map book
             if (activeEd.language != "unknown" || activeEd.flag != "🌐") return@map book
 
@@ -598,7 +612,7 @@ class BooksViewModel : ViewModel() {
         if (prefs.getBoolean(flagKey, false)) return
 
         var changed = false
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val updated = book.editions.map { ed ->
                 val isEnglish = ed.language in setOf("original", "en", "eng")
                 if (!isEnglish || ed.flag != "🌐") return@map ed
@@ -627,7 +641,7 @@ class BooksViewModel : ViewModel() {
         if (prefs.getBoolean(flagKey, false)) return
 
         var changed = false
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val updated = book.editions.map { ed ->
                 if (ed.flag != "🌐") return@map ed
                 val refined = inferAnglophoneFlag(ed.isbn, ed.publisher) ?: return@map ed
@@ -660,7 +674,7 @@ class BooksViewModel : ViewModel() {
         if (prefs.getBoolean(flagKey, false)) return
 
         var changed = false
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             val updated = book.editions.map { ed ->
                 if (ed.language != "original" || (ed.flag != "🇺🇸" && ed.flag != "🇬🇧")) return@map ed
                 val realSignal = inferAnglophoneFlag(ed.isbn, ed.publisher)
@@ -676,11 +690,11 @@ class BooksViewModel : ViewModel() {
     }
 
     fun save(prefs: android.content.SharedPreferences, triggerBackup: Boolean = true) {
-        com.lecturameter.repository.BookRepository.save(prefs, books)
+        com.lecturameter.repository.BookRepository.save(prefs, booksInternal)
         if (triggerBackup) triggerDriveBackup(prefs)
     }
     fun saveSessions(prefs: android.content.SharedPreferences, triggerBackup: Boolean = true) {
-        com.lecturameter.repository.SessionRepository.save(prefs, sessions)
+        com.lecturameter.repository.SessionRepository.save(prefs, sessionsInternal)
         if (triggerBackup) triggerDriveBackup(prefs)
     }
 
@@ -718,7 +732,7 @@ class BooksViewModel : ViewModel() {
         setThemeMode(next, prefs, context)
     }
     val isDarkMode get() = themeMode != ThemeMode.LIGHT
-    fun addBook(book: Book, prefs: android.content.SharedPreferences) { books = listOf(book) + books; save(prefs) }
+    fun addBook(book: Book, prefs: android.content.SharedPreferences) { booksInternal = listOf(book) + booksInternal; save(prefs) }
 
     /** v2.5: duplicado = mismo ISBN (no vacío) o mismo título+autor normalizados.
      *  Feedback 2.6 (duplicados inconsistentes): ahora compara también los ISBNs de
@@ -738,20 +752,20 @@ class BooksViewModel : ViewModel() {
         val cIsbns = isbnsOf(candidate)
         val cTitle = baseTitle(candidate.title)
         val cAuthor = norm(candidate.author)
-        return books.firstOrNull { b ->
+        return booksInternal.firstOrNull { b ->
             (cIsbns.isNotEmpty() && isbnsOf(b).any { it in cIsbns }) ||
             (cTitle.isNotEmpty() && baseTitle(b.title) == cTitle && norm(b.author) == cAuthor)
         }
     }
-    fun deleteBook(id: Long, prefs: android.content.SharedPreferences) { books = books.filter { it.id != id }; sessions = sessions.filter { it.bookId != id }; save(prefs, triggerBackup = false); saveSessions(prefs, triggerBackup = false) }
+    fun deleteBook(id: Long, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.filter { it.id != id }; sessionsInternal = sessionsInternal.filter { it.bookId != id }; save(prefs, triggerBackup = false); saveSessions(prefs, triggerBackup = false) }
     fun updateRating(id: Long, rating: Int, prefs: android.content.SharedPreferences) {
-        books = books.map { if (it.id == id) it.copy(rating = rating) else it }
+        booksInternal = booksInternal.map { if (it.id == id) it.copy(rating = rating) else it }
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { save(prefs) }
     }
-    fun updateGenres(id: Long, genres: List<String>, prefs: android.content.SharedPreferences) { books = books.map { if (it.id == id) it.copy(genres = genres) else it }; save(prefs) }
+    fun updateGenres(id: Long, genres: List<String>, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.map { if (it.id == id) it.copy(genres = genres) else it }; save(prefs) }
     @Deprecated("Use updateGenres") fun updateGenre(id: Long, genre: String, prefs: android.content.SharedPreferences) = updateGenres(id, if (genre.isBlank()) emptyList() else listOf(genre), prefs)
     fun updateCover(id: Long, coverUrl: String, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != id) return@map book
             val updatedEditions = if (book.editions.isNotEmpty()) {
                 book.editions.map { ed -> if (ed.isActive) ed.copy(coverUrl = coverUrl, noCoverFound = false) else ed }
@@ -774,7 +788,7 @@ class BooksViewModel : ViewModel() {
         save(prefs)
     }
     fun updateNoCoverFound(id: Long, noCoverFound: Boolean, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != id) return@map book
             // Actualizar también la edición activa para que upsertEdition no revierta el flag
             val updatedEditions = if (book.editions.isNotEmpty()) {
@@ -795,7 +809,7 @@ class BooksViewModel : ViewModel() {
     /** Marca una portada como rota (fallo de carga en Coil): limpia la URL y activa el badge ⚠️.
      *  Afecta al libro y a la edición activa para que el siguiente refresh busque de cero. */
     fun markCoverBroken(id: Long, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != id) return@map book
             val editions = editionsForBook(id)
             val updatedEditions = editions.map { ed ->
@@ -814,7 +828,7 @@ class BooksViewModel : ViewModel() {
     ) {
         if (id in refreshingCoverIds) return
 
-        val book = books.find { it.id == id } ?: run {
+        val book = booksInternal.find { it.id == id } ?: run {
             onFinished?.invoke(false, false)
             return
         }
@@ -875,7 +889,7 @@ class BooksViewModel : ViewModel() {
         }
     }
     fun refreshGenre(id: Long, prefs: android.content.SharedPreferences, onFinished: ((Boolean) -> Unit)? = null) {
-        val book = books.find { it.id == id } ?: run {
+        val book = booksInternal.find { it.id == id } ?: run {
             onFinished?.invoke(false)
             return
         }
@@ -893,7 +907,7 @@ class BooksViewModel : ViewModel() {
     }
 
     fun bulkRefreshGenres(prefs: android.content.SharedPreferences, bookIds: List<Long>?, onProgress: (Int, Int) -> Unit = { _, _ -> }, onDone: (ok: Int, errors: Int) -> Unit = { _, _ -> }) {
-        val targets = if (bookIds != null) books.filter { it.id in bookIds } else books.toList()
+        val targets = if (bookIds != null) booksInternal.filter { it.id in bookIds } else booksInternal.toList()
         if (targets.isEmpty()) { onDone(0, 0); return }
         viewModelScope.launch {
             var okCount = 0
@@ -915,7 +929,7 @@ class BooksViewModel : ViewModel() {
     }
 
     fun bulkRefreshCovers(prefs: android.content.SharedPreferences, bookIds: List<Long>?, onProgress: (Int, Int) -> Unit = { _, _ -> }, onDone: (ok: Int, errors: Int) -> Unit = { _, _ -> }) {
-        val targets = if (bookIds != null) books.filter { it.id in bookIds } else books.toList()
+        val targets = if (bookIds != null) booksInternal.filter { it.id in bookIds } else booksInternal.toList()
         if (targets.isEmpty()) { onDone(0, 0); return }
         viewModelScope.launch {
             var okCount = 0
@@ -939,10 +953,10 @@ class BooksViewModel : ViewModel() {
             onDone(okCount, targets.size - okCount)
         }
     }
-    fun updateComment(id: Long, comment: String, prefs: android.content.SharedPreferences) { books = books.map { if (it.id == id) it.copy(comment = comment) else it }; save(prefs) }
+    fun updateComment(id: Long, comment: String, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.map { if (it.id == id) it.copy(comment = comment) else it }; save(prefs) }
 
     fun updateEditionComment(bookId: Long, editionId: Long, comment: String, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != bookId) return@map book
             book.copy(editions = book.editions.map { ed ->
                 if (ed.id == editionId) ed.copy(comment = comment) else ed
@@ -958,7 +972,7 @@ class BooksViewModel : ViewModel() {
         val bookEditions = editionsForBook(bookId)
         val editionIdToLanguage = bookEditions.associate { it.id to it.language }
         val singleEdition = bookEditions.size <= 1
-        return sessions.filter { s ->
+        return sessionsInternal.filter { s ->
             if (s.bookId != bookId) return@filter false
             if (singleEdition) return@filter true
             val sessionLang = s.editionId?.let { editionIdToLanguage[it] } ?: "original"
@@ -966,7 +980,7 @@ class BooksViewModel : ViewModel() {
         }.sortedByDescending { it.date }
     }
     fun updatePages(id: Long, pages: Int, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != id) return@map book
             // Actualizar tanto book.pages como la edición activa (si existe)
             val updatedEditions = book.editions.map { ed ->
@@ -982,7 +996,7 @@ class BooksViewModel : ViewModel() {
     /** Devuelve las ediciones de un libro. Si no tiene ninguna definida, sintetiza
      *  una edición implícita a partir de los datos actuales del libro (migración). */
     fun editionsForBook(id: Long): List<BookEdition> {
-        val book = books.find { it.id == id } ?: return emptyList()
+        val book = booksInternal.find { it.id == id } ?: return emptyList()
         if (book.editions.isNotEmpty()) return book.editions
         // Migración: libro sin ediciones → crear edición implícita
         return listOf(BookEdition(
@@ -1011,7 +1025,7 @@ class BooksViewModel : ViewModel() {
     }
 
     fun upsertEdition(bookId: Long, edition: BookEdition, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != bookId) return@map book
             val currentEditions = editionsForBook(bookId).toMutableList()
             val existingIdx = currentEditions.indexOfFirst { it.id == edition.id }
@@ -1040,7 +1054,7 @@ class BooksViewModel : ViewModel() {
 
     /** Elimina una edición. No permite eliminar si es la única. */
     fun removeEdition(bookId: Long, editionId: Long, prefs: android.content.SharedPreferences): Boolean {
-        val book = books.find { it.id == bookId } ?: return false
+        val book = booksInternal.find { it.id == bookId } ?: return false
         val editions = editionsForBook(bookId)
         if (editions.size <= 1) return false
         val updated = editions.filter { it.id != editionId }
@@ -1050,7 +1064,7 @@ class BooksViewModel : ViewModel() {
             updated.mapIndexed { i, e -> if (i == 0) e.copy(isActive = true) else e }
         else updated
         val active = finalEditions.firstOrNull { it.isActive } ?: finalEditions.first()
-        books = books.map { b ->
+        booksInternal = booksInternal.map { b ->
             if (b.id != bookId) b
             else b.copy(
                 editions     = finalEditions,
@@ -1066,7 +1080,7 @@ class BooksViewModel : ViewModel() {
         return true
     }
     fun setActiveEdition(bookId: Long, editionId: Long, prefs: android.content.SharedPreferences) {
-        books = books.map { book ->
+        booksInternal = booksInternal.map { book ->
             if (book.id != bookId) return@map book
             val editions = editionsForBook(bookId).map { it.copy(isActive = it.id == editionId) }
             val active = editions.firstOrNull { it.isActive } ?: return@map book
@@ -1089,7 +1103,7 @@ class BooksViewModel : ViewModel() {
         prefs: android.content.SharedPreferences,
         onFinished: ((Boolean) -> Unit)? = null
     ) {
-        val book = books.find { it.id == bookId } ?: return
+        val book = booksInternal.find { it.id == bookId } ?: return
         val edition = editionsForBook(bookId).firstOrNull { it.id == editionId } ?: return
         viewModelScope.launch {
             // Para búsqueda en español, incluir el título en español si difiere
@@ -1104,7 +1118,7 @@ class BooksViewModel : ViewModel() {
             upsertEdition(bookId, updated, prefs)
             // Si esta edición es la activa, también actualizar el noCoverFound del libro
             if (edition.isActive) {
-                books = books.map { b ->
+                booksInternal = booksInternal.map { b ->
                     if (b.id == bookId) b.copy(noCoverFound = coverUrl == null) else b
                 }
                 save(prefs)
@@ -1122,7 +1136,7 @@ class BooksViewModel : ViewModel() {
         onPartial: ((List<EditionResult>) -> Unit)? = null,
         onResult: (List<EditionResult>) -> Unit
     ) {
-        val book = books.find { it.id == bookId } ?: return
+        val book = booksInternal.find { it.id == bookId } ?: return
         if (forceRefresh) EditionCache.clearCacheForBook(bookId)
         // Cancel any previous ongoing load to avoid concurrent network storms and crashes
         loadEditionsJob?.cancel()
@@ -1192,7 +1206,7 @@ class BooksViewModel : ViewModel() {
         }
     }
     fun updateDates(id: Long, startDate: String?, endDate: String?, prefs: android.content.SharedPreferences) {
-        books = books.map {
+        booksInternal = booksInternal.map {
             if (it.id == id) {
                 // Los libros en estado READING nunca deben tener fecha de fin
                 val cleanEnd = if (it.status == BookStatus.READING) null
@@ -1207,7 +1221,7 @@ class BooksViewModel : ViewModel() {
 
     /** v19.8: actualiza la lista completa de dateEvents y sincroniza los campos legacy. */
     fun updateDateEvents(id: Long, newEvents: List<DateEvent>, prefs: android.content.SharedPreferences) {
-        books = books.map { b ->
+        booksInternal = booksInternal.map { b ->
             if (b.id == id) {
                 // v20.0 (G6): renumerar occurrences para evitar huecos/duplicados que rompen los labels
                 val renumbered = renumberOccurrences(newEvents)
@@ -1226,10 +1240,10 @@ class BooksViewModel : ViewModel() {
             } else b
         }
         // Recalcular readingIndex de todas las sesiones afectadas
-        val book = books.firstOrNull { it.id == id }
+        val book = booksInternal.firstOrNull { it.id == id }
         if (book != null) {
             val events = book.dateEvents
-            sessions = sessions.map { s ->
+            sessionsInternal = sessionsInternal.map { s ->
                 if (s.bookId == id) s.copy(readingIndex = computeReadingIndex(s.date, events)) else s
             }
             saveSessions(prefs, triggerBackup = false)
@@ -1237,7 +1251,7 @@ class BooksViewModel : ViewModel() {
         save(prefs)
     }
     fun updateStatus(id: Long, status: BookStatus, prefs: android.content.SharedPreferences) {
-        books = books.map {
+        booksInternal = booksInternal.map {
             if (it.id == id) {
                 val sd = when {
                     status == BookStatus.PENDING -> null
@@ -1253,7 +1267,7 @@ class BooksViewModel : ViewModel() {
                 }
                 // Al cambiar a un estado distinto de FINISHED, limpiar el flag isRereading
                 val newLastFunctional = if (status == BookStatus.FINISHED && it.lastFunctionalPage == null) {
-                    sessions.filter { s -> s.bookId == id }
+                    sessionsInternal.filter { s -> s.bookId == id }
                         .maxByOrNull { s -> s.date }?.endPage
                 } else null
                 // Fecha de abandono: automática al pasar a DROPPED (no se sobreescribe si ya existe)
@@ -1319,13 +1333,13 @@ class BooksViewModel : ViewModel() {
             } else it
         }
         // Recalcular readingIndex de sesiones del libro tras cambio de status
-        val updatedBook = books.firstOrNull { it.id == id }
+        val updatedBook = booksInternal.firstOrNull { it.id == id }
         if (updatedBook != null) {
             val events = updatedBook.dateEvents
             // v20.4 (B5): al pasar a REREADING, NO mover sesiones de Lectura a Relectura.
             // Solo recalcular sesiones que tengan readingIndex == null (nunca asignado).
             // Las sesiones con readingIndex ya asignado (0 = Lectura, N = RelecturaN) se preservan.
-            sessions = sessions.map { s ->
+            sessionsInternal = sessionsInternal.map { s ->
                 if (s.bookId == id) {
                     if (s.readingIndex == null) {
                         s.copy(readingIndex = computeReadingIndex(s.date, events))
@@ -1346,7 +1360,7 @@ class BooksViewModel : ViewModel() {
     }
 
     fun toggleRereading(id: Long, prefs: android.content.SharedPreferences) {
-        val book = books.firstOrNull { it.id == id } ?: return
+        val book = booksInternal.firstOrNull { it.id == id } ?: return
         // v19.8: si está releyendo (REREADING o flag isRereading) → terminar relectura
         // si no, empezar relectura (debe estar FINISHED)
         val isCurrentlyRereading = book.status == BookStatus.REREADING || book.isRereading
@@ -1362,37 +1376,37 @@ class BooksViewModel : ViewModel() {
     // ── Sessions ───────────────────────────────────────────────────────────────
     fun addSession(session: ReadingSession, prefs: android.content.SharedPreferences) {
         // v19.8: calcular readingIndex automáticamente según fecha y eventos del libro
-        val book = books.firstOrNull { it.id == session.bookId }
+        val book = booksInternal.firstOrNull { it.id == session.bookId }
         val finalSession = if (book != null) {
             val events = migrateLegacyToEvents(book)
             session.copy(readingIndex = computeReadingIndex(session.date, events))
         } else session
-        sessions = listOf(finalSession) + sessions
+        sessionsInternal = listOf(finalSession) + sessionsInternal
         saveSessions(prefs)
     }
     fun deleteSession(sessionId: Long, prefs: android.content.SharedPreferences) {
-        sessions = sessions.filter { it.id != sessionId }
+        sessionsInternal = sessionsInternal.filter { it.id != sessionId }
         saveSessions(prefs, triggerBackup = false)
     }
     /** v20.0: borra varias sesiones a la vez (botón "Eliminar todas" del historial). */
     fun deleteSessions(sessionIds: Collection<Long>, prefs: android.content.SharedPreferences) {
         if (sessionIds.isEmpty()) return
         val toRemove = sessionIds.toHashSet()
-        sessions = sessions.filter { it.id !in toRemove }
+        sessionsInternal = sessionsInternal.filter { it.id !in toRemove }
         saveSessions(prefs, triggerBackup = false)
     }
     fun updateSession(updated: ReadingSession, prefs: android.content.SharedPreferences) {
-        sessions = sessions.map { if (it.id == updated.id) updated else it }
+        sessionsInternal = sessionsInternal.map { if (it.id == updated.id) updated else it }
         saveSessions(prefs)
     }
     fun updateFunctionalPages(bookId: Long, firstPage: Int?, lastPage: Int?, prefs: android.content.SharedPreferences) {
-        books = books.map {
+        booksInternal = booksInternal.map {
             if (it.id == bookId) it.copy(firstFunctionalPage = firstPage, lastFunctionalPage = lastPage) else it
         }; save(prefs)
     }
 
     fun sessionsForBook(bookId: Long): List<ReadingSession> =
-        sessions.filter { it.bookId == bookId }.sortedByDescending { it.date }
+        sessionsInternal.filter { it.bookId == bookId }.sortedByDescending { it.date }
 
     /**
      * Aplana la biblioteca a un libro virtual por edición (v18.3).
@@ -1405,7 +1419,7 @@ class BooksViewModel : ViewModel() {
      *
      * Libros con 0 o 1 edición devuelven la lista normal (sin duplicar).
      */
-    fun booksByEdition(): List<Book> = books.flatMap { book ->
+    fun booksByEdition(): List<Book> = booksInternal.flatMap { book ->
         val eds = book.editions
         if (eds.size <= 1) listOf(book)
         else eds.map { ed ->
@@ -1448,14 +1462,14 @@ class BooksViewModel : ViewModel() {
     fun wrappedForYear(year: Int): YearWrapped? = _wrappedHistory.value.find { it.year == year }
 
     fun computeWrapped(year: Int): YearWrapped? {
-        val finished = books.filter {
+        val finished = booksInternal.filter {
             it.status == BookStatus.FINISHED &&
             it.endDate != null && it.startDate != null &&
             it.endDate.startsWith(year.toString()) &&
             !it.importedFromGoodreads
         }
         // v19.8: relecturas completadas en el año (reread_end events del año)
-        val rereadsThisYear = books.filter { !it.importedFromGoodreads }.flatMap { b ->
+        val rereadsThisYear = booksInternal.filter { !it.importedFromGoodreads }.flatMap { b ->
             b.dateEvents.filter { it.type == "reread_end" && it.date.startsWith(year.toString()) }
                 .map { b to it }
         }
@@ -1465,7 +1479,7 @@ class BooksViewModel : ViewModel() {
         val totalBooks = finished.size + rereadCount
         // v19.8: páginas de las relecturas también se suman
         val totalPages = finished.sumOf { it.pages } + rereadsThisYear.sumOf { (b, _) -> b.pages }
-        // Exclude same-day books (startDate == endDate) from speed-based stats
+        // Exclude same-day booksInternal (startDate == endDate) from speed-based stats
         val multiDayBooks = finished.filter { it.startDate != it.endDate && daysBetween(it.startDate!!, it.endDate!!) >= 2 }
         val speeds = multiDayBooks.map { b ->
             val d = daysBetween(b.startDate!!, b.endDate!!)
@@ -1511,7 +1525,7 @@ class BooksViewModel : ViewModel() {
 
         // ── v18.3: nuevos cálculos ──────────────────────────────────────────
         // Sesiones del año (basadas en su fecha, no en el libro)
-        val sessionsInYear = sessions.filter { it.date.startsWith(year.toString()) }
+        val sessionsInYear = sessionsInternal.filter { it.date.startsWith(year.toString()) }
         val totalSessions = sessionsInYear.size
         val totalMinutes = sessionsInYear.mapNotNull { it.minutes }.sum()
         val maxSession = sessionsInYear.maxByOrNull { it.pages }
@@ -1546,7 +1560,7 @@ class BooksViewModel : ViewModel() {
             pagesPerTimeSlot[slotCal.get(java.util.Calendar.HOUR_OF_DAY) / 3] += s.pages.coerceAtLeast(1)
         }
         // Libros abandonados ese año (dropDate dentro del año)
-        val droppedList = books.filter { b ->
+        val droppedList = booksInternal.filter { b ->
             b.status == BookStatus.DROPPED &&
             (b.dropDate?.startsWith(year.toString()) == true) &&
             !b.importedFromGoodreads
@@ -1583,7 +1597,7 @@ class BooksViewModel : ViewModel() {
             if (m != null && m in 0..11) booksPerMonth[m] += 1
         }
         // Comparativa año anterior
-        val prevYearFinished = books.filter { b ->
+        val prevYearFinished = booksInternal.filter { b ->
             b.status == BookStatus.FINISHED && b.endDate != null &&
             b.endDate.startsWith((year - 1).toString()) &&
             !b.importedFromGoodreads
@@ -1600,11 +1614,11 @@ class BooksViewModel : ViewModel() {
             .map { it.key to it.value.size }
 
         // v19.3: top 3 libros por minutos totales de sesión en el año
-        val longestBooksTop3 = sessions
+        val longestBooksTop3 = sessionsInternal
             .filter { it.date.startsWith(year.toString()) && (it.minutes ?: 0) > 0 }
             .groupBy { it.bookId }
             .mapNotNull { (bookId, sess) ->
-                val book = books.find { it.id == bookId } ?: return@mapNotNull null
+                val book = booksInternal.find { it.id == bookId } ?: return@mapNotNull null
                 val totalMins = sess.sumOf { it.minutes ?: 0 }
                 if (totalMins > 0) Pair(book.title, totalMins) else null
             }
@@ -1698,7 +1712,7 @@ class BooksViewModel : ViewModel() {
                 // Solo intentar inferir género desde la columna Bookshelves (etiquetas reales de Goodreads).
                 // No intentar inferir desde el título — produce demasiados falsos positivos.
                 val autoGenres = if (bookshelvesRaw.isNotBlank()) mapApiGenre(bookshelvesRaw) else emptyList()
-                books = listOf(Book(id = System.currentTimeMillis() + imported, title = title, author = author, pages = if (pages > 0) pages else 1, startDate = if (status != BookStatus.PENDING) (dateRead ?: today()) else null, endDate = if (status == BookStatus.FINISHED) dateRead else null, status = status, rating = rating10, coverUrl = coverUrl, isbn = isbn, genres = autoGenres, importedFromGoodreads = true)) + books
+                booksInternal = listOf(Book(id = System.currentTimeMillis() + imported, title = title, author = author, pages = if (pages > 0) pages else 1, startDate = if (status != BookStatus.PENDING) (dateRead ?: today()) else null, endDate = if (status == BookStatus.FINISHED) dateRead else null, status = status, rating = rating10, coverUrl = coverUrl, isbn = isbn, genres = autoGenres, importedFromGoodreads = true)) + booksInternal
                 imported++
             }
             if (imported > 0) save(prefs)

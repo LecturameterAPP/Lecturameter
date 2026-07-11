@@ -235,8 +235,8 @@ fun formatLastLocalBackup(context: Context, prefs: android.content.SharedPrefere
 fun exportFullBackup(context: Context, vm: BooksViewModel): Uri? {
     return try {
         val backup = FullBackup(
-            books = embedLocalCoversForExport(context, vm.books),
-            sessions = vm.sessions,
+            books = embedLocalCoversForExport(context, vm.books.value),
+            sessions = vm.sessions.value,
             wrappedHistory = vm.wrappedHistory.value
         )
         val gson = Gson()
@@ -339,14 +339,14 @@ fun importFullBackupFromJson(
         val backupSessions2 = backup.sessions ?: emptyList()
         val backupWrapped2 = backup.wrappedHistory ?: emptyList()
 
-        val existingIsbns = vm.books.mapNotNull { it.isbn }.toSet()
-        val existingKeys = vm.books.map { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" }.toSet()
-        val existingBookIds = vm.books.map { it.id }.toSet()
+        val existingIsbns = vm.books.value.mapNotNull { it.isbn }.toSet()
+        val existingKeys = vm.books.value.map { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" }.toSet()
+        val existingBookIds = vm.books.value.map { it.id }.toSet()
         val newBooks = backupBooks2.filter { b ->
             val key = "${b.title.trim().lowercase()}|${b.author.trim().lowercase()}"
             b.id !in existingBookIds && (b.isbn == null || b.isbn !in existingIsbns) && key !in existingKeys
         }
-        val existingSessionIds = vm.sessions.map { it.id }.toSet()
+        val existingSessionIds = vm.sessions.value.map { it.id }.toSet()
         // Bug fix v21.15: una sesión "nueva a restaurar" hay que reasignarla al id LOCAL del
         // libro, no al id que traía en el backup. Si el libro ya existía localmente (mismo id,
         // mismo ISBN o mismo título+autor — caso típico al restaurar un backup de OTRA instalación,
@@ -354,16 +354,16 @@ fun importFullBackupFromJson(
         // las sesiones deben apuntar al id local existente, no quedar huérfanas.
         val bookIdRemap: Map<Long, Long> = backupBooks2.associate { b ->
             val key = "${b.title.trim().lowercase()}|${b.author.trim().lowercase()}"
-            val matched = vm.books.firstOrNull { it.id == b.id }
-                ?: vm.books.firstOrNull { b.isbn != null && it.isbn == b.isbn }
-                ?: vm.books.firstOrNull { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" == key }
+            val matched = vm.books.value.firstOrNull { it.id == b.id }
+                ?: vm.books.value.firstOrNull { b.isbn != null && it.isbn == b.isbn }
+                ?: vm.books.value.firstOrNull { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" == key }
             b.id to (matched?.id ?: b.id)
         }
         val newSessions = backupSessions2
             .filter { it.id !in existingSessionIds }
             .mapNotNull { s -> bookIdRemap[s.bookId]?.let { resolvedId -> s.copy(bookId = resolvedId) } }
         val backupBookById2 = backupBooks2.associateBy { it.id }
-        vm.books = vm.books.map { existing ->
+        vm.setBooks(vm.books.value.map { existing ->
             val fromBackup = backupBookById2[existing.id]
             if (fromBackup != null) {
                 val restoredEditions2 = if (fromBackup.editions.isNotEmpty())
@@ -381,22 +381,22 @@ fun importFullBackupFromJson(
                     editions  = restoredEditions2
                 )
             } else existing
-        } + newBooks.map { sanitizeBook(restoreLocalCoversFromBackup(context, listOf(it)).first()) }
+        } + newBooks.map { sanitizeBook(restoreLocalCoversFromBackup(context, listOf(it)).first()) })
         val backupSessionById2 = backupSessions2.associateBy { it.id }
-        vm.sessions = vm.sessions.map { existing ->
+        vm.setSessions(vm.sessions.value.map { existing ->
             val fromBackup = backupSessionById2[existing.id]
             if (fromBackup != null) existing.copy(
                 startPage = fromBackup.startPage ?: existing.startPage,
                 endPage   = fromBackup.endPage   ?: existing.endPage,
                 pages     = fromBackup.pages
             ) else existing
-        } + newSessions
+        } + newSessions)
         val existingYears = vm.wrappedHistory.value.map { it.year }.toSet()
         val newWrapped = backupWrapped2.filter { it.year !in existingYears }
         vm.setWrappedHistory(vm.wrappedHistory.value + newWrapped)
         prefs.edit()
-            .putString("books", gson.toJson(vm.books))
-            .putString("sessions", gson.toJson(vm.sessions))
+            .putString("books", gson.toJson(vm.books.value))
+            .putString("sessions", gson.toJson(vm.sessions.value))
             .putString("wrapped_history", gson.toJson(vm.wrappedHistory.value))
             .apply()
         val msg = buildString {
