@@ -476,12 +476,16 @@ val BOOK_GENRES = listOf(
     "Crimen",
     "Deportes",
     "Desarrollo personal",
+    "Distopía",
+    "Divulgación científica",
     "Drama",
     "Economía",
     "Educación",
     "Ensayo",
+    "Erótica",
     "Fantasía",
     "Filosofía",
+    "Gastronomía",
     "Grimdark",
     "Historia",
     "Humor",
@@ -490,6 +494,7 @@ val BOOK_GENRES = listOf(
     "Lingüística",
     "Literatura clásica",
     "Manga",
+    "Memorias",
     "Misterio",
     "Mitología",
     "Música",
@@ -511,7 +516,9 @@ val BOOK_GENRES = listOf(
     "Tecnología",
     "Terror",
     "Thriller",
+    "True crime",
     "Viajes",
+    "Western",
     "Otro"
 )
 
@@ -529,12 +536,16 @@ val GENRE_DISPLAY_KEY: Map<String, Int> = mapOf(
     "Crimen" to R.string.genre_crimen,
     "Deportes" to R.string.genre_deportes,
     "Desarrollo personal" to R.string.genre_desarrollo_personal,
+    "Distopía" to R.string.genre_distopia,
+    "Divulgación científica" to R.string.genre_divulgacion_cientifica,
     "Drama" to R.string.genre_drama,
     "Economía" to R.string.genre_economia,
     "Educación" to R.string.genre_educacion,
     "Ensayo" to R.string.genre_ensayo,
+    "Erótica" to R.string.genre_erotica,
     "Fantasía" to R.string.genre_fantasia,
     "Filosofía" to R.string.genre_filosofia,
+    "Gastronomía" to R.string.genre_gastronomia,
     "Grimdark" to R.string.genre_grimdark,
     "Historia" to R.string.genre_historia,
     "Humor" to R.string.genre_humor,
@@ -543,6 +554,7 @@ val GENRE_DISPLAY_KEY: Map<String, Int> = mapOf(
     "Lingüística" to R.string.genre_linguistica,
     "Literatura clásica" to R.string.genre_literatura_clasica,
     "Manga" to R.string.genre_manga,
+    "Memorias" to R.string.genre_memorias,
     "Misterio" to R.string.genre_misterio,
     "Mitología" to R.string.genre_mitologia,
     "Música" to R.string.genre_musica,
@@ -564,9 +576,154 @@ val GENRE_DISPLAY_KEY: Map<String, Int> = mapOf(
     "Tecnología" to R.string.genre_tecnologia,
     "Terror" to R.string.genre_terror,
     "Thriller" to R.string.genre_thriller,
+    "True crime" to R.string.genre_true_crime,
     "Viajes" to R.string.genre_viajes,
+    "Western" to R.string.genre_western,
     "Otro" to R.string.genre_otro,
 )
+
+// ── Grupos del selector de géneros (P-012) — solo presentación, no afectan al dato ──
+val GENRE_GROUPS: List<Pair<Int, List<String>>> = listOf(
+    R.string.genre_group_fiction to listOf(
+        "Aventura", "Ciencia ficción", "Costumbrismo", "Crimen", "Distopía", "Drama",
+        "Erótica", "Fantasía", "Grimdark", "Humor", "Infantil", "Juvenil",
+        "Literatura clásica", "Misterio", "Mitología", "Novela histórica", "Novela negra",
+        "Poesía", "Romance", "Suspense", "Teatro", "Terror", "Thriller", "Western"
+    ),
+    R.string.genre_group_nonfiction to listOf(
+        "Arte", "Autoayuda", "Biografía", "Ciencia", "Deportes", "Desarrollo personal",
+        "Divulgación científica", "Economía", "Educación", "Ensayo", "Filosofía",
+        "Gastronomía", "Historia", "Lingüística", "Memorias", "Música", "Naturaleza",
+        "Negocios", "Periodismo", "Política", "Psicología", "Religión y espiritualidad",
+        "Salud y bienestar", "Sociología", "Tecnología", "True crime", "Viajes"
+    ),
+    R.string.genre_group_format to listOf(
+        "Cómics y novela gráfica", "Novela gráfica", "Manga"
+    )
+)
+
+// ── Selector de géneros (P-012, mockup ronda 1 aprobado 11-07-2026) ───────────
+// Bottom sheet con buscador, sugeridos de la API (borde ámbar) y chips agrupados
+// (Ficción / No ficción / Formato). Máximo 2 géneros, contador visible.
+// Sustituye al ExposedDropdownMenu plano en los 3 puntos de selección.
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun GenreSelectorSheet(
+    initial: List<String>,
+    suggested: List<String>,
+    theme: Theme,
+    onDismiss: () -> Unit,
+    onConfirm: (List<String>) -> Unit,
+    onRefreshFromApi: (() -> Unit)? = null   // DetailScreen: "recargar género de la API"
+) {
+    var selection by remember { mutableStateOf(initial) }
+    var query by remember { mutableStateOf("") }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sugg = remember(suggested) { suggested.filter { it in BOOK_GENRES && it != "Otro" } }
+    // Etiquetas localizadas precalculadas (displayGenre es @Composable; el filtro las usa)
+    val labels = BOOK_GENRES.associateWith { displayGenre(it) }
+
+    fun toggle(g: String) {
+        selection = when {
+            g in selection -> selection - g
+            selection.size < 2 -> selection + g
+            else -> selection
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = if (theme.isDark) Color(0xFF151B31) else theme.bgMid,
+        contentColor = theme.textMain
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.genre_sheet_title), color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.genre_sheet_counter, selection.size),
+                    color = if (selection.size == 2) Green else theme.textMuted, fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            OutlinedTextField(
+                value = query, onValueChange = { query = it },
+                placeholder = { Text(stringResource(R.string.genre_sheet_search), color = theme.textDim, fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = theme.textDim, modifier = Modifier.size(18.dp)) },
+                singleLine = true, colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(6.dp))
+
+            @Composable
+            fun GenreChip(g: String, isSuggested: Boolean) {
+                val sel = g in selection
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (sel) Accent else theme.surface,
+                    border = BorderStroke(1.dp, if (sel) Accent else if (isSuggested) Amber.copy(alpha = 0.6f) else theme.border),
+                    modifier = Modifier.clip(RoundedCornerShape(999.dp)).clickable { toggle(g) }
+                ) {
+                    Text(
+                        labels[g] ?: g,
+                        color = if (sel) Color.White else theme.textMain.copy(alpha = 0.85f),
+                        fontSize = 12.5.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            val q = normalizeSearchText(query.trim())
+            fun visible(g: String) = q.isBlank() ||
+                normalizeSearchText(labels[g] ?: g).contains(q) || normalizeSearchText(g).contains(q)
+
+            Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+                if (sugg.isNotEmpty() && q.isBlank()) {
+                    Text(
+                        stringResource(R.string.genre_sheet_suggested).uppercase(),
+                        color = Amber.copy(alpha = 0.85f), fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.2.sp, modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        sugg.forEach { GenreChip(it, true) }
+                    }
+                }
+                GENRE_GROUPS.forEach { (titleRes, items) ->
+                    val shown = items.filter { visible(it) }
+                    if (shown.isNotEmpty()) {
+                        Text(
+                            stringResource(titleRes).uppercase(),
+                            color = theme.textDim, fontSize = 10.sp, fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.2.sp, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            shown.forEach { GenreChip(it, it in sugg) }
+                        }
+                    }
+                }
+            }
+            if (onRefreshFromApi != null) {
+                Spacer(Modifier.height(6.dp))
+                TextButton(onClick = onRefreshFromApi, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.txt_6fc03171), color = Accent, fontSize = 13.sp)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = { selection = emptyList() },
+                    shape = RoundedCornerShape(11.dp), modifier = Modifier.weight(1f),
+                    border = BorderStroke(1.dp, theme.border)
+                ) { Text(stringResource(R.string.genre_sheet_clear), color = theme.textMuted) }
+                Button(
+                    onClick = { onConfirm(selection); onDismiss() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    shape = RoundedCornerShape(11.dp), modifier = Modifier.weight(1f)
+                ) { Text(stringResource(R.string.genre_sheet_accept), fontWeight = FontWeight.SemiBold) }
+            }
+        }
+    }
+}
 
 // Traduce un género canónico para mostrarlo al usuario. Si no está en el mapa
 // (dato legacy o no reconocido), se muestra tal cual venía guardado.
@@ -595,6 +752,9 @@ fun mapApiGenre(raw: String): List<String> {
     val found = mutableListOf<String>()
 
     fun add(genre: String) { if (!found.contains(genre)) found.add(genre) }
+
+    // ── Distopía (P-013) — antes de Ciencia ficción para que tenga prioridad ─
+    if (r.contains("dystopi") || r.contains("distopí") || r.contains("distopi")) add("Distopía")
 
     // ── Ciencia ficción ────────────────────────────────────────────────────
     if ((r.contains("science") && r.contains("fiction")) ||
@@ -633,6 +793,21 @@ fun mapApiGenre(raw: String): List<String> {
     // ── Romance ────────────────────────────────────────────────────────────
     if (r.contains("romance") || r.contains("love story") || r.contains("historia de amor") ||
         r.contains("romantic")) add("Romance")
+
+    // ── Géneros nuevos (P-013) ─────────────────────────────────────────────
+    if (r.contains("erotic") || r.contains("erótic") || r.contains("erotismo")) add("Erótica")
+    // "western" excluyendo usos no literarios ("western philosophy/civilization/medicine")
+    if (Regex("""\bwesterns?\b""").containsMatchIn(r) &&
+        !r.contains("philosoph") && !r.contains("civiliza") && !r.contains("medicine") &&
+        !r.contains("filosof")) add("Western")
+    // True crime — antes que la regla de Crimen para que tenga prioridad
+    if (r.contains("true crime") || r.contains("crimen real")) add("True crime")
+    if (r.contains("memoir") || r.contains("memorias")) add("Memorias")
+    if (r.contains("cooking") || r.contains("cookery") || r.contains("cookbook") ||
+        r.contains("gastronom") || r.contains("cocina") || r.contains("culinar") ||
+        r.contains("food and drink") || r.contains("food & drink")) add("Gastronomía")
+    if (r.contains("popular science") || r.contains("divulgación científica") ||
+        r.contains("divulgacion cientifica")) add("Divulgación científica")
 
     // ── Thriller / Suspense ────────────────────────────────────────────────
     if (r.contains("thriller") || r.contains("suspense") ||
@@ -5512,35 +5687,29 @@ fun BookSearchScreen(
                     // Feedback 2.7: género editable antes de guardar (máx 2)
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_57d644ad), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
-                    ExposedDropdownMenuBox(expanded = searchGenreExpanded, onExpandedChange = { searchGenreExpanded = it }) {
+                    // P-012: bottom sheet con buscador y grupos en lugar del dropdown plano
+                    val searchSuggestedGenres = remember { searchGenres }
+                    Box {
                         OutlinedTextField(
                             value = if (searchGenres.isEmpty()) "" else searchGenres.map { displayGenre(it) }.joinToString(" · "),
                             onValueChange = {},
                             readOnly = true,
                             placeholder = { Text(stringResource(R.string.txt_84a8f3ea), color = theme.textDim, fontSize = 13.sp) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = searchGenreExpanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null, tint = theme.textDim) },
+                            modifier = Modifier.fillMaxWidth(),
                             colors = fieldColors(theme),
                             shape = RoundedCornerShape(10.dp)
                         )
-                        ExposedDropdownMenu(expanded = searchGenreExpanded, onDismissRequest = { searchGenreExpanded = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_bddf53d0), color = theme.textDim, fontSize = 13.sp) }, onClick = { searchGenres = emptyList(); searchGenreExpanded = false })
-                            BOOK_GENRES.filter { it != "Otro" }.forEach { g ->
-                                val selected = g in searchGenres
-                                DropdownMenuItem(
-                                    text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        if (selected) Text("✓", color = Accent, fontWeight = FontWeight.Bold)
-                                        Text(displayGenre(g), color = if (selected) Accent else theme.textMain, fontSize = 13.sp)
-                                    }},
-                                    onClick = {
-                                        searchGenres = if (selected) searchGenres - g
-                                        else if (searchGenres.size < 2) searchGenres + g
-                                        else searchGenres // ya hay 2, ignorar
-                                        if (searchGenres.size == 2) searchGenreExpanded = false
-                                    }
-                                )
-                            }
-                        }
+                        Box(Modifier.matchParentSize().clip(RoundedCornerShape(10.dp)).clickable { searchGenreExpanded = true })
+                    }
+                    if (searchGenreExpanded) {
+                        GenreSelectorSheet(
+                            initial = searchGenres,
+                            suggested = searchSuggestedGenres,
+                            theme = theme,
+                            onDismiss = { searchGenreExpanded = false },
+                            onConfirm = { searchGenres = it }
+                        )
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_066bbf84), color = theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
@@ -5874,35 +6043,28 @@ fun AddScreen(
                 }
                 // Género — multi-select hasta 2
                 Text(stringResource(R.string.txt_57d644ad), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
-                ExposedDropdownMenuBox(expanded = genreExpanded, onExpandedChange = { genreExpanded = it }) {
+                // P-012: bottom sheet con buscador y grupos en lugar del dropdown plano
+                Box(Modifier.padding(bottom = 16.dp)) {
                     OutlinedTextField(
                         value = if (genres.isEmpty()) "" else genres.map { displayGenre(it) }.joinToString(" · "),
                         onValueChange = {},
                         readOnly = true,
                         placeholder = { Text(stringResource(R.string.txt_84a8f3ea), color = theme.textDim, fontSize = 13.sp) },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genreExpanded) },
-                        modifier = Modifier.fillMaxWidth().menuAnchor().padding(bottom = 16.dp),
+                        trailingIcon = { Icon(Icons.Default.ArrowDropDown, null, tint = theme.textDim) },
+                        modifier = Modifier.fillMaxWidth(),
                         colors = fieldColors(theme),
                         shape = RoundedCornerShape(10.dp)
                     )
-                    ExposedDropdownMenu(expanded = genreExpanded, onDismissRequest = { genreExpanded = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_bddf53d0), color = theme.textDim, fontSize = 13.sp) }, onClick = { genres = emptyList(); genreExpanded = false })
-                        BOOK_GENRES.filter { it != "Otro" }.forEach { g ->
-                            val selected = g in genres
-                            DropdownMenuItem(
-                                text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (selected) Text("✓", color = Accent, fontWeight = FontWeight.Bold)
-                                    Text(displayGenre(g), color = if (selected) Accent else theme.textMain, fontSize = 13.sp)
-                                }},
-                                onClick = {
-                                    genres = if (selected) genres - g
-                                    else if (genres.size < 2) genres + g
-                                    else genres // ya hay 2, ignorar
-                                    if (genres.size == 2) genreExpanded = false
-                                }
-                            )
-                        }
-                    }
+                    Box(Modifier.matchParentSize().clip(RoundedCornerShape(10.dp)).clickable { genreExpanded = true })
+                }
+                if (genreExpanded) {
+                    GenreSelectorSheet(
+                        initial = genres,
+                        suggested = emptyList(),
+                        theme = theme,
+                        onDismiss = { genreExpanded = false },
+                        onConfirm = { genres = it }
+                    )
                 }
                 Text(stringResource(R.string.txt_4239bda5), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
                 LanguageSelector(selectedLanguage = editionLanguage, onLanguageSelected = { code, label, flag -> editionLanguage = code; editionLanguageLabel = label; editionFlag = flag }, modifier = Modifier.padding(bottom = 16.dp))
@@ -7431,43 +7593,31 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         // Género — toca para cambiar; botón swap si hay 2
                         var showGenreMenu by remember { mutableStateOf(false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                          Box {
-                            Text(
-                                text = if (book.genres.isNotEmpty()) book.genres.map { displayGenre(it) }.joinToString(" · ") else stringResource(R.string.genre_add_button),
-                                color = if (book.genres.isNotEmpty()) theme.textDim else Accent.copy(alpha = 0.7f),
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(top = 2.dp).clickable { showGenreMenu = true }
-                            )
-                            DropdownMenu(expanded = showGenreMenu, onDismissRequest = { showGenreMenu = false }) {
-                                Text(stringResource(R.string.txt_ce89c06f), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                                DropdownMenuItem(text = { Text(stringResource(R.string.txt_bddf53d0), color = theme.textDim, fontSize = 13.sp) }, onClick = { vm.updateGenres(id, emptyList(), prefs); showGenreMenu = false })
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.txt_6fc03171), color = Accent, fontSize = 13.sp) },
-                                    onClick = {
-                                        showGenreMenu = false
-                                        vm.refreshGenre(id, prefs) { found ->
-                                            refreshMsg = if (found) context.getString(R.string.msg_genre_updated) else context.getString(R.string.msg_genre_not_found)
-                                        }
-                                    }
-                                )
-                                BOOK_GENRES.filter { it != "Otro" }.forEach { g ->
-                                    val selected = g in book.genres
-                                    DropdownMenuItem(
-                                        text = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            if (selected) Text("✓", color = Accent, fontWeight = FontWeight.Bold)
-                                            Text(displayGenre(g), color = if (selected) Accent else theme.textMain, fontSize = 13.sp)
-                                        }},
-                                        onClick = {
-                                            val newGenres = if (selected) book.genres - g
-                                                else if (book.genres.size < 2) book.genres + g
-                                                else book.genres
-                                            vm.updateGenres(id, newGenres, prefs)
-                                            if (book.noCoverFound) vm.updateNoCoverFound(id, false, prefs)
-                                            if (newGenres.size == 2) showGenreMenu = false
-                                        }
-                                    )
-                                }
-                            }
+                          // P-012: bottom sheet con buscador y grupos; "Limpiar" cubre el antiguo
+                          // "Sin género" y la recarga de la API va como acción propia del sheet.
+                          Text(
+                              text = if (book.genres.isNotEmpty()) book.genres.map { displayGenre(it) }.joinToString(" · ") else stringResource(R.string.genre_add_button),
+                              color = if (book.genres.isNotEmpty()) theme.textDim else Accent.copy(alpha = 0.7f),
+                              fontSize = 12.sp,
+                              modifier = Modifier.padding(top = 2.dp).clickable { showGenreMenu = true }
+                          )
+                          if (showGenreMenu) {
+                              GenreSelectorSheet(
+                                  initial = book.genres,
+                                  suggested = emptyList(),
+                                  theme = theme,
+                                  onDismiss = { showGenreMenu = false },
+                                  onConfirm = { newGenres ->
+                                      vm.updateGenres(id, newGenres, prefs)
+                                      if (book.noCoverFound) vm.updateNoCoverFound(id, false, prefs)
+                                  },
+                                  onRefreshFromApi = {
+                                      showGenreMenu = false
+                                      vm.refreshGenre(id, prefs) { found ->
+                                          refreshMsg = if (found) context.getString(R.string.msg_genre_updated) else context.getString(R.string.msg_genre_not_found)
+                                      }
+                                  }
+                              )
                           }
                           // Botón intercambiar orden — solo si hay 2 géneros
                           if (book.genres.size == 2) {
