@@ -1425,7 +1425,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             }
         }
     ) {
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))).systemBarsPadding()) {
+        // Feedback WhatsApp 10-07: imePadding para que el teclado no tape el campo con foco.
+        // Con targetSdk 35 (Android 15+) adjustResize se ignora (edge-to-edge forzado); en
+        // versiones anteriores la ventana se redimensiona y el inset IME queda a 0 (no duplica).
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))).systemBarsPadding().imePadding()) {
             // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
             // v2.4: pantallas secundarias centradas en anchos ≥600dp via WideScreenCenter.
             NavHost(
@@ -3444,10 +3447,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 1: TIEMPO ───────────────────────────────────────────
                 1 -> Column(sm) {
-                    // v2.6: colores intercambiados Reading ↔ Session record (petición QA)
-                    // Header temático ámbar (antes azul)
+                    // Feedback WhatsApp 10-07: header violeta profundo (antes marrón/ámbar v2.6,
+                    // "cambiar el marrón naranja ese por un color más bonito") — on-brand con
+                    // Accent2 y distinto del Sky de las tarjetas inferiores.
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF431407), Color(0xFF1C0F00)))),
+                        .background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Color(0xFF150B33)))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             // v2.4 rework: eliminado emoji decorativo de cabecera
@@ -3455,9 +3459,9 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             Text(if (hW > 0) "${hW}h ${mW}m" else "${mW}m",
                                 fontSize = 64.sp, fontWeight = FontWeight.Black,
                                 style = androidx.compose.ui.text.TextStyle(
-                                    brush = Brush.horizontalGradient(listOf(Amber, Color(0xFFFDBA74)))
+                                    brush = Brush.horizontalGradient(listOf(Color(0xFFA78BFA), Color(0xFFDDD6FE)))
                                 ))
-                            Text(stringResource(R.string.wcard_hours), color = Color(0xFFFDBA74), fontSize = 14.sp)
+                            Text(stringResource(R.string.wcard_hours), color = Color(0xFFC4B5FD), fontSize = 14.sp)
                         }
                     }
                     Spacer(Modifier.height(14.dp))
@@ -4432,8 +4436,16 @@ fun HourlyHeatmapCard(sessions: List<ReadingSession>, theme: Theme) {
                                     .padding(horizontal = 1.dp)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(
+                                        // Feedback WhatsApp 10-07: misma escala rojiza que el heatmap
+                                        // mensual (heatColor de HeatmapView) por consistencia visual
                                         if (v == 0) theme.border.copy(alpha = 0.35f)
-                                        else Accent.copy(alpha = 0.25f + 0.75f * intensity)
+                                        else when {
+                                            intensity < 0.20f -> Color(0xFF78350F) // marrón oscuro
+                                            intensity < 0.40f -> Color(0xFFB45309) // ámbar oscuro
+                                            intensity < 0.60f -> Color(0xFFF59E0B) // ámbar
+                                            intensity < 0.80f -> Color(0xFFEA580C) // naranja
+                                            else              -> Color(0xFFDC2626) // rojo
+                                        }
                                     )
                             )
                         }

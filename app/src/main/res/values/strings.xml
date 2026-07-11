@@ -671,7 +671,7 @@
     <string name="tut_organize_add_title">Organiza tu biblioteca y añade libros</string>
     <string name="tut_organize_add_desc">Añade un libro manualmente rellenado sus datos o escanea el código de barras ISBN con la cámara para autcompletarlo. También puedes usar el buscador para encontrar libros por título o autor y añadirlos a tu biblioteca.</string>
     <string name="tut_goodreads_backup_title">Importación desde Goodreads y Copia de Seguridad</string>
-    <string name="tut_goodreads_backup_desc">¿Tienes libros en Goodreads? En Ajustes &gt; Copia de seguridad &gt; Importar/Exportar/Restaurar puedes importar tu biblioteca en formato CSV. El proceso inverso también es posible.\n\nEn este mismo apartado podrás exportar e importar copias de seguridad de Lecturameter y ajustar la frecuencia de las automática.</string>
+    <string name="tut_goodreads_backup_desc">¿Tienes libros en Goodreads? En Ajustes &gt; Copia de seguridad &gt; Importar/Exportar/Restaurar puedes importar tu biblioteca en formato CSV. El proceso inverso también es posible.\n\nEn este mismo apartado podrás exportar e importar copias de seguridad de Lecturameter y ajustar la frecuencia de las automáticas.</string>
     <string name="tut_card_favorites_desc_pre">"Cada tarjeta tiene la información del libro (autor, páginas, género, etc) y botones rápidos: recargar portadas y géneros, cambiar portada manualmente y eliminar libro. Cilca en en ella para entrar al detalle del libro.\n\nDesliza la tarjeta a izquierda o derecha para marcar o desmarcar un libro en favoritos; puedes filtrar por favoritos con "</string>
     <string name="tut_card_favorites_desc_post">" en la barra de búsquedas."</string>
     <string name="tut_stats_detail_desc">Revisa gráficas de páginas por libro, mes, género y autor; estadísticas de cada sesión; mapas de calor anuales, mensuales y por hora; y un resumen anual al estilo \"Wrapped\".</string>
@@ -818,7 +818,7 @@
     <!-- v2.4 rework: estadísticas avanzadas -->
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
-    <string name="adv_hourly_subtitle">¿Cuándo lees más? Solo sesiones nuevas con hora registrada</string>
+    <string name="adv_hourly_subtitle">¿Cuándo lees más?</string>
     <string name="adv_hourly_days">L,M,X,J,V,S,D</string>
     <string name="adv_hourly_peak">Pico de lectura: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Estadísticas de saga</string>

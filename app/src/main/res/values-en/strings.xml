@@ -818,7 +818,7 @@
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>
-    <string name="adv_hourly_subtitle">When do you read the most? Only new sessions with a recorded time</string>
+    <string name="adv_hourly_subtitle">When do you read the most?</string>
     <string name="adv_hourly_days">M,T,W,T,F,S,S</string>
     <string name="adv_hourly_peak">Reading peak: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Series statistics</string>
