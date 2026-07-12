@@ -95,6 +95,14 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
         "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt())
+        // Fase 3: Dinámico (Material You) — colores del sistema; en < API 31 cae al oscuro
+        "dynamic" -> if (android.os.Build.VERSION.SDK_INT >= 31)
+            WidgetThemeColors(
+                R.drawable.widget_background_dynamic,
+                context.getColor(android.R.color.system_neutral1_50),
+                context.getColor(android.R.color.system_neutral2_200)
+            )
+        else WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
         "amoled" -> WidgetThemeColors(R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
         else     -> WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
     }

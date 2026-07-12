@@ -402,6 +402,7 @@ val Accent  = Color(0xFF6366F1); val Accent2 = Color(0xFF8B5CF6)
 val AccentAurora = Color(0xFFB794F6)
 val AccentLight  = Color(0xFF4338CA)
 fun accentForTheme(theme: Theme): Color = when {
+    theme.accent != null                               -> theme.accent  // Dinámico (Material You)
     !theme.isDark && theme.bgDark == Color(0xFFDDE3EC) -> AccentLight   // Claro D
     theme.bgDark == BgDarkA                            -> AccentAurora  // Aurora
     else -> Accent
@@ -425,22 +426,53 @@ val SurfaceA = Color(0x0EC8FFF8); val BorderA = Color(0x405EEAD4)
 val TextMainA = Color(0xFFF0FDFB); val TextMutedA = Color(0xFF9CCFC8); val TextDimA = Color(0xFF77A7A0)
 
 // AMOLED: negro puro para pantallas OLED
-val BgDarkAm = Color(0xFF000000); val BgMidAm = Color(0xFF0A0A0A)
+// Fase 3: bgMid también #000000 — el 0x0A0A0A del degradado impedía el negro real (píxel apagado)
+val BgDarkAm = Color(0xFF000000); val BgMidAm = Color(0xFF000000)
 val SurfaceAm = Color(0x10FFFFFF); val BorderAm = Color(0x18FFFFFF)
 val TextMainAm = Color(0xFFF1F5F9); val TextMutedAm = Color(0xFF94A3B8); val TextDimAm = Color(0xFF64748B)
 
 enum class ThemeMode(val value: String) {
-    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled")
+    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled"),
+    // Fase 3: Material You (Android 12+) — colores del fondo de pantalla del usuario
+    DYNAMIC("dynamic")
 }
 
 // Fase 3: bgDeep = tercer stop del degradado de fondo (solo Aurora lo usa; Transparent = 2 stops clásicos)
-data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent, val bgDeep: Color = Color.Transparent)
+// accent = acento propio del tema (solo Dinámico lo define; null = accentForTheme decide por bgDark)
+data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent, val bgDeep: Color = Color.Transparent, val accent: Color? = null)
 
 fun buildTheme(mode: ThemeMode) = when (mode) {
     ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFEEF2F8), bgSurf2 = Color(0xFFDDE3EC))
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
     ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))
+    // El Dinámico necesita Context (Material You) — este fallback solo se usa si alguien
+    // llama a buildTheme sin contexto; el camino real es dynamicThemeTokens(context)
+    ThemeMode.DYNAMIC -> Theme(BgDarkD, BgMidD, SurfaceD, BorderD, TextMainD, TextMutedD, TextDimD, true, bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
+}
+
+// Fase 3: tema Dinámico (Material You, Android 12+). Deriva los tokens de la paleta del
+// fondo de pantalla del usuario y sigue el modo claro/oscuro del sistema. En < API 31
+// devuelve el oscuro clásico (la opción ni se ofrece en el selector).
+fun dynamicThemeTokens(context: android.content.Context): Theme {
+    if (android.os.Build.VERSION.SDK_INT < 31) return buildTheme(ThemeMode.DARK)
+    val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    val s = if (night) androidx.compose.material3.dynamicDarkColorScheme(context)
+            else androidx.compose.material3.dynamicLightColorScheme(context)
+    return Theme(
+        bgDark    = s.background,
+        bgMid     = s.surfaceContainer,
+        surface   = if (night) Color(0x14FFFFFF) else s.surfaceContainerHigh,
+        border    = s.outline.copy(alpha = 0.35f),
+        textMain  = s.onBackground,
+        textMuted = s.onSurfaceVariant,
+        textDim   = s.onSurfaceVariant.copy(alpha = 0.65f),
+        isDark    = night,
+        bgSurf    = if (night) Color(0x1AFFFFFF) else s.surfaceContainerHigh,
+        bgSurf2   = if (night) Color(0x0DFFFFFF) else s.surfaceContainerLow,
+        accent    = s.primary
+    )
 }
 
 fun statusColor(s: BookStatus) = when (s) {
@@ -1103,7 +1135,8 @@ class MainActivity : ComponentActivity() {
                 animationSpec = tween(durationMillis = 350),
                 label = "theme_crossfade"
             ) { currentThemeMode ->
-            val theme = buildTheme(currentThemeMode)
+            val theme = if (currentThemeMode == ThemeMode.DYNAMIC) dynamicThemeTokens(this@MainActivity)
+                        else buildTheme(currentThemeMode)
             LecturaMeterTheme(theme) {
                 // Primera apertura: selección de idioma
                 if (!vm.languageChosen) {
@@ -1234,8 +1267,10 @@ fun WideScreenCenter(enabled: Boolean = true, maxContentWidth: Dp = 640.dp, cont
 }
 
 sealed class Screen {
+    // P-020: Screen.SessionHistory eliminado — el historial es un drawer, no un destino
+    // (la ruta "session_history" no tenía composable y navegar a ella habría crasheado)
     object List : Screen(); object Add : Screen(); object BookSearch : Screen(); object Stats : Screen()
-    object ImportExport : Screen(); object WrappedHistory : Screen(); object SessionHistory : Screen()
+    object ImportExport : Screen(); object WrappedHistory : Screen()
     object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
     data class AuthorBooks(val author: String) : Screen()
@@ -1255,7 +1290,6 @@ private fun Screen.route(): String = when (this) {
     is Screen.Stats -> "stats"
     is Screen.ImportExport -> "import_export"
     is Screen.WrappedHistory -> "wrapped_history"
-    is Screen.SessionHistory -> "session_history"
     is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
@@ -2529,11 +2563,13 @@ fun ListScreen(
                             }
                         }
                         DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
-                            listOf(
+                            (listOf(
                                 ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                                 ThemeMode.DARK   to stringResource(R.string.theme_dark),
                                 ThemeMode.AURORA to stringResource(R.string.theme_aurora),
                                 ThemeMode.AMOLED to stringResource(R.string.theme_oled)
+                            ) + if (android.os.Build.VERSION.SDK_INT >= 31)
+                                listOf(ThemeMode.DYNAMIC to stringResource(R.string.theme_dynamic)) else emptyList()
                             ).forEach { (mode, label) ->
                                 DropdownMenuItem(
                                     text = {
@@ -10462,11 +10498,13 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.txt_057acd78), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(
+                (listOf(
                     ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                     ThemeMode.DARK   to stringResource(R.string.theme_dark),
                     ThemeMode.AURORA to stringResource(R.string.theme_aurora),
                     ThemeMode.AMOLED to stringResource(R.string.theme_oled)
+                ) + if (android.os.Build.VERSION.SDK_INT >= 31)
+                    listOf(ThemeMode.DYNAMIC to stringResource(R.string.theme_dynamic)) else emptyList()
                 ).forEach { (mode, label) ->
                     val selected = vm.themeMode == mode
                     Surface(

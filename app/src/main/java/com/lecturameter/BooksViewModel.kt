@@ -363,10 +363,12 @@ class BooksViewModel : ViewModel() {
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
         booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
         themeMode = when (prefs.getString("theme_mode", "dark")) {
-            "light"  -> ThemeMode.LIGHT
-            "aurora" -> ThemeMode.AURORA
-            "amoled" -> ThemeMode.AMOLED
-            else     -> ThemeMode.DARK
+            "light"   -> ThemeMode.LIGHT
+            "aurora"  -> ThemeMode.AURORA
+            "amoled"  -> ThemeMode.AMOLED
+            // Fase 3: Dinámico (Material You) solo existe en Android 12+; en anteriores cae a oscuro
+            "dynamic" -> if (android.os.Build.VERSION.SDK_INT >= 31) ThemeMode.DYNAMIC else ThemeMode.DARK
+            else      -> ThemeMode.DARK
         }
         com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }
         loadWrapped(prefs)
