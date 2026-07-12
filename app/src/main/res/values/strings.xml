@@ -909,4 +909,15 @@
     <string name="edition_scan_not_found">No se encontró ninguna edición con ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edición aún sin indexar en las bases de datos. Se ofrece con el ISBN %1$s y los datos del libro; puedes editarla después.</string>
     <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
+    <string name="tut10_library_title">Tu biblioteca</string>
+    <string name="tut10_library_desc">Añade libros a mano o desde la búsqueda y organízalos en estanterías. Cada libro puede guardar varias ediciones desde su detalle.</string>
+    <string name="tut10_backup_title">Importa y respalda</string>
+    <string name="tut10_backup_desc">Trae tu biblioteca de Goodreads en un toque. Copias de seguridad locales o en Drive, automáticas si quieres.</string>
+    <string name="tut10_sessions_title">Sesiones de lectura</string>
+    <string name="tut10_sessions_desc">Cronómetro que aguanta hasta con la pantalla bloqueada, o registro manual en segundos.</string>
+    <string name="tut10_stats_title">Tus estadísticas</string>
+    <string name="tut10_stats_desc">Gráficas, mapa de calor, historial por sesión y tu Wrapped de fin de año.</string>
+    <string name="tut10_challenges_title">Retos de lectura</string>
+    <string name="tut10_challenges_desc">Márcate objetivos de libros, páginas o racha y sigue tu avance sin agobios.</string>
+    <string name="tut_done_toast">¡Ya estás listo para empezar! 🎉</string>
 </resources>

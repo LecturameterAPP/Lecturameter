@@ -2214,52 +2214,27 @@ fun TutorialPageContent(page: TutorialPage, theme: Theme, isLandscape: Boolean =
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) {
-    // v2.5 rework: 21 slides → 14 (Rework del tutorial y pequeños fixes.md).
-    // Fusiones: 1+2+4→1 · 3+20→2 · 5+6→3 · 7→4 · 8+10→5 · 9→6 · 11+15→7 ·
-    //           12→8 · 13→9 · 14 BORRADO · 18→10 · 19→11 · 16→12 · 17→13 · 21→14
-    // NOTA: slide 20 (backup) fusionado con slide 3 (Goodreads) → nueva 2.
-    //       Slide 12 SE MANTIENE (confirmado por usuario, olvido en MD).
-    //       Slide 14 (tut_p9 "Personaliza tu experiencia") BORRADA.
+    // P-021 (12-07-2026): rework 14 → 10 slides (plan: Documentación/Plan — Tutorial capturas v2).
+    // Fusiones: 1+3→1 · 2→2 · 4+8→3 · 5+7→4 · 6→5. Orden final fijado por Víctor:
+    // widget → herramientas → feedback → batería → donaciones. Ediciones: sin slide propia,
+    // una frase dentro de la 1. Textos cortos (máx ~2 frases). Capturas reales ES/EN: al
+    // final de la Fase 4 (los mocks actuales se mantienen hasta entonces).
     val pages = listOf(
-        // 1 (1+2+4): Organiza + añadir libros + buscador
-        TutorialPage("📚", stringResource(R.string.tut_organize_add_title), stringResource(R.string.tut_organize_add_desc)),
-        // 2 (3+20): Goodreads + Copia de seguridad (fusionadas)
-        TutorialPage("📤", stringResource(R.string.tut_goodreads_backup_title), stringResource(R.string.tut_goodreads_backup_desc)),
-        // 3 (5+6): Tarjetas de libro + favoritos (con icono real inline)
-        TutorialPage("🃏", stringResource(R.string.tut_p3_title), "",
-            visual = { TutorialBookCardVisual(theme) },
-            descriptionComposable = { th ->
-                // v2.5 r2: icono real con tint Accent (como en la UI), 18sp de placeholder
-                // para separación extra. Espacios preservados con comillas en strings.xml.
-                TutorialInlineIconDesc(
-                    pre = stringResource(R.string.tut_card_favorites_desc_pre),
-                    post = stringResource(R.string.tut_card_favorites_desc_post),
-                    icon = Icons.Filled.Sort, iconTint = Accent, theme = th
-                )
-            }
-        ),
-        // 4 (7): Cronómetro
-        TutorialPage("⏱️", stringResource(R.string.tut_p4_title), stringResource(R.string.tut_p4_desc)),
-        // 5 (8+10): Estadísticas al detalle (gráficas + sesiones + heatmap + Wrapped)
-        TutorialPage("📊", stringResource(R.string.tut_p5_title), stringResource(R.string.tut_stats_detail_desc)),
-        // 6 (9): Retos de lectura — trofeo REAL inline (EmojiEvents Accent, como main screen)
-        TutorialPage("🏆", stringResource(R.string.tut_challenges_title), "",
-            descriptionComposable = { th ->
-                TutorialInlineIconDesc(
-                    pre = stringResource(R.string.tut_challenges_desc_pre),
-                    post = stringResource(R.string.tut_challenges_desc_post),
-                    icon = Icons.Default.EmojiEvents, iconTint = Accent, theme = th
-                )
-            }
-        ),
-        // 7 (11+15): Historial + estadísticas rápidas (visual combinado)
-        // Mockup: pills ENCIMA del título (visual) · historial DEBAJO del texto (descComposable)
-        TutorialPage("📜", stringResource(R.string.tut_history_stats_title), "",
+        // 1 — Tu biblioteca (antes 1+3; tarjeta mock + frase de ediciones)
+        TutorialPage("📚", stringResource(R.string.tut10_library_title), stringResource(R.string.tut10_library_desc),
+            visual = { TutorialBookCardVisual(theme) }),
+        // 2 — Importa y respalda
+        TutorialPage("📤", stringResource(R.string.tut10_backup_title), stringResource(R.string.tut10_backup_desc)),
+        // 3 — Sesiones (antes 4+8: cronómetro + registro manual)
+        TutorialPage("⏱️", stringResource(R.string.tut10_sessions_title), stringResource(R.string.tut10_sessions_desc)),
+        // 4 — Estadísticas (antes 5+7; mock de pills — opción A de Víctor: el mock usa los
+        // StatBox/DrawerStatChipH reales, así que hereda los colores vigentes)
+        TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
             visual = { TutorialStatsPillsVisual(theme) },
             descriptionComposable = { th ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        stringResource(R.string.tut_history_stats_desc),
+                        stringResource(R.string.tut10_stats_desc),
                         color = th.textMuted, fontSize = 15.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
                     )
@@ -2268,19 +2243,17 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                 }
             }
         ),
-        // 8 (12): Sesiones de lectura (usuario confirmó mantener)
-        TutorialPage("📅", stringResource(R.string.tut_p7_title), stringResource(R.string.tut_p7_desc)),
-        // 9 (13): Múltiples ediciones
-        TutorialPage("🌐", stringResource(R.string.tut_p8_title), stringResource(R.string.tut_p8_desc)),
-        // 10 (18): Enviar feedback
-        TutorialPage("📨", stringResource(R.string.tut_p11_title), stringResource(R.string.tut_p11_desc)),
-        // 11 (17): Widget (r2: swap con batería, orden pedido)
+        // 5 — Retos
+        TutorialPage("🏆", stringResource(R.string.tut10_challenges_title), stringResource(R.string.tut10_challenges_desc)),
+        // 6 — Widget
         TutorialPage("🧩", stringResource(R.string.tut_widget_title), stringResource(R.string.tut_widget_desc), visual = { TutorialWidgetVisual(theme) }),
-        // 12 (16): Herramientas en Ajustes
+        // 7 — Herramientas en Ajustes
         TutorialPage("🛠️", stringResource(R.string.tut_p10_title), stringResource(R.string.tut_p10_desc)),
-        // 13 (19): Restricciones de batería (r2: swap con widget)
+        // 8 — Feedback
+        TutorialPage("📨", stringResource(R.string.tut_p11_title), stringResource(R.string.tut_p11_desc)),
+        // 9 — Restricciones de batería
         TutorialPage("🔋", stringResource(R.string.tut_p12_title), stringResource(R.string.tut_p12_desc)),
-        // 14 (21): Donaciones
+        // 10 — Donaciones
         TutorialPage("", stringResource(R.string.tut_donations_title), stringResource(R.string.tut_donations_desc), visual = { TutorialDonationsVisual(theme) })
     )
     val pagerState = androidx.compose.foundation.pager.rememberPagerState { pages.size }
@@ -2482,10 +2455,13 @@ fun ListScreen(
 
     // Tutorial overlay — se muestra encima de todo mientras no esté completado
     if (!vm.tutorialCompleted) {
+        // P-021: toast de celebración al terminar Y al saltar el tutorial
+        val tutCtx = LocalContext.current
+        val tutDoneMsg = stringResource(R.string.tut_done_toast)
         TutorialSlideshow(
             theme = theme,
-            onComplete = { vm.completeTutorial(prefs) },
-            onSkip    = { vm.completeTutorial(prefs) }
+            onComplete = { vm.completeTutorial(prefs); android.widget.Toast.makeText(tutCtx, tutDoneMsg, android.widget.Toast.LENGTH_SHORT).show() },
+            onSkip    = { vm.completeTutorial(prefs); android.widget.Toast.makeText(tutCtx, tutDoneMsg, android.widget.Toast.LENGTH_SHORT).show() }
         )
         return
     }
