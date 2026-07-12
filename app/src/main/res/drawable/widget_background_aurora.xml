@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Fase 3 (Aurora C): degradado teal → púrpura del mockup aprobado -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#2A1158" />
+    <gradient
+        android:angle="315"
+        android:startColor="#03343A"
+        android:centerColor="#0E2E4E"
+        android:endColor="#221452"
+        android:type="linear" />
     <corners android:radius="20dp" />
 </shape>

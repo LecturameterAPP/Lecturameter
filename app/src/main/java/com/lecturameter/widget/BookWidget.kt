@@ -93,7 +93,8 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
     return when (prefs.getString("theme_mode", "dark")) {
         "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
-        "aurora" -> WidgetThemeColors(R.drawable.widget_background_aurora, 0xFFEDE9FF.toInt(), 0xFFA78BFA.toInt())
+        // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
+        "aurora" -> WidgetThemeColors(R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt())
         "amoled" -> WidgetThemeColors(R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
         else     -> WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
     }

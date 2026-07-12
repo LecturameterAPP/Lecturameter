@@ -396,12 +396,14 @@ fun nextWrappedSubtitle(): String {
 // ── Colores ───────────────────────────────────────────────────────────────────
 
 val Accent  = Color(0xFF6366F1); val Accent2 = Color(0xFF8B5CF6)
-// v21.35: Accent adaptado por tema — turquesa en Aurora (legibilidad), índigo oscuro en Claro (contraste)
-val AccentAurora = Color(0xFF22D3EE)
+// v21.35: Accent adaptado por tema — índigo oscuro en Claro (contraste).
+// Fase 3 (Aurora C): el fondo pasa a teal→púrpura y el acento de Aurora pasa a MORADO
+// (#B794F6, mockup aprobado) — el turquesa deja de ser necesario porque ya es el fondo.
+val AccentAurora = Color(0xFFB794F6)
 val AccentLight  = Color(0xFF4338CA)
 fun accentForTheme(theme: Theme): Color = when {
     !theme.isDark && theme.bgDark == Color(0xFFDDE3EC) -> AccentLight   // Claro D
-    theme.bgDark == Color(0xFF150B33)                  -> AccentAurora  // Aurora
+    theme.bgDark == BgDarkA                            -> AccentAurora  // Aurora
     else -> Accent
 }
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
@@ -416,10 +418,11 @@ val BgDarkL = Color(0xFFDDE3EC); val BgMidL = Color(0xFFD0D9E5)
 val SurfaceL = Color(0xFFEEF2F8); val BorderL = Color(0xFFBCC8D8)
 val TextMainL = Color(0xFF1A2030); val TextMutedL = Color(0xFF485868); val TextDimL = Color(0xFF7A90A4)
 
-// Aurora: azul-morado profundo con toques verde azulado (teal) — texto sin tocar, legibilidad
-val BgDarkA = Color(0xFF150B33); val BgMidA = Color(0xFF2A1158)
-val SurfaceA = Color(0x268B5CF6); val BorderA = Color(0x6622E5D0)
-val TextMainA = Color(0xFFEDE9FF); val TextMutedA = Color(0xFFC4B5FD); val TextDimA = Color(0xFFB0A3D4)
+// Aurora C "Aurora boreal" (Fase 3, mockup aprobado 11-07): degradado teal → púrpura.
+// bgDark→bgMid→bgDeep son los 3 stops del fondo; acento morado; bordes teal al 25%.
+val BgDarkA = Color(0xFF03343A); val BgMidA = Color(0xFF0E2E4E); val BgDeepA = Color(0xFF221452)
+val SurfaceA = Color(0x0EC8FFF8); val BorderA = Color(0x405EEAD4)
+val TextMainA = Color(0xFFF0FDFB); val TextMutedA = Color(0xFF9CCFC8); val TextDimA = Color(0xFF77A7A0)
 
 // AMOLED: negro puro para pantallas OLED
 val BgDarkAm = Color(0xFF000000); val BgMidAm = Color(0xFF0A0A0A)
@@ -430,12 +433,13 @@ enum class ThemeMode(val value: String) {
     LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled")
 }
 
-data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent)
+// Fase 3: bgDeep = tercer stop del degradado de fondo (solo Aurora lo usa; Transparent = 2 stops clásicos)
+data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent, val bgDeep: Color = Color.Transparent)
 
 fun buildTheme(mode: ThemeMode) = when (mode) {
     ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFEEF2F8), bgSurf2 = Color(0xFFDDE3EC))
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
-    ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF))
+    ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))
 }
 
@@ -1613,7 +1617,13 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         // Feedback WhatsApp 10-07: imePadding para que el teclado no tape el campo con foco.
         // Con targetSdk 35 (Android 15+) adjustResize se ignora (edge-to-edge forzado); en
         // versiones anteriores la ventana se redimensiona y el inset IME queda a 0 (no duplica).
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))).systemBarsPadding().imePadding()) {
+        // Fase 3 (Aurora C): con bgDeep definido, el fondo es el degradado completo
+        // teal → azul → púrpura del mockup; el resto de temas conservan el clásico.
+        val bgBrush = if (theme.bgDeep != Color.Transparent)
+            Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep))
+        else
+            Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))
+        Box(Modifier.fillMaxSize().background(bgBrush).systemBarsPadding().imePadding()) {
             // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
             // Feedback 11-07: EnterTransition.None NO es instantáneo — el reloj de la
             // transición sigue corriendo y la pantalla saliente queda visible (fade feo
@@ -8657,7 +8667,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         Box(
             Modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid)))
+                .background(Brush.verticalGradient(listOf(theme.bgDark, if (theme.bgDeep != Color.Transparent) theme.bgDeep else theme.bgMid)))
                 .padding(top = 40.dp, bottom = 16.dp, start = 20.dp, end = 12.dp)
         ) {
             Column {
