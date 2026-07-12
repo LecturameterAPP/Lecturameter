@@ -1363,11 +1363,16 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
     // Navegación inicial (timer/deep link) — una sola vez; el NavController restaura
     // el backstack por sí mismo en recreaciones y muerte de proceso.
     var initialNavDone by rememberSaveable { mutableStateOf(false) }
+    // QA 12-07 (B-012): en frío con deep link, la biblioteca vacía se veía un instante
+    // antes del detalle. Hasta que la navegación inicial se asienta, un velo con el color
+    // de fondo cubre el NavHost (solo cuando el arranque NO va a la lista).
+    var initialNavSettled by remember { mutableStateOf(initialScreen is Screen.List) }
     LaunchedEffect(Unit) {
         if (!initialNavDone) {
             initialNavDone = true
             if (initialScreen !is Screen.List) navController.navigate(initialScreen.route())
         }
+        initialNavSettled = true
     }
 
     // Para detectar nuevos intents (tap al widget mientras la app está abierta) usamos
@@ -1789,6 +1794,11 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                         )
                     }
                 }
+            }
+            // B-012: velo de arranque — tapa el frame de biblioteca vacía cuando el
+            // arranque en frío entra por deep link (widget/timer) hacia otra pantalla.
+            if (!initialNavSettled) {
+                Box(Modifier.fillMaxSize().background(theme.bgDark)) {}
             }
         }
     }
@@ -2535,19 +2545,9 @@ fun ListScreen(
                             }
                         }
                     }
-                    // v21.41: eliminado longPress simulate wrapped (pendiente rediseño desde MD)
-                    // v2.5 TEST TEMPORAL (QUITAR): long-press = simular Wrapped del año actual
-                    val wrappedHaptic = LocalHapticFeedback.current
-                    Box(
-                        modifier = Modifier.size(32.dp).clip(CircleShape).combinedClickable(
-                            onClick = { onWrappedHistory() },
-                            onLongClick = {
-                                wrappedHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onWrapped(java.util.Calendar.getInstance().get(java.util.Calendar.YEAR))
-                            }
-                        ),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    // QA 12-07: long-press de simular Wrapped ELIMINADO (era test temporal;
+                    // el historial de Wrapped ya cubre el acceso a años anteriores)
+                    IconButton(onClick = { onWrappedHistory() }, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.CardGiftcard, contentDescription = "Wrapped", tint = Accent, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onStats, modifier = Modifier.size(32.dp)) {
@@ -5881,7 +5881,8 @@ fun LanguageSelector(
         Triple("es",  "Español",           "🇪🇸"),
         Triple("en-us","English (US)",     "🇺🇸"),
         Triple("en-uk","English (UK)",     "🇬🇧"),
-        Triple("en",  "English",           "🌐"),
+        // QA 12-07 (B-013): eliminado el "English 🌐" genérico del selector — redundante
+        // con US/UK. Las ediciones existentes con 🌐 se conservan tal cual.
         Triple("fr",  "Français",          "🇫🇷"),
         Triple("de",  "Deutsch",           "🇩🇪"),
         Triple("it",  "Italiano",          "🇮🇹"),

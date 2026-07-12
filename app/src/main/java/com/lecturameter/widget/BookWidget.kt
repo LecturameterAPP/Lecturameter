@@ -170,6 +170,12 @@ internal fun appLocalizedContext(context: Context): Context {
 
 // Fase 2: el render RemoteViews de 2.7 vive como fallback en LegacyBookWidgetReceiver.kt
 
+// B-009: versión bloqueante para usar DENTRO de la composición de Glance (que no es
+// suspend). Glance compone fuera del main thread; la portada casi siempre viene de la
+// caché de disco y la descarga tiene timeout de 2,5 s.
+internal fun loadCoverBitmapBlocking(context: Context, coverUrl: String): Bitmap? =
+    kotlinx.coroutines.runBlocking { loadCoverBitmap(context, coverUrl) }
+
 suspend fun loadCoverBitmap(context: Context, coverUrl: String): Bitmap? =
     withContext(Dispatchers.IO) {
         val normalizedUrl = coverUrl.trim()

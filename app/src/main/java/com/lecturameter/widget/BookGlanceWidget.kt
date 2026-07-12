@@ -59,25 +59,32 @@ class BookGlanceWidget : GlanceAppWidget() {
     override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // Toda la carga de datos ocurre ANTES de componer (I/O fuera del árbol Glance)
         val appContext = context.applicationContext
-        val bookId = loadWidgetBook(appContext)
-        val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
-        val sessions = if (book == null) emptyList() else loadSessions(appContext)
-        val cover: Bitmap? = book?.coverUrl?.let { loadCoverBitmap(appContext, it) }
-        val stats: WidgetStats? = book?.let { computeWidgetStats(it, sessions) }
-        val theme = resolveWidgetTheme(appContext)
-        val cfg = loadWidgetDisplayConfig(appContext)
-        val ctx = appLocalizedContext(appContext)
-        val texts = WidgetTexts(
-            chooseBook = ctx.getString(R.string.widget_choose_book_help),
-            sessionsLabel = ctx.getString(R.string.history_stat_sessions)
-        )
-        val updated = currentTime()
-
         provideContent {
+            // B-009: la carga de datos vive DENTRO de la composición. updateAll() solo
+            // recompone la lambda; si los datos se cargan fuera (como antes), el closure
+            // captura los valores del bind y el widget no se actualiza nunca hasta
+            // quitarlo y volverlo a poner. Aquí cada recomposición relee prefs, libro,
+            // sesiones, tema, config e idioma. La composición de Glance corre fuera del
+            // main thread, así que el I/O ligero (prefs+Gson+bitmap cacheado) es seguro.
+            val bookId = loadWidgetBook(appContext)
+            val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
+            val sessions = if (book == null) emptyList() else loadSessions(appContext)
+            val cover: Bitmap? = book?.coverUrl?.let { loadCoverBitmapBlocking(appContext, it) }
+            val stats: WidgetStats? = book?.let { computeWidgetStats(it, sessions) }
+            val theme = resolveWidgetTheme(appContext)
+            val cfg = loadWidgetDisplayConfig(appContext)
+            val ctx = appLocalizedContext(appContext)
+            val texts = WidgetTexts(
+                chooseBook = ctx.getString(R.string.widget_choose_book_help),
+                sessionsLabel = ctx.getString(R.string.history_stat_sessions)
+            )
+            val updated = currentTime()
             val compact = LocalSize.current.width < 250.dp
-            WidgetContent(book, stats, cover, theme, cfg, texts, updated, compact)
+            // B-010: con poca altura no caben título+autor+chips+barra+hora — el host
+            // recorta por abajo. Modo "mini": solo título, autor y barra de progreso.
+            val mini = LocalSize.current.height < 90.dp
+            WidgetContent(book, stats, cover, theme, cfg, texts, updated, compact, mini)
         }
     }
 }
@@ -91,7 +98,8 @@ private fun WidgetContent(
     cfg: WidgetDisplayConfig,
     texts: WidgetTexts,
     updated: String,
-    compact: Boolean
+    compact: Boolean,
+    mini: Boolean = false
 ) {
     val textMain = ColorProvider(Color(theme.textMain))
     val textMuted = ColorProvider(Color(theme.textMuted))
@@ -113,8 +121,8 @@ private fun WidgetContent(
         // ── Portada 64×92 con marco (widget_accent_bg_cover, como en RemoteViews) ──
         Box(
             modifier = GlanceModifier
-                .width(64.dp)
-                .height(92.dp)
+                .width(if (mini) 44.dp else 64.dp)
+                .height(if (mini) 63.dp else 92.dp)
                 .background(ImageProvider(R.drawable.widget_accent_bg_cover)),
             contentAlignment = Alignment.Center
         ) {
@@ -139,17 +147,17 @@ private fun WidgetContent(
         ) {
             Text(
                 text = book?.title ?: "Lecturameter",
-                style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textMain),
-                maxLines = 2
+                style = TextStyle(fontSize = if (mini) 13.sp else 15.sp, fontWeight = FontWeight.Bold, color = textMain),
+                maxLines = if (mini) 1 else 2
             )
             Text(
                 text = book?.author ?: texts.chooseBook,
                 style = TextStyle(fontSize = 11.sp, color = textMuted),
-                maxLines = if (book == null) 3 else 1,
+                maxLines = if (book == null) { if (mini) 2 else 3 } else 1,
                 modifier = GlanceModifier.padding(top = 2.dp)
             )
 
-            if (book != null && stats != null) {
+            if (book != null && stats != null && !mini) {
                 fun emo(e: String) = if (cfg.showEmojis) "$e " else ""
                 val chips = listOfNotNull(
                     if (cfg.showDays) "${emo("📅")}${stats.days} d" else null,
@@ -186,12 +194,26 @@ private fun WidgetContent(
                 }
             }
 
-            Text(
-                text = updated,
-                style = TextStyle(fontSize = 10.sp, color = textMuted),
-                maxLines = 1,
-                modifier = GlanceModifier.padding(top = 4.dp)
-            )
+            // Mini: sin chips ni hora, pero la barra de progreso sí cabe
+            if (mini && book != null && stats != null) {
+                val pct = stats.completionPct
+                if (pct != null && pct > 0) {
+                    LinearProgressIndicator(
+                        progress = pct / 100f,
+                        modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp).height(8.dp),
+                        color = ColorProvider(Color(0xFF0EA5E9)),
+                        backgroundColor = ColorProvider(Color(0x40FFFFFF))
+                    )
+                }
+            }
+            if (!mini) {
+                Text(
+                    text = updated,
+                    style = TextStyle(fontSize = 10.sp, color = textMuted),
+                    maxLines = 1,
+                    modifier = GlanceModifier.padding(top = 4.dp)
+                )
+            }
         }
     }
 }

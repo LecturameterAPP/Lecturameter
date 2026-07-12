@@ -159,6 +159,10 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
                         showEmojis = it
                         // v2.5: apagar el master de emojis desmarca el resto de toggles
                         if (!it) { showDays = false; showTime = false; showSessions = false; showPages = false; showPercent = false }
+                        // QA 12-07 (B-011): encender el master con todo apagado re-activa el resto
+                        else if (!showDays && !showTime && !showSessions && !showPages && !showPercent) {
+                            showDays = true; showTime = true; showSessions = true; showPages = true; showPercent = true
+                        }
                     }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_days), showDays) { showDays = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_time), showTime) { showTime = it }
