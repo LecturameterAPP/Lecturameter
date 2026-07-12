@@ -61,12 +61,14 @@ class BookGlanceWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appContext = context.applicationContext
         provideContent {
-            // B-009: la carga de datos vive DENTRO de la composición. updateAll() solo
-            // recompone la lambda; si los datos se cargan fuera (como antes), el closure
-            // captura los valores del bind y el widget no se actualiza nunca hasta
-            // quitarlo y volverlo a poner. Aquí cada recomposición relee prefs, libro,
-            // sesiones, tema, config e idioma. La composición de Glance corre fuera del
-            // main thread, así que el I/O ligero (prefs+Gson+bitmap cacheado) es seguro.
+            // B-009: la carga de datos vive DENTRO de la composición, y la composición
+            // LEE el estado Glance (tick de refresco): Glance solo recompone una sesión
+            // viva cuando cambia LocalState — leer prefs a secas no es observable. Cada
+            // requestBookWidgetUpdate() escribe un tick nuevo en el estado y eso invalida
+            // esta lectura → se relee prefs, libro, sesiones, tema, config e idioma.
+            // La composición de Glance corre fuera del main thread, así que el I/O
+            // ligero (prefs+Gson+bitmap cacheado) es seguro.
+            androidx.glance.currentState(WIDGET_REFRESH_TICK)
             val bookId = loadWidgetBook(appContext)
             val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
             val sessions = if (book == null) emptyList() else loadSessions(appContext)

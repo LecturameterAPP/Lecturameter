@@ -103,7 +103,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -1130,13 +1130,14 @@ class MainActivity : ComponentActivity() {
         // El permiso POST_NOTIFICATIONS se pide con diálogo educativo la primera vez
         // que el usuario intenta iniciar el cronómetro (en DetailScreen.startTimerWithPermCheck).
         setContent {
-            Crossfade(
-                targetState = vm.themeMode,
-                animationSpec = tween(durationMillis = 350),
-                label = "theme_crossfade"
-            ) { currentThemeMode ->
-            val theme = if (currentThemeMode == ThemeMode.DYNAMIC) dynamicThemeTokens(this@MainActivity)
-                        else buildTheme(currentThemeMode)
+            // QA 12-07 r2: el Crossfade sobre themeMode recreaba la app ENTERA en cada
+            // cambio de tema (Crossfade compone contenido nuevo por estado) — el
+            // NavController y todo el estado guardado se perdían y volvías a la pantalla
+            // principal. Ahora el árbol de composición es único y lo que se anima son los
+            // COLORES del tema (mismo efecto de fundido, sin perder la navegación).
+            val targetTheme = if (vm.themeMode == ThemeMode.DYNAMIC) dynamicThemeTokens(this@MainActivity)
+                        else buildTheme(vm.themeMode)
+            val theme = animateThemeColors(targetTheme)
             LecturaMeterTheme(theme) {
                 // Primera apertura: selección de idioma
                 if (!vm.languageChosen) {
@@ -1172,7 +1173,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            } // end Crossfade
         }
 
         // Backup automático en Drive según el intervalo elegido en Ajustes (default 2h).
@@ -1236,13 +1236,50 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// QA 12-07 r2: transición de tema sin recrear la app — cada token de color se anima
+// hacia el tema destino (350 ms, como el Crossfade que sustituye). isDark y accent
+// cambian al instante (no son interpolables de forma útil).
+@Composable
+fun animateThemeColors(target: Theme): Theme {
+    val spec = tween<Color>(durationMillis = 350)
+    val bgDark    by animateColorAsState(target.bgDark,    spec, label = "th_bgDark")
+    val bgMid     by animateColorAsState(target.bgMid,     spec, label = "th_bgMid")
+    val surface   by animateColorAsState(target.surface,   spec, label = "th_surface")
+    val border    by animateColorAsState(target.border,    spec, label = "th_border")
+    val textMain  by animateColorAsState(target.textMain,  spec, label = "th_textMain")
+    val textMuted by animateColorAsState(target.textMuted, spec, label = "th_textMuted")
+    val textDim   by animateColorAsState(target.textDim,   spec, label = "th_textDim")
+    val bgSurf    by animateColorAsState(target.bgSurf,    spec, label = "th_bgSurf")
+    val bgSurf2   by animateColorAsState(target.bgSurf2,   spec, label = "th_bgSurf2")
+    val bgDeep    by animateColorAsState(target.bgDeep,    spec, label = "th_bgDeep")
+    return target.copy(
+        bgDark = bgDark, bgMid = bgMid, surface = surface, border = border,
+        textMain = textMain, textMuted = textMuted, textDim = textDim,
+        bgSurf = bgSurf, bgSurf2 = bgSurf2, bgDeep = bgDeep
+    )
+}
+
+// QA 12-07 r2 (Aurora): tema actual accesible desde componentes hoja (chips, pills)
+// sin pasar `theme` por todos los call sites — se usa para remapear el acento.
+val LocalAppTheme = androidx.compose.runtime.compositionLocalOf<Theme?> { null }
+
+/** Si [color] es el acento índigo global (con o sin alpha), devuelve el acento del TEMA
+ *  actual (morado en Aurora, primario Material You en Dinámico) conservando el alpha. */
+@Composable
+fun themedAccentOr(color: Color): Color {
+    val t = LocalAppTheme.current ?: return color
+    return if (color.copy(alpha = 1f) == Accent) accentForTheme(t).copy(alpha = color.alpha) else color
+}
+
 @Composable
 fun LecturaMeterTheme(theme: Theme, content: @Composable () -> Unit) {
     val cs = if (theme.isDark)
         darkColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = Accent, onPrimary = Color.White, onBackground = theme.textMain, onSurface = theme.textMain)
     else
         lightColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = Accent, onPrimary = Color.White, onBackground = theme.textMain, onSurface = theme.textMain)
-    MaterialTheme(colorScheme = cs, content = content)
+    androidx.compose.runtime.CompositionLocalProvider(LocalAppTheme provides theme) {
+        MaterialTheme(colorScheme = cs, content = content)
+    }
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -1410,6 +1447,11 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             initialNavDone = true
             if (initialScreen !is Screen.List) navController.navigate(initialScreen.route())
         }
+        // QA 12-07 r2 (B-012): en frío el primer frame se dibuja ANTES de que lleguen los
+        // insets del sistema → el contenido aparecía pegado arriba-izquierda y "saltaba" a
+        // su sitio. Mantener el velo un par de frames más cubre ese reacomodo.
+        androidx.compose.runtime.withFrameNanos { }
+        androidx.compose.runtime.withFrameNanos { }
         initialNavSettled = true
     }
 
@@ -1657,7 +1699,11 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep))
         else
             Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))
-        Box(Modifier.fillMaxSize().background(bgBrush).systemBarsPadding().imePadding()) {
+        // QA 12-07 r2 (B-012): el velo vive FUERA del padding de insets — si cubriera solo
+        // la zona con padding, el reacomodo de los insets en el arranque en frío seguiría
+        // siendo visible en los bordes.
+        Box(Modifier.fillMaxSize().background(bgBrush)) {
+        Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
             // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
             // Feedback 11-07: EnterTransition.None NO es instantáneo — el reloj de la
             // transición sigue corriendo y la pantalla saliente queda visible (fade feo
@@ -1839,8 +1885,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                     }
                 }
             }
+        }
             // B-012: velo de arranque — tapa el frame de biblioteca vacía cuando el
-            // arranque en frío entra por deep link (widget/timer) hacia otra pantalla.
+            // arranque en frío entra por deep link (widget/timer) hacia otra pantalla,
+            // y ahora también el reacomodo de insets del primer frame (r2).
             if (!initialNavSettled) {
                 Box(Modifier.fillMaxSize().background(theme.bgDark)) {}
             }
@@ -2215,48 +2263,10 @@ fun TutorialPageContent(page: TutorialPage, theme: Theme, isLandscape: Boolean =
 @Composable
 fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) {
     // P-021 (12-07-2026): rework 14 → 10 slides (plan: Documentación/Plan — Tutorial capturas v2).
-    // Fusiones: 1+3→1 · 2→2 · 4+8→3 · 5+7→4 · 6→5. Orden final fijado por Víctor:
-    // widget → herramientas → feedback → batería → donaciones. Ediciones: sin slide propia,
+    // Fusiones: 1+3→1 · 2→2 · 4+8→3 · 5+7→4 · 6→5. Orden final fijado por Víctor (QA r2):
+    // widget → herramientas → batería → feedback → donaciones. Ediciones: sin slide propia,
     // una frase dentro de la 1. Textos cortos (máx ~2 frases). Capturas reales ES/EN: al
     // final de la Fase 4 (los mocks actuales se mantienen hasta entonces).
-    val pages = listOf(
-        // 1 — Tu biblioteca (antes 1+3; tarjeta mock + frase de ediciones)
-        TutorialPage("📚", stringResource(R.string.tut10_library_title), stringResource(R.string.tut10_library_desc),
-            visual = { TutorialBookCardVisual(theme) }),
-        // 2 — Importa y respalda
-        TutorialPage("📤", stringResource(R.string.tut10_backup_title), stringResource(R.string.tut10_backup_desc)),
-        // 3 — Sesiones (antes 4+8: cronómetro + registro manual)
-        TutorialPage("⏱️", stringResource(R.string.tut10_sessions_title), stringResource(R.string.tut10_sessions_desc)),
-        // 4 — Estadísticas (antes 5+7; mock de pills — opción A de Víctor: el mock usa los
-        // StatBox/DrawerStatChipH reales, así que hereda los colores vigentes)
-        TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
-            visual = { TutorialStatsPillsVisual(theme) },
-            descriptionComposable = { th ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        stringResource(R.string.tut10_stats_desc),
-                        color = th.textMuted, fontSize = 15.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    TutorialHistoryRowVisual(th)
-                }
-            }
-        ),
-        // 5 — Retos
-        TutorialPage("🏆", stringResource(R.string.tut10_challenges_title), stringResource(R.string.tut10_challenges_desc)),
-        // 6 — Widget
-        TutorialPage("🧩", stringResource(R.string.tut_widget_title), stringResource(R.string.tut_widget_desc), visual = { TutorialWidgetVisual(theme) }),
-        // 7 — Herramientas en Ajustes
-        TutorialPage("🛠️", stringResource(R.string.tut_p10_title), stringResource(R.string.tut_p10_desc)),
-        // 8 — Feedback
-        TutorialPage("📨", stringResource(R.string.tut_p11_title), stringResource(R.string.tut_p11_desc)),
-        // 9 — Restricciones de batería
-        TutorialPage("🔋", stringResource(R.string.tut_p12_title), stringResource(R.string.tut_p12_desc)),
-        // 10 — Donaciones
-        TutorialPage("", stringResource(R.string.tut_donations_title), stringResource(R.string.tut_donations_desc), visual = { TutorialDonationsVisual(theme) })
-    )
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState { pages.size }
     val scope = rememberCoroutineScope()
     var showSkipDialog by remember { mutableStateOf(false) }
 
@@ -2276,6 +2286,64 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
         // pantallas anchas = footer y contenido centrados a un ancho máximo.
         val isLandscape = maxWidth > maxHeight
         val footerMax = if (maxWidth > 600.dp) 720.dp else Dp.Infinity
+        // P-021 + QA 12-07 r2: orden final widget → herramientas → BATERÍA → FEEDBACK →
+        // donaciones (Víctor 12-07). La slide 4 se reparte distinto en horizontal para
+        // que el mock de la sesión desplegada no se corte: el historial pasa a ser el
+        // visual de la izquierda y las pills acompañan al texto a la derecha.
+        val pages = listOf(
+            // 1 — Tu biblioteca (antes 1+3; tarjeta mock + frase de ediciones)
+            TutorialPage("📚", stringResource(R.string.tut10_library_title), stringResource(R.string.tut10_library_desc),
+                visual = { TutorialBookCardVisual(theme) }),
+            // 2 — Importa y respalda
+            TutorialPage("📤", stringResource(R.string.tut10_backup_title), stringResource(R.string.tut10_backup_desc)),
+            // 3 — Sesiones (antes 4+8: cronómetro + registro manual)
+            TutorialPage("⏱️", stringResource(R.string.tut10_sessions_title), stringResource(R.string.tut10_sessions_desc)),
+            // 4 — Estadísticas (antes 5+7; mock de pills — opción A de Víctor: el mock usa
+            // los StatBox/DrawerStatChipH reales, así que hereda los colores vigentes)
+            if (isLandscape)
+                TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
+                    visual = { TutorialHistoryRowVisual(theme) },
+                    descriptionComposable = { th ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                stringResource(R.string.tut10_stats_desc),
+                                color = th.textMuted, fontSize = 15.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            TutorialStatsPillsVisual(th)
+                        }
+                    }
+                )
+            else
+                TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
+                    visual = { TutorialStatsPillsVisual(theme) },
+                    descriptionComposable = { th ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                stringResource(R.string.tut10_stats_desc),
+                                color = th.textMuted, fontSize = 15.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            TutorialHistoryRowVisual(th)
+                        }
+                    }
+                ),
+            // 5 — Retos
+            TutorialPage("🏆", stringResource(R.string.tut10_challenges_title), stringResource(R.string.tut10_challenges_desc)),
+            // 6 — Widget
+            TutorialPage("🧩", stringResource(R.string.tut_widget_title), stringResource(R.string.tut_widget_desc), visual = { TutorialWidgetVisual(theme) }),
+            // 7 — Herramientas en Ajustes
+            TutorialPage("🛠️", stringResource(R.string.tut_p10_title), stringResource(R.string.tut_p10_desc)),
+            // 8 — Restricciones de batería
+            TutorialPage("🔋", stringResource(R.string.tut_p12_title), stringResource(R.string.tut_p12_desc)),
+            // 9 — Feedback
+            TutorialPage("📨", stringResource(R.string.tut_p11_title), stringResource(R.string.tut_p11_desc)),
+            // 10 — Donaciones
+            TutorialPage("", stringResource(R.string.tut_donations_title), stringResource(R.string.tut_donations_desc), visual = { TutorialDonationsVisual(theme) })
+        )
+        val pagerState = androidx.compose.foundation.pager.rememberPagerState { pages.size }
         Column(
             Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -2772,10 +2840,12 @@ fun ListScreen(
                                         )
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
+                                    // QA 12-07 r2: número en textMain — con textDim apenas
+                                    // se leía sobre la pill en AMOLED y Aurora.
                                     Text(
                                         "$count",
                                         fontSize = 8.sp,
-                                        color = if (selected) Color.White else theme.textDim,
+                                        color = if (selected) Color.White else theme.textMain,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -9051,12 +9121,14 @@ fun fmtMinutes(totalMins: Int): String {
 
 @Composable
 fun HistoryStat(value: String, label: String, modifier: Modifier, theme: Theme, valueColor: Color? = null) {
-    val color = valueColor ?: theme.textMain
+    // QA 12-07 r2 (Aurora): acento del tema en vez del índigo global (legibilidad)
+    val effColor = if (valueColor == Accent) accentForTheme(theme) else valueColor
+    val color = effColor ?: theme.textMain
     Surface(
         modifier = modifier.fillMaxHeight(),
         shape = RoundedCornerShape(10.dp),
-        color = valueColor?.copy(alpha = 0.12f) ?: theme.surface,
-        border = BorderStroke(1.dp, valueColor?.copy(alpha = 0.35f) ?: theme.border)
+        color = effColor?.copy(alpha = 0.12f) ?: theme.surface,
+        border = BorderStroke(1.dp, effColor?.copy(alpha = 0.35f) ?: theme.border)
     ) {
         Column(
             Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
@@ -9070,7 +9142,8 @@ fun HistoryStat(value: String, label: String, modifier: Modifier, theme: Theme, 
 }
 
 @Composable
-fun DrawerStatChip(text: String, color: Color) {
+fun DrawerStatChip(text: String, color0: Color) {
+    val color = themedAccentOr(color0)
     Surface(
         shape = RoundedCornerShape(5.dp),
         color = color.copy(alpha = 0.13f),
@@ -9090,7 +9163,8 @@ fun DrawerStatChip(text: String, color: Color) {
 }
 
 @Composable
-fun DrawerStatChipH(text: String, color: Color, modifier: Modifier = Modifier) {
+fun DrawerStatChipH(text: String, color0: Color, modifier: Modifier = Modifier) {
+    val color = themedAccentOr(color0)
     Surface(
         shape = RoundedCornerShape(6.dp),
         color = color.copy(alpha = 0.13f),
@@ -9406,7 +9480,8 @@ fun HistorySessionCard(
 }
 
 @Composable
-fun DataChip(text: String, bg: Color, fg: Color, modifier: Modifier = Modifier) {
+fun DataChip(text: String, bg0: Color, fg0: Color, modifier: Modifier = Modifier) {
+    val bg = themedAccentOr(bg0); val fg = themedAccentOr(fg0)
     Box(
         modifier
             .clip(RoundedCornerShape(8.dp))
@@ -9419,7 +9494,8 @@ fun DataChip(text: String, bg: Color, fg: Color, modifier: Modifier = Modifier) 
 }
 
 @Composable
-fun DataChipSm(text: String, bg: Color, fg: Color, modifier: Modifier = Modifier) {
+fun DataChipSm(text: String, bg0: Color, fg0: Color, modifier: Modifier = Modifier) {
+    val bg = themedAccentOr(bg0); val fg = themedAccentOr(fg0)
     Box(
         modifier
             .clip(RoundedCornerShape(6.dp))
@@ -9707,9 +9783,12 @@ fun AutoSizeText(
 
 @Composable
 fun StatBox(value: String, label: String, modifier: Modifier, theme: Theme, highlight: Boolean = false, highlightColor: Color = Green) {
-    val bgColor   = if (highlight) highlightColor.copy(alpha = 0.07f) else theme.surface
-    val brdColor  = if (highlight) highlightColor.copy(alpha = 0.3f)  else theme.border
-    val txtColor  = if (highlight) highlightColor else theme.textMain
+    // QA 12-07 r2 (Aurora): el índigo global apenas contrasta sobre el fondo teal —
+    // cuando el highlight es el acento, usar el acento DEL TEMA (morado en Aurora).
+    val hl = if (highlightColor == Accent) accentForTheme(theme) else highlightColor
+    val bgColor   = if (highlight) hl.copy(alpha = 0.07f) else theme.surface
+    val brdColor  = if (highlight) hl.copy(alpha = 0.3f)  else theme.border
+    val txtColor  = if (highlight) hl else theme.textMain
     Surface(modifier = modifier, shape = RoundedCornerShape(12.dp), color = bgColor, border = BorderStroke(1.dp, brdColor)) {
         Column(
             Modifier.height(66.dp).padding(horizontal = 6.dp, vertical = 6.dp),

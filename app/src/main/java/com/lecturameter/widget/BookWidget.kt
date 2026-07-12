@@ -13,7 +13,6 @@ import android.view.View
 import android.widget.RemoteViews
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import androidx.glance.appwidget.updateAll
 import com.lecturameter.model.*
 import com.lecturameter.utils.WidgetStats
 import com.lecturameter.utils.computeWidgetStats
@@ -138,10 +137,26 @@ fun requestBookWidgetUpdate(context: Context) {
     }
 }
 
-// Fase 2: el refresco delega en Glance — updateAll recompone todas las instancias
-// (provideGlance vuelve a cargar libro, sesiones, portada, tema y config).
+// Fase 2: el refresco delega en Glance.
+// B-009 r2: updateAll() por sí solo NO recompone una sesión viva — Glance solo invalida
+// la composición cuando cambia su ESTADO (LocalState); leer SharedPreferences dentro de
+// la composición no es observable. Por eso el widget solo se actualizaba al quitarlo y
+// volverlo a poner (sesión nueva). Ahora, antes de update(), se escribe un tick en el
+// estado Glance de cada instancia; la composición lo lee con currentState() y cada
+// escritura fuerza la recomposición (que relee prefs, libro, sesiones, tema y config).
+val WIDGET_REFRESH_TICK = androidx.datastore.preferences.core.longPreferencesKey("refresh_tick")
+
 suspend fun updateBookWidgets(context: Context) = withContext(Dispatchers.IO) {
-    BookGlanceWidget().updateAll(context.applicationContext)
+    val appContext = context.applicationContext
+    val widget = BookGlanceWidget()
+    val ids = androidx.glance.appwidget.GlanceAppWidgetManager(appContext)
+        .getGlanceIds(BookGlanceWidget::class.java)
+    ids.forEach { id ->
+        androidx.glance.appwidget.state.updateAppWidgetState(appContext, id) { prefs ->
+            prefs[WIDGET_REFRESH_TICK] = System.currentTimeMillis()
+        }
+        widget.update(appContext, id)
+    }
 }
 
 // Fase 2: mismo nombre de componente que en 2.7 (declarado en el manifest) para que
