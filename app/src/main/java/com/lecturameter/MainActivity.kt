@@ -431,10 +431,10 @@ val BgDarkAm = Color(0xFF000000); val BgMidAm = Color(0xFF000000)
 val SurfaceAm = Color(0x10FFFFFF); val BorderAm = Color(0x18FFFFFF)
 val TextMainAm = Color(0xFFF1F5F9); val TextMutedAm = Color(0xFF94A3B8); val TextDimAm = Color(0xFF64748B)
 
+// QA r2 12-07: el tema Dinámico (Material You) se ELIMINA a petición de Víctor —
+// los 4 temas quedan fijos: Claro, Oscuro, Aurora y AMOLED.
 enum class ThemeMode(val value: String) {
-    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled"),
-    // Fase 3: Material You (Android 12+) — colores del fondo de pantalla del usuario
-    DYNAMIC("dynamic")
+    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled")
 }
 
 // Fase 3: bgDeep = tercer stop del degradado de fondo (solo Aurora lo usa; Transparent = 2 stops clásicos)
@@ -446,33 +446,6 @@ fun buildTheme(mode: ThemeMode) = when (mode) {
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
     ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))
-    // El Dinámico necesita Context (Material You) — este fallback solo se usa si alguien
-    // llama a buildTheme sin contexto; el camino real es dynamicThemeTokens(context)
-    ThemeMode.DYNAMIC -> Theme(BgDarkD, BgMidD, SurfaceD, BorderD, TextMainD, TextMutedD, TextDimD, true, bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
-}
-
-// Fase 3: tema Dinámico (Material You, Android 12+). Deriva los tokens de la paleta del
-// fondo de pantalla del usuario y sigue el modo claro/oscuro del sistema. En < API 31
-// devuelve el oscuro clásico (la opción ni se ofrece en el selector).
-fun dynamicThemeTokens(context: android.content.Context): Theme {
-    if (android.os.Build.VERSION.SDK_INT < 31) return buildTheme(ThemeMode.DARK)
-    val night = (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-        android.content.res.Configuration.UI_MODE_NIGHT_YES
-    val s = if (night) androidx.compose.material3.dynamicDarkColorScheme(context)
-            else androidx.compose.material3.dynamicLightColorScheme(context)
-    return Theme(
-        bgDark    = s.background,
-        bgMid     = s.surfaceContainer,
-        surface   = if (night) Color(0x14FFFFFF) else s.surfaceContainerHigh,
-        border    = s.outline.copy(alpha = 0.35f),
-        textMain  = s.onBackground,
-        textMuted = s.onSurfaceVariant,
-        textDim   = s.onSurfaceVariant.copy(alpha = 0.65f),
-        isDark    = night,
-        bgSurf    = if (night) Color(0x1AFFFFFF) else s.surfaceContainerHigh,
-        bgSurf2   = if (night) Color(0x0DFFFFFF) else s.surfaceContainerLow,
-        accent    = s.primary
-    )
 }
 
 fun statusColor(s: BookStatus) = when (s) {
@@ -1135,8 +1108,7 @@ class MainActivity : ComponentActivity() {
             // NavController y todo el estado guardado se perdían y volvías a la pantalla
             // principal. Ahora el árbol de composición es único y lo que se anima son los
             // COLORES del tema (mismo efecto de fundido, sin perder la navegación).
-            val targetTheme = if (vm.themeMode == ThemeMode.DYNAMIC) dynamicThemeTokens(this@MainActivity)
-                        else buildTheme(vm.themeMode)
+            val targetTheme = buildTheme(vm.themeMode)
             val theme = animateThemeColors(targetTheme)
             LecturaMeterTheme(theme) {
                 // Primera apertura: selección de idioma
@@ -2607,13 +2579,11 @@ fun ListScreen(
                             }
                         }
                         DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
-                            (listOf(
+                            listOf(
                                 ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                                 ThemeMode.DARK   to stringResource(R.string.theme_dark),
                                 ThemeMode.AURORA to stringResource(R.string.theme_aurora),
                                 ThemeMode.AMOLED to stringResource(R.string.theme_oled)
-                            ) + if (android.os.Build.VERSION.SDK_INT >= 31)
-                                listOf(ThemeMode.DYNAMIC to stringResource(R.string.theme_dynamic)) else emptyList()
                             ).forEach { (mode, label) ->
                                 DropdownMenuItem(
                                     text = {
@@ -10553,13 +10523,11 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.txt_057acd78), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (listOf(
+                listOf(
                     ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                     ThemeMode.DARK   to stringResource(R.string.theme_dark),
                     ThemeMode.AURORA to stringResource(R.string.theme_aurora),
                     ThemeMode.AMOLED to stringResource(R.string.theme_oled)
-                ) + if (android.os.Build.VERSION.SDK_INT >= 31)
-                    listOf(ThemeMode.DYNAMIC to stringResource(R.string.theme_dynamic)) else emptyList()
                 ).forEach { (mode, label) ->
                     val selected = vm.themeMode == mode
                     Surface(

@@ -366,8 +366,7 @@ class BooksViewModel : ViewModel() {
             "light"   -> ThemeMode.LIGHT
             "aurora"  -> ThemeMode.AURORA
             "amoled"  -> ThemeMode.AMOLED
-            // Fase 3: Dinámico (Material You) solo existe en Android 12+; en anteriores cae a oscuro
-            "dynamic" -> if (android.os.Build.VERSION.SDK_INT >= 31) ThemeMode.DYNAMIC else ThemeMode.DARK
+            // QA r2 12-07: Dinámico eliminado — prefs antiguas con "dynamic" caen a oscuro
             else      -> ThemeMode.DARK
         }
         com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }

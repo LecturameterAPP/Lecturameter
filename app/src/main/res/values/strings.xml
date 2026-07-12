@@ -568,7 +568,6 @@
     <string name="theme_light">☀️ Claro</string>
     <string name="theme_dark">🌙 Oscuro</string>
     <string name="theme_aurora">Aurora</string>
-    <string name="theme_dynamic">Dinámico</string>
     <string name="theme_oled">⬛ OLED</string>
 
     <!-- Settings sections -->
