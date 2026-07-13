@@ -2171,6 +2171,10 @@ fun HomeRail(
     ) {
         if (!railExpanded) {
             // Asa de expansión: pastilla vertical centrada, target táctil = toda la columna
+            // Feedback 13-07 (14): if/else en vez de return@Column — el early return dentro
+            // del lambda inline de Column corrompía el slot table de Compose
+            // (ArrayIndexOutOfBounds en SlotTable.key) y la app entraba en BUCLE DE CRASH
+            // al arrancar con rail_expanded=false persistido.
             Box(
                 Modifier.fillMaxSize().clickable { setRailExpanded(true) },
                 contentAlignment = Alignment.Center
@@ -2181,8 +2185,7 @@ fun HomeRail(
                         .background(Accent.copy(alpha = 0.55f))
                 )
             }
-            return@Column
-        }
+        } else {
         // 📜 historial — casilla fija superior (spec D-002); toggle del panel
         RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
         // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
@@ -2253,6 +2256,7 @@ fun HomeRail(
                 editMode = false
             })
         }
+        } // else rail expandido (Feedback 13-07 (14))
     }
 }
 
