@@ -9250,9 +9250,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                         color = theme.textMain, fontSize = 20.sp,
                         fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)
                     )
-
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(IntrinsicSize.Max)) {
                     HistoryStat("${sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = Accent)
                     HistoryStat(if (totalMins > 0) fmtMinutes(totalMins) else "—", stringResource(R.string.history_stat_total_time), Modifier.weight(1f), theme, valueColor = Sky)
