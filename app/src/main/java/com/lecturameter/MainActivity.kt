@@ -1662,8 +1662,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             ModalDrawerSheet(
                 drawerContainerColor = theme.bgDark,
                 drawerContentColor = theme.textMain,
-                // v2.5: ancho acotado — en landscape/tablet ya no ocupa media pantalla
-                modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(0.82f)
+                // v2.5: ancho acotado — en landscape/tablet ya no ocupa media pantalla.
+                // D-002 (13-07): el hueco libre pasa al LADO DEL RAIL (start) — el panel
+                // del historial encaja contra el rail, como en el mockup aprobado.
+                modifier = Modifier.padding(start = 46.dp).widthIn(max = 400.dp).fillMaxWidth(0.88f)
             ) {
                 SessionHistoryScreen(
                     vm = vm,
@@ -1931,10 +1933,13 @@ private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RailItem(
-    emoji: String,
+    emoji: String?,
     theme: Theme,
     highlighted: Boolean = false,
     enabled: Boolean = true,
+    // Feedback 13-07: los destinos vuelven a los iconos Material azules; solo
+    // historial (📜) y biblioteca (📚) conservan emoji (más el icono del tema en la barra)
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
@@ -1950,7 +1955,8 @@ private fun RailItem(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(emoji, fontSize = 17.sp)
+        if (icon != null) Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(19.dp))
+        else Text(emoji ?: "", fontSize = 17.sp)
     }
 }
 
@@ -1977,8 +1983,13 @@ fun HomeRail(
     var editMode by remember { mutableStateOf(false) }
     val slotPx = with(androidx.compose.ui.platform.LocalDensity.current) { 46.dp.toPx() }
 
-    fun railEmoji(dest: String) = when (dest) {
-        "challenges" -> "🎯"; "stats" -> "📊"; "bingo" -> "▦"; "wrapped" -> "🎁"; else -> "🔍"
+    // Feedback 13-07: destinos con los iconos Material azules de la fila antigua
+    fun railIcon(dest: String) = when (dest) {
+        "challenges" -> Icons.Default.EmojiEvents
+        "stats"      -> Icons.Default.BarChart
+        "bingo"      -> Icons.Default.GridView
+        "wrapped"    -> Icons.Default.CardGiftcard
+        else         -> Icons.Default.Search
     }
 
     Column(
@@ -2021,7 +2032,8 @@ fun HomeRail(
                     )
             ) {
                 RailItem(
-                    railEmoji(dest), theme,
+                    null, theme,
+                    icon = railIcon(dest),
                     highlighted = editMode,
                     enabled = !editMode,
                     onLongPress = { editMode = true },
@@ -2038,7 +2050,7 @@ fun HomeRail(
             }
         }
         if (editMode) {
-            RailItem("✓", theme, highlighted = true, onClick = {
+            RailItem(null, theme, highlighted = true, icon = Icons.Default.Check, onClick = {
                 prefs.edit().putString("rail_order", order.joinToString(",")).apply()
                 editMode = false
             })
@@ -10791,6 +10803,91 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     }
                 }
             }
+        }
+
+        // ── RAIL (D-002, 13-07): entrada de reordenación desde Ajustes ─────────
+        var showRailReorder by remember { mutableStateOf(false) }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Surface(
+                onClick = { showRailReorder = true },
+                shape = RoundedCornerShape(14.dp),
+                color = theme.surface,
+                border = BorderStroke(1.dp, theme.border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                    Text("📚", fontSize = 15.sp)
+                    Text(
+                        stringResource(R.string.rail_reorder_title),
+                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f).padding(start = 10.dp)
+                    )
+                    Icon(Icons.Default.KeyboardArrowRight, null, tint = theme.textDim)
+                }
+            }
+        }
+        if (showRailReorder) {
+            var railOrder by remember {
+                mutableStateOf(
+                    prefs.getString("rail_order", null)
+                        ?.split(",")?.filter { it in RAIL_DEFAULT_ORDER }
+                        ?.let { saved -> saved + RAIL_DEFAULT_ORDER.filter { it !in saved } }
+                        ?: RAIL_DEFAULT_ORDER
+                )
+            }
+            AlertDialog(
+                onDismissRequest = { showRailReorder = false },
+                containerColor = theme.bgMid,
+                title = { Text(stringResource(R.string.rail_reorder_title), color = theme.textMain, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(stringResource(R.string.rail_reorder_hint), color = theme.textDim, fontSize = 12.sp)
+                        railOrder.forEachIndexed { idx, dest ->
+                            Surface(shape = RoundedCornerShape(10.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)) {
+                                    Icon(
+                                        when (dest) {
+                                            "challenges" -> Icons.Default.EmojiEvents
+                                            "stats"      -> Icons.Default.BarChart
+                                            "bingo"      -> Icons.Default.GridView
+                                            "wrapped"    -> Icons.Default.CardGiftcard
+                                            else         -> Icons.Default.Search
+                                        }, null, tint = Accent, modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        stringResource(when (dest) {
+                                            "challenges" -> R.string.rail_dest_challenges
+                                            "stats"      -> R.string.rail_dest_stats
+                                            "bingo"      -> R.string.rail_dest_bingo
+                                            "wrapped"    -> R.string.rail_dest_wrapped
+                                            else         -> R.string.rail_dest_search
+                                        }),
+                                        color = theme.textMain, fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f).padding(start = 10.dp)
+                                    )
+                                    IconButton(
+                                        onClick = { if (idx > 0) railOrder = railOrder.toMutableList().also { it.add(idx - 1, it.removeAt(idx)) } },
+                                        enabled = idx > 0, modifier = Modifier.size(34.dp)
+                                    ) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (idx > 0) Accent else theme.textDim, modifier = Modifier.size(19.dp)) }
+                                    IconButton(
+                                        onClick = { if (idx < railOrder.lastIndex) railOrder = railOrder.toMutableList().also { it.add(idx + 1, it.removeAt(idx)) } },
+                                        enabled = idx < railOrder.lastIndex, modifier = Modifier.size(34.dp)
+                                    ) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (idx < railOrder.lastIndex) Accent else theme.textDim, modifier = Modifier.size(19.dp)) }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        prefs.edit().putString("rail_order", railOrder.joinToString(",")).apply()
+                        showRailReorder = false
+                    }) { Text(stringResource(R.string.txt_d3270bdb), color = Accent, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRailReorder = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
+                }
+            )
         }
 
         // ── BACKUPS ───────────────────────────────────────────────────────────
