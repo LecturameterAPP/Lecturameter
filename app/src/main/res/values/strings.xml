@@ -931,7 +931,7 @@
     <string name="bingo_title">Bingo lector</string>
     <string name="bingo_subtitle">Cartón «%1$s» · %2$s</string>
     <string name="bingo_renews">Se renueva el día 1 de cada mes</string>
-    <string name="bingo_progress">%1$d/9 casillas · %2$d líneas</string>
+    <string name="bingo_progress">%1$d/%2$d casillas · %3$d líneas</string>
     <string name="bingo_completed">¡Cartón completado!&#160;🎉</string>
     <string name="bingo_new_card">Nuevo cartón</string>
     <string name="bingo_hint">Las casillas se marcan solas al terminar y valorar libros o al registrar sesiones.</string>

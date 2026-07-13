@@ -334,7 +334,12 @@ class BooksViewModel : ViewModel() {
         if (templates.isEmpty()) return
         val month = com.lecturameter.utils.BingoManager.currentMonthKey()
         val cur = _bingoCard.value
-        if (!force && cur != null && cur.monthKey == month) return
+        // Feedback 13-07 (10): si el cartón guardado ya no casa con el catálogo actual
+        // (plantilla desaparecida o nº de celdas distinto, p. ej. migración 3×3 → 4×4),
+        // se regenera aunque sea el mismo mes.
+        val stale = cur != null && templates.firstOrNull { it.id == cur.templateId }
+            ?.let { it.cells.size != cur.cells.size } ?: true
+        if (!force && cur != null && cur.monthKey == month && !stale) return
         val nextIdx = (prefs.getInt("bingo_template_index", -1) + 1).mod(templates.size)
         val card = com.lecturameter.utils.BingoManager.newCard(templates[nextIdx], month)
         _bingoCard.value = card

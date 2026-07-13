@@ -35,12 +35,21 @@ object BingoManager {
     private val gson = Gson()
     private var cachedTemplates: List<BingoTemplate>? = null
 
-    // Líneas del cartón 3×3 (índices 0..8): filas, columnas y diagonales
-    private val LINES = mapOf(
-        "row0" to listOf(0, 1, 2), "row1" to listOf(3, 4, 5), "row2" to listOf(6, 7, 8),
-        "col0" to listOf(0, 3, 6), "col1" to listOf(1, 4, 7), "col2" to listOf(2, 5, 8),
-        "diag0" to listOf(0, 4, 8), "diag1" to listOf(2, 4, 6)
-    )
+    // Feedback 13-07 (10): el cartón ya no es fijo 3×3 — el lado se deduce del nº de
+    // celdas (9/16/25) y las líneas (filas, columnas, diagonales) se generan según el lado.
+    fun sideOf(cellCount: Int): Int {
+        val s = Math.round(Math.sqrt(cellCount.toDouble())).toInt()
+        return if (s * s == cellCount) s else 0
+    }
+
+    private fun linesFor(side: Int): Map<String, List<Int>> {
+        val lines = mutableMapOf<String, List<Int>>()
+        for (r in 0 until side) lines["row$r"] = (0 until side).map { r * side + it }
+        for (c in 0 until side) lines["col$c"] = (0 until side).map { it * side + c }
+        lines["diag0"] = (0 until side).map { it * side + it }
+        lines["diag1"] = (0 until side).map { it * side + (side - 1 - it) }
+        return lines
+    }
 
     fun loadTemplates(context: Context): List<BingoTemplate> {
         cachedTemplates?.let { return it }
@@ -48,7 +57,7 @@ object BingoManager {
             val json = context.assets.open("bingo_templates.json")
                 .bufferedReader(Charsets.UTF_8).use { it.readText() }
             val parsed = gson.fromJson(json, BingoTemplateFile::class.java)?.templates
-                ?.filter { it.cells.size == 9 } ?: emptyList()
+                ?.filter { sideOf(it.cells.size) >= 3 } ?: emptyList()
             cachedTemplates = parsed
             parsed
         } catch (_: Exception) { emptyList() }
@@ -105,8 +114,11 @@ object BingoManager {
 
     fun isCardComplete(card: BingoCard): Boolean = card.cells.all { it.isCompleted }
 
-    private fun computeLines(cells: List<BingoCell>): List<String> =
-        LINES.filter { (_, idx) -> idx.all { cells[it].isCompleted } }.keys.toList()
+    private fun computeLines(cells: List<BingoCell>): List<String> {
+        val side = sideOf(cells.size)
+        if (side < 3) return emptyList()
+        return linesFor(side).filter { (_, idx) -> idx.all { cells[it].isCompleted } }.keys.toList()
+    }
 
     /** Primer libro TERMINADO de este autor (contándose a sí mismo). */
     private fun isNewAuthor(book: Book, allBooks: List<Book>): Boolean =

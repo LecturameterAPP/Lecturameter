@@ -1923,8 +1923,14 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
             Text("…", color = theme.textMuted, modifier = Modifier.align(Alignment.Center))
             return@Box
         }
+        // Feedback 13-07 (10): cartón 4×4 (lado dinámico según la plantilla)
+        val side = com.lecturameter.utils.BingoManager.sideOf(c.cells.size).coerceAtLeast(3)
         val doneCount = c.cells.count { it.isCompleted }
-        val complete = doneCount == 9
+        val complete = doneCount == c.cells.size
+        // Tipografías según densidad del cartón (4×4 necesita textos más compactos)
+        val labelSize = if (side >= 4) 8.5.sp else 10.5.sp
+        val labelLineHeight = if (side >= 4) 10.5.sp else 13.sp
+        val checkSize = if (side >= 4) 15.sp else 20.sp
         // Nombre del mes del cartón a partir de monthKey (yyyy-MM), en el idioma de la app
         val monthLabel = remember(c.monthKey, isEs) {
             try {
@@ -1947,15 +1953,15 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 color = accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
             )
             Text(
-                stringResource(R.string.bingo_progress, doneCount, c.completedLines.size),
+                stringResource(R.string.bingo_progress, doneCount, c.cells.size, c.completedLines.size),
                 color = theme.textMuted, fontSize = 12.sp
             )
             Spacer(Modifier.height(14.dp))
-            // Cartón 3×3
-            for (row in 0..2) {
-                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                    for (col in 0..2) {
-                        val cell = c.cells[row * 3 + col]
+            // Cartón side×side
+            for (row in 0 until side) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    for (col in 0 until side) {
+                        val cell = c.cells[row * side + col]
                         val bg by androidx.compose.animation.animateColorAsState(
                             targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else theme.bgMid,
                             animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
@@ -1963,7 +1969,7 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                         Box(
                             Modifier
                                 .weight(1f)
-                                .padding(horizontal = 3.dp)
+                                .padding(horizontal = 2.dp)
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(bg)
@@ -1987,13 +1993,13 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                                         )
                                     ) + fadeIn()
                                 ) {
-                                    Text("✓", color = accent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text("✓", color = accent, fontSize = checkSize, fontWeight = FontWeight.Bold)
                                 }
                                 Text(
                                     if (isEs) cell.labelEs else cell.labelEn,
                                     color = if (cell.isCompleted) theme.textMain else theme.textMuted,
-                                    fontSize = 10.5.sp,
-                                    lineHeight = 13.sp,
+                                    fontSize = labelSize,
+                                    lineHeight = labelLineHeight,
                                     textAlign = TextAlign.Center,
                                     maxLines = 3
                                 )
@@ -2001,7 +2007,7 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                                 cell.completedByBookId?.let { bid ->
                                     books.firstOrNull { it.id == bid }?.let { b ->
                                         Text(
-                                            b.title, color = accent, fontSize = 8.5.sp,
+                                            b.title, color = accent, fontSize = 7.5.sp,
                                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                                             textAlign = TextAlign.Center
                                         )
@@ -2176,7 +2182,8 @@ fun HomeRail(
         // 📜 historial — casilla fija superior (spec D-002); toggle del panel
         RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
         // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
-        RailItem("📚", theme, highlighted = true, enabled = !editMode, onClick = onLibrary)
+        // Feedback 13-07 (10): sin highlight — el resaltado permanente no significaba nada
+        RailItem("📚", theme, enabled = !editMode, onClick = onLibrary)
         HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
         // Feedback 13-07 (4): los botones no arrastrados se DESLIZAN a su hueco nuevo
         // (posiciones absolutas animadas en vez de flujo de Column)

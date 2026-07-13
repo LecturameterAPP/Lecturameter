@@ -928,7 +928,7 @@
     <string name="bingo_title">Reading bingo</string>
     <string name="bingo_subtitle">"%1$s" card · %2$s</string>
     <string name="bingo_renews">Renews on the 1st of every month</string>
-    <string name="bingo_progress">%1$d/9 cells · %2$d lines</string>
+    <string name="bingo_progress">%1$d/%2$d cells · %3$d lines</string>
     <string name="bingo_completed">Card completed!&#160;🎉</string>
     <string name="bingo_new_card">New card</string>
     <string name="bingo_hint">Cells check themselves as you finish and rate books or log sessions.</string>
