@@ -878,7 +878,7 @@
     <string name="wrapped_fav_pages">%1$d pages</string>
     <!-- v2.4 rework: tutorial -->
     <string name="tut_favorites_title">Favorites</string>
-    <string name="tut_favorites_desc">Swipe a book card sideways to mark or unmark it as a favorite. The red stripe on the left indicates a favorite. In the sort menu (sort icon in the search bar) you will find the “Show only favorites” filter, which applies to every shelf.</string>
+    <string name="tut_favorites_desc">Swipe a book card sideways to mark or unmark it as a favorite. The red stripe on the left indicates a favorite. In the sort menu (sort icon in the search bar) you will find the “Show only favorites” filter, which applies to every shelf. Favorites you finish during the year show up in your Wrapped.</string>
     <string name="tut_challenges_title">Reading challenges</string>
     <string name="tut_challenges_desc">Tap the trophy icon 🏆 on the main screen to see your challenges: books per year, streaks, pages, sessions or minutes. You can create custom challenges with a target and a deadline; progress updates automatically.</string>
     <string name="tut_challenges_desc_pre">"Tap the trophy icon "</string>

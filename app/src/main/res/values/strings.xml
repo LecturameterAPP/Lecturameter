@@ -879,7 +879,8 @@
     <string name="wrapped_fav_pages">%1$d págs</string>
     <!-- v2.4 rework: tutorial -->
     <string name="tut_favorites_title">Favoritos</string>
-    <string name="tut_favorites_desc">Desliza una tarjeta de libro hacia un lado para marcarla o desmarcarla como favorita. La franja roja a la izquierda indica favorito. En el menú de ordenación (icono de ordenar en la búsqueda) tienes el filtro «Ver solo favoritos», que se aplica a todas las estanterías.</string>
+    <!-- Feedback 13-07 (13): la slide de favoritos explica la conexión con el Wrapped -->
+    <string name="tut_favorites_desc">Desliza una tarjeta de libro hacia un lado para marcarla o desmarcarla como favorita. La franja roja a la izquierda indica favorito. En el menú de ordenación (icono de ordenar en la búsqueda) tienes el filtro «Ver solo favoritos», que se aplica a todas las estanterías. Los favoritos que termines durante el año aparecen en tu Wrapped.</string>
     <string name="tut_challenges_title">Retos de lectura</string>
     <string name="tut_challenges_desc">Toca el icono del trofeo 🏆 en la pantalla principal para ver tus retos: libros al año, rachas, páginas, sesiones o minutos. Puedes crear retos personalizados con objetivo y fecha límite; el progreso se actualiza solo.</string>
     <string name="tut_challenges_desc_pre">"Toca el icono del trofeo "</string>
