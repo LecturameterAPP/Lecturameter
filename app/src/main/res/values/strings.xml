@@ -831,6 +831,9 @@
     <string name="challenge_type_minutes">Minutos</string>
     <string name="challenge_default_books">12 libros este año</string>
     <string name="challenge_default_streak">Racha de 7 días</string>
+    <string name="challenge_default_pages">3.000 páginas este año</string>
+    <string name="challenge_default_sessions">50 sesiones este año</string>
+    <string name="challenge_default_minutes">24 horas de lectura este año</string>
     <!-- v2.4 rework: estadísticas avanzadas -->
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
@@ -920,4 +923,7 @@
     <string name="tut10_challenges_desc">Márcate objetivos de libros, páginas o racha y sigue tu avance sin agobios.</string>
     <!-- QA 12-07 r2: espacio no separable antes del emoji — el 🎉 saltaba de línea en el toast -->
     <string name="tut_done_toast">¡Ya estás listo para empezar!&#160;🎉</string>
+    <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
+    <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
+    <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
 </resources>

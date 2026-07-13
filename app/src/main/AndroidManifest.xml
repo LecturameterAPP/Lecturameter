@@ -61,9 +61,12 @@
             android:name=".widget.BookWidgetReceiver"
             android:exported="true"
             android:label="Lecturameter Widget">
+            <!-- Auditoría seguridad 13-07: com.lecturameter.REFRESH_WIDGET fuera del
+                 filter — el receiver es exported (requisito de APPWIDGET_UPDATE) y la
+                 acción propia permitía a CUALQUIER app disparar refrescos del widget.
+                 Nada la enviaba: el refresco interno usa requestBookWidgetUpdate(). -->
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.lecturameter.REFRESH_WIDGET" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

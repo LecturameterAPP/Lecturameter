@@ -29,6 +29,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 // v21.42: Icons.Outlined.Star eliminado — estrellas usan ★/☆ Text
@@ -1006,6 +1011,13 @@ object WidgetIntentBridge {
     @Volatile var onNewIntent: (() -> Unit)? = null
 }
 
+// D-002/T1 (Fase 4): puente del inicio rápido de sesión — el selector ⏱️ del home fija
+// el libro y DetailScreen arranca el cronómetro al abrirse (mismo flujo de permisos
+// que el botón ▶ del detalle).
+object TimerQuickStart {
+    @Volatile var pendingBookId: Long = -1L
+}
+
 private fun refreshWidgetForBookIfSelected(context: Context, bookId: Long, clearCoverCache: Boolean = false) {
     val appContext = context.applicationContext
     if (com.lecturameter.widget.loadWidgetBook(appContext) != bookId) return
@@ -1909,6 +1921,131 @@ fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm
 // Estilo Goodreads: pestañas por estante + búsqueda + ordenación.
 // Cada pestaña muestra sólo los libros de ese estado → no hay listas infinitas.
 
+// ── D-002 (Fase 4): mini-rail del home ────────────────────────────────────────
+// El rail vive SOLO en la biblioteca: 📜 historial (fijo) + 📚 home (fijo) + destinos
+// reordenables. Destinos = push a pantalla completa (semántica 2.7); el historial se
+// despliega como panel encajado contra el rail. Iconos = emojis del sistema (D-002b).
+// Long-press en un destino → modo edición con arrastre vertical; ✓ guarda en prefs.
+private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped", "search")
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun RailItem(
+    emoji: String,
+    theme: Theme,
+    highlighted: Boolean = false,
+    enabled: Boolean = true,
+    onLongPress: (() -> Unit)? = null,
+    onClick: () -> Unit = {}
+) {
+    Box(
+        Modifier
+            .padding(vertical = 3.dp)
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (highlighted) Accent.copy(alpha = 0.16f) else Color.Transparent)
+            .then(
+                if (enabled) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongPress)
+                else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(emoji, fontSize = 17.sp)
+    }
+}
+
+@Composable
+fun HomeRail(
+    theme: Theme,
+    prefs: android.content.SharedPreferences,
+    onHistory: () -> Unit,
+    onStats: () -> Unit,
+    onChallenges: () -> Unit,
+    onBingo: () -> Unit,
+    onWrapped: () -> Unit,
+    onSearchOnline: () -> Unit
+) {
+    var order by remember {
+        mutableStateOf(
+            prefs.getString("rail_order", null)
+                ?.split(",")?.filter { it in RAIL_DEFAULT_ORDER }
+                // Órdenes guardados con claves antiguas o incompletas: completar con el default
+                ?.let { saved -> saved + RAIL_DEFAULT_ORDER.filter { it !in saved } }
+                ?: RAIL_DEFAULT_ORDER
+        )
+    }
+    var editMode by remember { mutableStateOf(false) }
+    val slotPx = with(androidx.compose.ui.platform.LocalDensity.current) { 46.dp.toPx() }
+
+    fun railEmoji(dest: String) = when (dest) {
+        "challenges" -> "🎯"; "stats" -> "📊"; "bingo" -> "▦"; "wrapped" -> "🎁"; else -> "🔍"
+    }
+
+    Column(
+        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 📜 historial — casilla fija superior (spec D-002)
+        RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
+        // 📚 biblioteca — fija; marcada como pantalla actual
+        RailItem("📚", theme, highlighted = true, enabled = false)
+        HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
+        order.forEach { dest ->
+            var dragging by remember(dest) { mutableStateOf(false) }
+            var dragOffset by remember(dest) { mutableStateOf(0f) }
+            Box(
+                Modifier
+                    .zIndex(if (dragging) 1f else 0f)
+                    .offset { IntOffset(0, dragOffset.roundToInt()) }
+                    .then(
+                        if (editMode) Modifier.pointerInput(dest) {
+                            detectDragGestures(
+                                onDragStart = { dragging = true },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    dragOffset += amount.y
+                                    val shift = (dragOffset / slotPx).roundToInt()
+                                    if (shift != 0) {
+                                        val from = order.indexOf(dest)
+                                        val to = (from + shift).coerceIn(0, order.lastIndex)
+                                        if (to != from) {
+                                            order = order.toMutableList().also { it.add(to, it.removeAt(from)) }
+                                            dragOffset -= (to - from) * slotPx
+                                        }
+                                    }
+                                },
+                                onDragEnd = { dragging = false; dragOffset = 0f },
+                                onDragCancel = { dragging = false; dragOffset = 0f }
+                            )
+                        } else Modifier
+                    )
+            ) {
+                RailItem(
+                    railEmoji(dest), theme,
+                    highlighted = editMode,
+                    enabled = !editMode,
+                    onLongPress = { editMode = true },
+                    onClick = {
+                        when (dest) {
+                            "challenges" -> onChallenges()
+                            "stats"      -> onStats()
+                            "bingo"      -> onBingo()
+                            "wrapped"    -> onWrapped()
+                            else         -> onSearchOnline()
+                        }
+                    }
+                )
+            }
+        }
+        if (editMode) {
+            RailItem("✓", theme, highlighted = true, onClick = {
+                prefs.edit().putString("rail_order", order.joinToString(",")).apply()
+                editMode = false
+            })
+        }
+    }
+}
+
 // Orden canónico de estantes (igual al que muestra la barra de pestañas)
 private val SHELF_ORDER = listOf(
     BookStatus.READING,
@@ -2404,7 +2541,7 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
     }
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ListScreen(
     vm: BooksViewModel,
@@ -2432,6 +2569,8 @@ fun ListScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showIsbnScanDialog by remember { mutableStateOf(false) }
     var scannedIsbnForDialog by remember { mutableStateOf("") }
+    // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
+    var showQuickStartSheet by remember { mutableStateOf(false) }
 
     // Detectar ISBN escaneado y mostrar dialog de elección
     val listMainRef = androidx.compose.ui.platform.LocalContext.current as? MainActivity
@@ -2506,6 +2645,67 @@ fun ListScreen(
         return
     }
 
+    // ── D-002/T1: bottom sheet de inicio rápido — libros Leyendo/Releyendo con ▶ ──
+    if (showQuickStartSheet) {
+        val qsBooks = booksAll.filter {
+            it.status == BookStatus.READING || it.status == BookStatus.REREADING || it.isRereading
+        }
+        ModalBottomSheet(
+            onDismissRequest = { showQuickStartSheet = false },
+            containerColor = theme.bgMid,
+            contentColor = theme.textMain
+        ) {
+            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+                Text(
+                    stringResource(R.string.quickstart_title),
+                    color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                if (qsBooks.isEmpty()) {
+                    Text(
+                        stringResource(R.string.quickstart_empty),
+                        color = theme.textMuted, fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
+                qsBooks.forEach { b ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = theme.surface,
+                        border = BorderStroke(1.dp, theme.border),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            BookCover(b.coverUrl, b.title, size = 34, isbnFallback = b.isbn)
+                            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                                Text(b.title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    statusLabel(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                    color = statusColor(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Box(
+                                Modifier.size(36.dp).clip(CircleShape).background(Green)
+                                    .clickable {
+                                        showQuickStartSheet = false
+                                        TimerQuickStart.pendingBookId = b.id
+                                        onDetail(b.id)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val gridColumns = if (maxWidth >= 840.dp) 2 else 1
     Column(Modifier.fillMaxSize()) {
@@ -2519,129 +2719,117 @@ fun ListScreen(
                 )
                 .padding(horizontal = 16.dp)
         ) {
-            // ── App title ────────────────────────────────────────────────────
+            // ── App title + barra de acciones (D-002 Fase 4): tema · ⏱️ · ⚙️ · ＋ ──
+            // El hamburger desaparece: el historial vive en el rail (📜). El ＋ sube
+            // aquí desde la fila de iconos — las tarjetas quedan despejadas.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 28.dp, bottom = 2.dp)
             ) {
-                IconButton(onClick = onOpenHistory, modifier = Modifier.size(36.dp).offset(x = (-7).dp)) {
-                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.txt_beea2815), tint = Accent, modifier = Modifier.size(22.dp))
-                }
-                Spacer(Modifier.width(6.dp))
                 Text(
                     stringResource(R.string.txt_4d8b0a6f),
                     color = theme.textMain,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
                 )
-            }
-            // ── Icons row ────────────────────────────────────────────────────
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("📖", fontSize = 16.sp)
-                Text(
-                    stringResource(R.string.label_books_total, booksAll.size),
-                    color = theme.textMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-                // v2.3b: reparto adaptativo — los iconos ocupan el espacio central con
-                // separación uniforme en cualquier ancho de pantalla (weight + SpaceEvenly).
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    var showThemeMenu by remember { mutableStateOf(false) }
-                    val context = LocalContext.current
-                    Box {
-                        IconButton(onClick = { showThemeMenu = true }, modifier = Modifier.size(32.dp)) {
-                            // Feedback 2.6: Aurora recupera su icono PNG (ic_theme_aurora) en vez del emoji
-                            if (vm.themeMode == ThemeMode.AURORA) {
-                                androidx.compose.foundation.Image(
-                                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
-                                    contentDescription = stringResource(R.string.theme_aurora),
-                                    modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
-                                )
-                            } else {
-                                Text(
-                                    when (vm.themeMode) {
-                                        ThemeMode.LIGHT  -> "☀️"
-                                        ThemeMode.DARK   -> "🌙"
-                                        ThemeMode.AMOLED -> "⬛"
-                                        else             -> "🌌"
-                                    },
-                                    fontSize = 15.sp
-                                )
-                            }
+                var showThemeMenu by remember { mutableStateOf(false) }
+                val barContext = LocalContext.current
+                Box {
+                    IconButton(onClick = { showThemeMenu = true }, modifier = Modifier.size(34.dp)) {
+                        // Feedback 2.6: Aurora recupera su icono PNG (ic_theme_aurora) en vez del emoji
+                        if (vm.themeMode == ThemeMode.AURORA) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
+                                contentDescription = stringResource(R.string.theme_aurora),
+                                modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
+                            )
+                        } else {
+                            Text(
+                                when (vm.themeMode) {
+                                    ThemeMode.LIGHT  -> "☀️"
+                                    ThemeMode.DARK   -> "🌙"
+                                    ThemeMode.AMOLED -> "⬛"
+                                    else             -> "🌌"
+                                },
+                                fontSize = 15.sp
+                            )
                         }
-                        DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
-                            listOf(
-                                ThemeMode.LIGHT  to stringResource(R.string.theme_light),
-                                ThemeMode.DARK   to stringResource(R.string.theme_dark),
-                                ThemeMode.AURORA to stringResource(R.string.theme_aurora),
-                                ThemeMode.AMOLED to stringResource(R.string.theme_oled)
-                            ).forEach { (mode, label) ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            // Feedback 2.6: icono PNG para Aurora también en el desplegable
-                                            if (mode == ThemeMode.AURORA) {
-                                                androidx.compose.foundation.Image(
-                                                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp))
-                                                )
-                                                Spacer(Modifier.width(6.dp))
-                                            }
-                                            Text(label, color = if (vm.themeMode == mode) Accent else theme.textMain, fontWeight = if (vm.themeMode == mode) FontWeight.Bold else FontWeight.Normal)
+                    }
+                    DropdownMenu(expanded = showThemeMenu, onDismissRequest = { showThemeMenu = false }) {
+                        listOf(
+                            ThemeMode.LIGHT  to stringResource(R.string.theme_light),
+                            ThemeMode.DARK   to stringResource(R.string.theme_dark),
+                            ThemeMode.AURORA to stringResource(R.string.theme_aurora),
+                            ThemeMode.AMOLED to stringResource(R.string.theme_oled)
+                        ).forEach { (mode, label) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // Feedback 2.6: icono PNG para Aurora también en el desplegable
+                                        if (mode == ThemeMode.AURORA) {
+                                            androidx.compose.foundation.Image(
+                                                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp))
+                                            )
+                                            Spacer(Modifier.width(6.dp))
                                         }
-                                    },
-                                    onClick = { vm.setThemeMode(mode, prefs, context); showThemeMenu = false }
-                                )
-                            }
+                                        Text(label, color = if (vm.themeMode == mode) Accent else theme.textMain, fontWeight = if (vm.themeMode == mode) FontWeight.Bold else FontWeight.Normal)
+                                    }
+                                },
+                                onClick = { vm.setThemeMode(mode, prefs, barContext); showThemeMenu = false }
+                            )
                         }
-                    }
-                    // QA 12-07: long-press de simular Wrapped ELIMINADO (era test temporal;
-                    // el historial de Wrapped ya cubre el acceso a años anteriores)
-                    IconButton(onClick = { onWrappedHistory() }, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.CardGiftcard, contentDescription = "Wrapped", tint = Accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onStats, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.BarChart, contentDescription = "Statistics", tint = Accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onChallenges, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.EmojiEvents, contentDescription = "Challenges", tint = Accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onEasterEgg, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.GridView, contentDescription = "Bingo", tint = Accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onSearch, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.txt_113f7428), tint = Accent, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = onSettings, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Accent, modifier = Modifier.size(18.dp))
                     }
                 }
-                Spacer(Modifier.width(8.dp))
+                // ⏱️ crono desde el home (T1 elegida por Víctor): selector Leyendo/Releyendo
+                IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Timer, contentDescription = "Timer", tint = Accent, modifier = Modifier.size(19.dp))
+                }
+                IconButton(onClick = onSettings, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Accent, modifier = Modifier.size(19.dp))
+                }
+                Spacer(Modifier.width(6.dp))
                 Button(
                     onClick = onAdd,
                     colors = ButtonDefaults.buttonColors(containerColor = Accent),
                     shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) { Text("+", fontWeight = FontWeight.Bold, fontSize = 20.sp) }
+                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) { Text("+", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
             }
-            // ── Subtitle ─────────────────────────────────────────────────────
-            Text(
-                stringResource(R.string.txt_e860710c),
-                color = theme.textMuted,
-                fontSize = 11.sp,
-                maxLines = 1,
-                modifier = Modifier.padding(bottom = 10.dp)
+            // ── Contador + eslogan (D-002 v3: se conservan bajo el título) ────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+            ) {
+                Text("📖", fontSize = 13.sp)
+                Text(
+                    stringResource(R.string.label_books_total, booksAll.size) + " · " + stringResource(R.string.txt_e860710c),
+                    color = theme.textMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        }
+
+        // ── D-002 (Fase 4): rail a la izquierda + contenido a la derecha ────────
+        Row(Modifier.weight(1f)) {
+            HomeRail(
+                theme = theme,
+                prefs = prefs,
+                onHistory = onOpenHistory,
+                onStats = onStats,
+                onChallenges = onChallenges,
+                onBingo = onEasterEgg,
+                onWrapped = onWrappedHistory,
+                onSearchOnline = onSearch
             )
+            Column(Modifier.weight(1f)) {
+            Column(Modifier.padding(end = 16.dp, start = 2.dp)) {
 
             // Search bar
             OutlinedTextField(
@@ -2844,7 +3032,8 @@ fun ListScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
                 state = listState,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                // D-002: alineado con la barra de búsqueda (el rail ya aporta el margen izquierdo)
+                modifier = Modifier.fillMaxSize().padding(start = 2.dp, end = 16.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -2932,6 +3121,8 @@ fun ListScreen(
                 }
             }
         }
+        } // right column (D-002)
+        } // Row rail + contenido (D-002)
     }
     // v2.4 rework: host del Snackbar de favoritos, superpuesto al contenido
     androidx.compose.material3.SnackbarHost(
@@ -6639,6 +6830,16 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             showNotifPermDialog = true
         } else {
             action()
+        }
+    }
+    // D-002/T1: llegada desde el selector rápido del home (⏱️) — arrancar el crono
+    // con el mismo flujo de permisos que el botón ▶ del detalle.
+    LaunchedEffect(id) {
+        if (TimerQuickStart.pendingBookId == id) {
+            TimerQuickStart.pendingBookId = -1L
+            if (!TimerStateHolder.running) {
+                startTimerWithPermCheck { com.lecturameter.TimerService.start(context, id, book.title) }
+            }
         }
     }
     // v20.0 (G2): map de secciones de historial expandidas (key = readingIndex).

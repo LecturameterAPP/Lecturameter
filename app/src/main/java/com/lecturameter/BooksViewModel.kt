@@ -264,25 +264,58 @@ class BooksViewModel : ViewModel() {
             }
             prefs.edit().putBoolean("challenges_startdate_migration_v26", true).apply()
         }
-        // Sembrar retos predeterminados una sola vez (si el usuario los borra no se recrean)
-        if (!prefs.getBoolean("challenges_defaults_seeded", false)) {
-            val ctx = appContext
-            val defaults = listOf(
+        // Sembrar retos predeterminados una sola vez (si el usuario los borra no se recrean).
+        // QA r2 12-07 (petición de Víctor): 5 retos por defecto — a los 2 clásicos se suman
+        // páginas, sesiones y minutos. El flag _v2 añade los 3 nuevos también a las
+        // instalaciones que ya habían sembrado los 2 originales.
+        val ctx = appContext
+        fun defaultFive(): List<Challenge> {
+            val now = System.currentTimeMillis()
+            return listOf(
                 Challenge(
-                    id = System.currentTimeMillis(),
+                    id = now,
                     name = ctx?.getString(R.string.challenge_default_books) ?: "12 libros este año",
                     type = ChallengeType.BOOKS, target = 12,
                     startDate = null, endDate = null, isDefault = true
                 ),
                 Challenge(
-                    id = System.currentTimeMillis() + 1,
+                    id = now + 1,
                     name = ctx?.getString(R.string.challenge_default_streak) ?: "Racha de 7 días",
                     type = ChallengeType.STREAK, target = 7,
                     startDate = null, endDate = null, isDefault = true
+                ),
+                Challenge(
+                    id = now + 2,
+                    name = ctx?.getString(R.string.challenge_default_pages) ?: "3.000 páginas este año",
+                    type = ChallengeType.PAGES, target = 3000,
+                    startDate = null, endDate = null, isDefault = true
+                ),
+                Challenge(
+                    id = now + 3,
+                    name = ctx?.getString(R.string.challenge_default_sessions) ?: "50 sesiones este año",
+                    type = ChallengeType.SESSIONS, target = 50,
+                    startDate = null, endDate = null, isDefault = true
+                ),
+                Challenge(
+                    id = now + 4,
+                    name = ctx?.getString(R.string.challenge_default_minutes) ?: "24 horas de lectura este año",
+                    type = ChallengeType.MINUTES, target = 1440,
+                    startDate = null, endDate = null, isDefault = true
                 )
             )
-            _challenges.value = _challenges.value + defaults.filter { d -> _challenges.value.none { it.name == d.name } }
-            prefs.edit().putBoolean("challenges_defaults_seeded", true).apply()
+        }
+        if (!prefs.getBoolean("challenges_defaults_seeded", false)) {
+            _challenges.value = _challenges.value + defaultFive().filter { d -> _challenges.value.none { it.name == d.name } }
+            prefs.edit()
+                .putBoolean("challenges_defaults_seeded", true)
+                .putBoolean("challenges_defaults_seeded_v2", true)
+                .apply()
+            saveChallenges(prefs)
+        } else if (!prefs.getBoolean("challenges_defaults_seeded_v2", false)) {
+            // Instalación con los 2 defaults antiguos: añadir SOLO los 3 nuevos
+            val newOnes = defaultFive().drop(2)
+            _challenges.value = _challenges.value + newOnes.filter { d -> _challenges.value.none { it.name == d.name } }
+            prefs.edit().putBoolean("challenges_defaults_seeded_v2", true).apply()
             saveChallenges(prefs)
         }
     }

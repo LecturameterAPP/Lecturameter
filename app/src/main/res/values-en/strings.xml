@@ -831,6 +831,9 @@
     <string name="challenge_type_minutes">Minutes</string>
     <string name="challenge_default_books">12 books this year</string>
     <string name="challenge_default_streak">7-day streak</string>
+    <string name="challenge_default_pages">3,000 pages this year</string>
+    <string name="challenge_default_sessions">50 sessions this year</string>
+    <string name="challenge_default_minutes">24 hours of reading this year</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>
@@ -919,4 +922,7 @@
     <string name="tut10_challenges_title">Reading challenges</string>
     <string name="tut10_challenges_desc">Set book, page or streak goals and follow your progress, pressure-free.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
+    <!-- D-002/T1: quick session start from the home bar -->
+    <string name="quickstart_title">⏱️ Start a reading session</string>
+    <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>
 </resources>
