@@ -1990,7 +1990,10 @@ fun HomeRail(
     // Feedback 13-07 (8): swipe horizontal SOBRE EL RAIL abre/cierra el historial —
     // la franja de 22dp junto al rail era invisible y nadie acertaba a deslizar ahí;
     // lo natural es arrastrar desde el propio rail (de donde sale el panel)
-    onHistorySwipe: (Boolean) -> Unit = {}
+    onHistorySwipe: (Boolean) -> Unit = {},
+    // Feedback 13-07 (9): el rail necesita saber si el panel está abierto para decidir
+    // qué significa el swipe a la izquierda (cerrar panel vs colapsar rail)
+    historyOpen: Boolean = false
 ) {
     var order by remember {
         mutableStateOf(
@@ -2012,20 +2015,54 @@ fun HomeRail(
         else         -> Icons.Default.CardGiftcard
     }
 
+    // Feedback 13-07 (9): rail COLAPSABLE — colapsado queda un asa fina de 16dp
+    // (pastilla vertical de acento) y la lista gana los ~30dp restantes. Tocar el asa
+    // o deslizar a la derecha expande; deslizar a la izquierda colapsa (o cierra el
+    // panel del historial si está abierto). La preferencia se recuerda en prefs.
+    // Solo cambia con gesto MANUAL: navegar a un destino no lo toca.
+    var railExpanded by remember { mutableStateOf(prefs.getBoolean("rail_expanded", true)) }
+    fun setRailExpanded(v: Boolean) {
+        railExpanded = v
+        prefs.edit().putBoolean("rail_expanded", v).apply()
+    }
+    val railWidth by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (railExpanded) 46.dp else 16.dp,
+        animationSpec = tween(durationMillis = 200),
+        label = "rail_width"
+    )
     val swipeAcc = remember { mutableStateOf(0f) }
     Column(
-        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp)
+        Modifier.width(railWidth).fillMaxHeight().padding(top = 4.dp)
             .draggable(
                 orientation = Orientation.Horizontal,
                 state = rememberDraggableState { delta ->
                     swipeAcc.value += delta
-                    if (swipeAcc.value > 60f) { onHistorySwipe(true); swipeAcc.value = 0f }
-                    else if (swipeAcc.value < -60f) { onHistorySwipe(false); swipeAcc.value = 0f }
+                    if (swipeAcc.value > 60f) {
+                        if (!railExpanded) setRailExpanded(true) else onHistorySwipe(true)
+                        swipeAcc.value = 0f
+                    } else if (swipeAcc.value < -60f) {
+                        if (historyOpen) onHistorySwipe(false) else setRailExpanded(false)
+                        swipeAcc.value = 0f
+                    }
                 },
                 onDragStarted = { swipeAcc.value = 0f }
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (!railExpanded) {
+            // Asa de expansión: pastilla vertical centrada, target táctil = toda la columna
+            Box(
+                Modifier.fillMaxSize().clickable { setRailExpanded(true) },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    Modifier.width(5.dp).height(44.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Accent.copy(alpha = 0.55f))
+                )
+            }
+            return@Column
+        }
         // 📜 historial — casilla fija superior (spec D-002); toggle del panel
         RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
         // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
@@ -2894,7 +2931,8 @@ fun ListScreen(
                 onChallenges = { historyOpen = false; onChallenges() },
                 onBingo = { historyOpen = false; onEasterEgg() },
                 onWrapped = { historyOpen = false; onWrappedHistory() },
-                onHistorySwipe = { open -> historyOpen = open }
+                onHistorySwipe = { open -> historyOpen = open },
+                historyOpen = historyOpen
             )
             // Feedback 13-07 (4): separación visual del rail — línea fina vertical
             // con el color de borde del tema
