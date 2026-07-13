@@ -922,14 +922,8 @@
     <string name="tut10_challenges_title">Reading challenges</string>
     <string name="tut10_challenges_desc">Set book, page or streak goals and follow your progress, pressure-free.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
-    <!-- D-002: rail reordering from Settings -->
-    <string name="rail_reorder_title">Reorder home shortcuts</string>
-    <string name="rail_reorder_hint">History and library are fixed; arrange the rest as you like. You can also reorder with a long press on the rail.</string>
-    <string name="rail_dest_challenges">Reading challenges</string>
-    <string name="rail_dest_stats">Statistics</string>
-    <string name="rail_dest_bingo">Bingo</string>
-    <string name="rail_dest_wrapped">Wrapped</string>
-    <string name="rail_dest_search">Search books</string>
+    <!-- Feedback 13-07: online search CTA when local search finds nothing -->
+    <string name="search_online_cta">Search "%1$s" online</string>
     <!-- D-002/T1: quick session start from the home bar -->
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>

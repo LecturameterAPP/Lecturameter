@@ -923,14 +923,8 @@
     <string name="tut10_challenges_desc">Márcate objetivos de libros, páginas o racha y sigue tu avance sin agobios.</string>
     <!-- QA 12-07 r2: espacio no separable antes del emoji — el 🎉 saltaba de línea en el toast -->
     <string name="tut_done_toast">¡Ya estás listo para empezar!&#160;🎉</string>
-    <!-- D-002: reordenación del rail desde Ajustes -->
-    <string name="rail_reorder_title">Reordenar accesos del inicio</string>
-    <string name="rail_reorder_hint">El historial y la biblioteca son fijos; ordena el resto a tu gusto. También puedes reordenar con una pulsación larga sobre el rail.</string>
-    <string name="rail_dest_challenges">Retos de lectura</string>
-    <string name="rail_dest_stats">Estadísticas</string>
-    <string name="rail_dest_bingo">Bingo</string>
-    <string name="rail_dest_wrapped">Wrapped</string>
-    <string name="rail_dest_search">Buscar libros</string>
+    <!-- Feedback 13-07: CTA de búsqueda online cuando la búsqueda local no encuentra nada -->
+    <string name="search_online_cta">Buscar «%1$s» en internet</string>
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>

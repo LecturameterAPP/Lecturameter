@@ -49,6 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.core.view.drawToBitmap
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
@@ -109,7 +111,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -1121,8 +1122,22 @@ class MainActivity : ComponentActivity() {
             // NavController y todo el estado guardado se perdían y volvías a la pantalla
             // principal. Ahora el árbol de composición es único y lo que se anima son los
             // COLORES del tema (mismo efecto de fundido, sin perder la navegación).
-            val targetTheme = buildTheme(vm.themeMode)
-            val theme = animateThemeColors(targetTheme)
+            // Feedback 13-07 (4): CROSSFADE REAL entre temas — animar los ~10 colores del
+            // tema recomponía el árbol entero en cada frame (stutter = sensación "tosca").
+            // Ahora, al cambiar de tema, se captura un bitmap del frame actual (tema viejo),
+            // el tema nuevo se aplica al instante debajo y el bitmap se funde en 400 ms.
+            // Un solo alpha animado: cero recomposición por frame, fundido de verdad.
+            val theme = remember(vm.themeMode) { normalizeThemeDeep(buildTheme(vm.themeMode)) }
+            var themeSnapshot by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+            var lastThemeMode by remember { mutableStateOf(vm.themeMode) }
+            if (vm.themeMode != lastThemeMode) {
+                lastThemeMode = vm.themeMode
+                // El decorView aún muestra el último frame DIBUJADO (tema viejo)
+                themeSnapshot = try {
+                    window.decorView.drawToBitmap().asImageBitmap()
+                } catch (_: Throwable) { null }
+            }
+            Box {
             LecturaMeterTheme(theme) {
                 // Primera apertura: selección de idioma
                 if (!vm.languageChosen) {
@@ -1158,6 +1173,21 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            // Overlay del crossfade: el frame del tema anterior fundiéndose
+            themeSnapshot?.let { snap ->
+                val fadeAlpha = remember(snap) { Animatable(1f) }
+                LaunchedEffect(snap) {
+                    fadeAlpha.animateTo(0f, tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+                    themeSnapshot = null
+                }
+                androidx.compose.foundation.Image(
+                    bitmap = snap,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize().alpha(fadeAlpha.value)
+                )
+            }
+            } // Box crossfade
         }
 
         // Backup automático en Drive según el intervalo elegido en Ajustes (default 2h).
@@ -1221,33 +1251,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// QA 12-07 r2: transición de tema sin recrear la app — cada token de color se anima
-// hacia el tema destino. isDark y accent cambian al instante (no son interpolables).
-// Feedback 13-07: el fade se veía "tosco" porque bgDeep animaba hacia TRANSPARENTE al
-// salir de Aurora (el fondo se ennegrecía por el stop transparente). Ahora bgDeep anima
-// siempre entre colores REALES (si el tema no define deep, se usa su bgDark) y el
-// degradado del fondo es SIEMPRE de 3 stops → la transición fluye sin saltos. Además,
-// 450 ms con FastOutSlowIn (más orgánico que el lineal corto).
-@Composable
-fun animateThemeColors(target: Theme): Theme {
-    val spec = tween<Color>(durationMillis = 450, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-    val targetDeep = if (target.bgDeep != Color.Transparent) target.bgDeep else target.bgDark
-    val bgDark    by animateColorAsState(target.bgDark,    spec, label = "th_bgDark")
-    val bgMid     by animateColorAsState(target.bgMid,     spec, label = "th_bgMid")
-    val surface   by animateColorAsState(target.surface,   spec, label = "th_surface")
-    val border    by animateColorAsState(target.border,    spec, label = "th_border")
-    val textMain  by animateColorAsState(target.textMain,  spec, label = "th_textMain")
-    val textMuted by animateColorAsState(target.textMuted, spec, label = "th_textMuted")
-    val textDim   by animateColorAsState(target.textDim,   spec, label = "th_textDim")
-    val bgSurf    by animateColorAsState(target.bgSurf,    spec, label = "th_bgSurf")
-    val bgSurf2   by animateColorAsState(target.bgSurf2,   spec, label = "th_bgSurf2")
-    val bgDeep    by animateColorAsState(targetDeep,       spec, label = "th_bgDeep")
-    return target.copy(
-        bgDark = bgDark, bgMid = bgMid, surface = surface, border = border,
-        textMain = textMain, textMuted = textMuted, textDim = textDim,
-        bgSurf = bgSurf, bgSurf2 = bgSurf2, bgDeep = bgDeep
-    )
-}
+// Feedback 13-07 (4): bgDeep nunca es Transparent en runtime — si el tema no define
+// tercer stop (solo Aurora lo hace), se usa su propio bgDark. Así el degradado del fondo
+// es SIEMPRE de 3 stops y el crossfade entre temas no pasa por negro.
+fun normalizeThemeDeep(t: Theme): Theme =
+    if (t.bgDeep == Color.Transparent) t.copy(bgDeep = t.bgDark) else t
 
 // QA 12-07 r2 (Aurora): tema actual accesible desde componentes hoja (chips, pills)
 // sin pasar `theme` por todos los call sites — se usa para remapear el acento.
@@ -1693,6 +1701,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                 onChallenges = { navigateTo(Screen.Challenges) },
                                 onDetail = { navigateTo(Screen.Detail(it)) },
                                 onSettings = { navigateTo(Screen.Settings) },
+                                onImportExport = { navigateTo(Screen.ImportExport) },
                                 onScanIsbnSearch = {
                                     if (mainActivity != null) {
                                         val camPerm = android.Manifest.permission.CAMERA
@@ -1978,13 +1987,23 @@ fun HomeRail(
         // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
         RailItem("📚", theme, highlighted = true, enabled = !editMode, onClick = onLibrary)
         HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
-        order.forEach { dest ->
+        // Feedback 13-07 (4): los botones no arrastrados se DESLIZAN a su hueco nuevo
+        // (posiciones absolutas animadas en vez de flujo de Column)
+        Box(Modifier.height(46.dp * order.size).fillMaxWidth()) {
+        RAIL_DEFAULT_ORDER.forEach { dest ->
+            val idx = order.indexOf(dest)
             var dragging by remember(dest) { mutableStateOf(false) }
             var dragOffset by remember(dest) { mutableStateOf(0f) }
+            val settledY by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = idx * slotPx,
+                animationSpec = tween(durationMillis = 220),
+                label = "rail_slot_$dest"
+            )
             Box(
                 Modifier
+                    .align(Alignment.TopCenter)
                     .zIndex(if (dragging) 1f else 0f)
-                    .offset { IntOffset(0, dragOffset.roundToInt()) }
+                    .offset { IntOffset(0, (if (dragging) idx * slotPx + dragOffset else settledY).roundToInt()) }
                     .then(
                         if (editMode) Modifier.pointerInput(dest) {
                             detectDragGestures(
@@ -2025,6 +2044,7 @@ fun HomeRail(
                 )
             }
         }
+        } // Box de posiciones absolutas (animación de reorden)
         if (editMode) {
             RailItem(null, theme, highlighted = true, icon = Icons.Default.Check, onClick = {
                 prefs.edit().putString("rail_order", order.joinToString(",")).apply()
@@ -2543,6 +2563,7 @@ fun ListScreen(
     onChallenges: () -> Unit = {},
     onDetail: (Long) -> Unit,
     onSettings: () -> Unit = {},
+    onImportExport: () -> Unit = {},
     onScanIsbnSearch: () -> Unit = {},
     onNavigateToBookSearch: () -> Unit = {},
     onAddWithIsbn: (String) -> Unit = {},
@@ -2722,9 +2743,10 @@ fun ListScreen(
                     color = theme.textMain,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
+                    maxLines = 1
                 )
+                // Feedback 13-07 (4): el selector de tema va PEGADO al título
+                Spacer(Modifier.width(6.dp))
                 var showThemeMenu by remember { mutableStateOf(false) }
                 val barContext = LocalContext.current
                 Box {
@@ -2775,9 +2797,14 @@ fun ListScreen(
                         }
                     }
                 }
+                Spacer(Modifier.weight(1f))
                 // ⏱️ crono desde el home (T1 elegida por Víctor): selector Leyendo/Releyendo
                 IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
                     Icon(Icons.Default.Timer, contentDescription = "Timer", tint = Accent, modifier = Modifier.size(19.dp))
+                }
+                // Feedback 13-07 (4): acceso rápido a Importar/Exportar backups
+                IconButton(onClick = onImportExport, modifier = Modifier.size(34.dp)) {
+                    Icon(Icons.Default.ImportExport, contentDescription = "Import/Export", tint = Accent, modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = onSettings, modifier = Modifier.size(34.dp)) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Accent, modifier = Modifier.size(19.dp))
@@ -2813,6 +2840,7 @@ fun ListScreen(
                 theme = theme,
                 prefs = prefs,
                 onHistory = { historyOpen = !historyOpen },
+                // (la línea separadora del rail se pinta a su derecha, ver Box de abajo)
                 // Feedback 13-07: 📚 = "volver a la biblioteca": cierra el panel y sube arriba
                 onLibrary = {
                     historyOpen = false
@@ -2823,6 +2851,9 @@ fun ListScreen(
                 onBingo = { historyOpen = false; onEasterEgg() },
                 onWrapped = { historyOpen = false; onWrappedHistory() }
             )
+            // Feedback 13-07 (4): separación visual del rail — línea fina vertical
+            // con el color de borde del tema
+            Box(Modifier.fillMaxHeight().width(1.dp).background(theme.border))
             Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxSize()) {
             Column(Modifier.padding(end = 16.dp, start = 2.dp)) {
@@ -3054,6 +3085,25 @@ fun ListScreen(
                                     fontSize = 14.sp,
                                     textAlign = TextAlign.Center
                                 )
+                                // Feedback 13-07 (4): la lupa de la barra no comunica "buscar
+                                // libros nuevos" — CTA contextual: si la búsqueda local no
+                                // encuentra nada, ofrecer buscarlo en internet AQUÍ, justo
+                                // cuando el usuario lo necesita (sin depender del tutorial)
+                                if (searchQuery.isNotBlank() && !vm.showFavoritesOnly) {
+                                    Spacer(Modifier.height(16.dp))
+                                    Button(
+                                        onClick = {
+                                            listMainRef?.pendingScannedIsbn?.value = searchQuery
+                                            onNavigateToBookSearch()
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(Icons.Default.TravelExplore, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.search_online_cta, searchQuery), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    }
+                                }
                             }
                         }
                     }
@@ -10849,90 +10899,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             }
         }
 
-        // ── RAIL (D-002, 13-07): entrada de reordenación desde Ajustes ─────────
-        var showRailReorder by remember { mutableStateOf(false) }
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Surface(
-                onClick = { showRailReorder = true },
-                shape = RoundedCornerShape(14.dp),
-                color = theme.surface,
-                border = BorderStroke(1.dp, theme.border),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                    Text("📚", fontSize = 15.sp)
-                    Text(
-                        stringResource(R.string.rail_reorder_title),
-                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f).padding(start = 10.dp)
-                    )
-                    Icon(Icons.Default.KeyboardArrowRight, null, tint = theme.textDim)
-                }
-            }
-        }
-        if (showRailReorder) {
-            var railOrder by remember {
-                mutableStateOf(
-                    prefs.getString("rail_order", null)
-                        ?.split(",")?.filter { it in RAIL_DEFAULT_ORDER }
-                        ?.let { saved -> saved + RAIL_DEFAULT_ORDER.filter { it !in saved } }
-                        ?: RAIL_DEFAULT_ORDER
-                )
-            }
-            AlertDialog(
-                onDismissRequest = { showRailReorder = false },
-                containerColor = theme.bgMid,
-                title = { Text(stringResource(R.string.rail_reorder_title), color = theme.textMain, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.rail_reorder_hint), color = theme.textDim, fontSize = 12.sp)
-                        railOrder.forEachIndexed { idx, dest ->
-                            Surface(shape = RoundedCornerShape(10.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)) {
-                                    Icon(
-                                        when (dest) {
-                                            "challenges" -> Icons.Default.EmojiEvents
-                                            "stats"      -> Icons.Default.BarChart
-                                            "bingo"      -> Icons.Default.GridView
-                                            "wrapped"    -> Icons.Default.CardGiftcard
-                                            else         -> Icons.Default.Search
-                                        }, null, tint = Accent, modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        stringResource(when (dest) {
-                                            "challenges" -> R.string.rail_dest_challenges
-                                            "stats"      -> R.string.rail_dest_stats
-                                            "bingo"      -> R.string.rail_dest_bingo
-                                            "wrapped"    -> R.string.rail_dest_wrapped
-                                            else         -> R.string.rail_dest_search
-                                        }),
-                                        color = theme.textMain, fontSize = 13.sp,
-                                        modifier = Modifier.weight(1f).padding(start = 10.dp)
-                                    )
-                                    IconButton(
-                                        onClick = { if (idx > 0) railOrder = railOrder.toMutableList().also { it.add(idx - 1, it.removeAt(idx)) } },
-                                        enabled = idx > 0, modifier = Modifier.size(34.dp)
-                                    ) { Icon(Icons.Default.KeyboardArrowUp, null, tint = if (idx > 0) Accent else theme.textDim, modifier = Modifier.size(19.dp)) }
-                                    IconButton(
-                                        onClick = { if (idx < railOrder.lastIndex) railOrder = railOrder.toMutableList().also { it.add(idx + 1, it.removeAt(idx)) } },
-                                        enabled = idx < railOrder.lastIndex, modifier = Modifier.size(34.dp)
-                                    ) { Icon(Icons.Default.KeyboardArrowDown, null, tint = if (idx < railOrder.lastIndex) Accent else theme.textDim, modifier = Modifier.size(19.dp)) }
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        prefs.edit().putString("rail_order", railOrder.joinToString(",")).apply()
-                        showRailReorder = false
-                    }) { Text(stringResource(R.string.txt_d3270bdb), color = Accent, fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showRailReorder = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
-                }
-            )
-        }
+        // Feedback 13-07 (4): la entrada "Reordenar accesos del inicio" se ELIMINA de
+        // Ajustes a petición de Víctor — la reordenación queda solo por long-press en el rail.
 
         // ── BACKUPS ───────────────────────────────────────────────────────────
         SettingsSection(
