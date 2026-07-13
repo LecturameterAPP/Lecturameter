@@ -101,8 +101,6 @@ import org.json.JSONArray
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.rememberDrawerState
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
@@ -1497,8 +1495,6 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         }
     }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val drawerScope = rememberCoroutineScope()
 
     // ── Migración v13: rellenar startPage/endPage en sesiones antiguas ────────
     // Usamos derivedStateOf sobre sessions para que se recalcule si cambian las sesiones
@@ -1634,13 +1630,9 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         )
     }
 
-    BackHandler(enabled = drawerState.isOpen) {
-        drawerScope.launch { drawerState.close() }
-    }
-
     // Doble pulsación para salir desde la pantalla principal.
     // (El atrás en el resto de pantallas lo gestiona el propio NavController.)
-    BackHandler(enabled = drawerState.isClosed && isOnList) {
+    BackHandler(enabled = isOnList) {
         if (backPressedOnce) {
             (context as? android.app.Activity)?.finish()
         } else {
@@ -1652,30 +1644,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // v2.5: el gesto de apertura solo en la pantalla principal (o si ya está abierto,
-        // para poder cerrarlo). Antes, en landscape y en otras pantallas los swipes
-        // horizontales abrían el historial sin querer y lo hacían inutilizable.
-        gesturesEnabled = vm.tutorialCompleted && (isOnList || drawerState.isOpen),
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = theme.bgDark,
-                drawerContentColor = theme.textMain,
-                // v2.5: ancho acotado — en landscape/tablet ya no ocupa media pantalla.
-                // D-002 (13-07): el hueco libre pasa al LADO DEL RAIL (start) — el panel
-                // del historial encaja contra el rail, como en el mockup aprobado.
-                modifier = Modifier.padding(start = 46.dp).widthIn(max = 400.dp).fillMaxWidth(0.88f)
-            ) {
-                SessionHistoryScreen(
-                    vm = vm,
-                    theme = theme,
-                    onClose = { drawerScope.launch { drawerState.close() } },
-                    onDetail = { id -> drawerScope.launch { drawerState.close() }; navigateTo(Screen.Detail(id)) }
-                )
-            }
-        }
-    ) {
+    // Feedback 13-07 (D-002): el historial deja de ser un ModalNavigationDrawer — ahora es
+    // un panel PROPIO del home (dentro de ListScreen), de modo que el rail queda visible
+    // Y FUNCIONAL con el panel abierto (los destinos navegan, 📜 cierra, 📚 vuelve arriba).
+    run {
         // Feedback WhatsApp 10-07: imePadding para que el teclado no tape el campo con foco.
         // Con targetSdk 35 (Android 15+) adjustResize se ignora (edge-to-edge forzado); en
         // versiones anteriores la ventana se redimensiona y el inset IME queda a 0 (no duplica).
@@ -1714,7 +1686,6 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                 onWrapped = { y -> navigateTo(Screen.Wrapped(y)) },
                                 onChallenges = { navigateTo(Screen.Challenges) },
                                 onDetail = { navigateTo(Screen.Detail(it)) },
-                                onOpenHistory = { drawerScope.launch { drawerState.open() } },
                                 onSettings = { navigateTo(Screen.Settings) },
                                 onScanIsbnSearch = {
                                     if (mainActivity != null) {
@@ -1928,7 +1899,8 @@ fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm
 // reordenables. Destinos = push a pantalla completa (semántica 2.7); el historial se
 // despliega como panel encajado contra el rail. Iconos = emojis del sistema (D-002b).
 // Long-press en un destino → modo edición con arrastre vertical; ✓ guarda en prefs.
-private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped", "search")
+// Feedback 13-07: la lupa sale del rail (la búsqueda online vive en la barra de búsqueda)
+private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped")
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -1965,11 +1937,11 @@ fun HomeRail(
     theme: Theme,
     prefs: android.content.SharedPreferences,
     onHistory: () -> Unit,
+    onLibrary: () -> Unit,
     onStats: () -> Unit,
     onChallenges: () -> Unit,
     onBingo: () -> Unit,
-    onWrapped: () -> Unit,
-    onSearchOnline: () -> Unit
+    onWrapped: () -> Unit
 ) {
     var order by remember {
         mutableStateOf(
@@ -1988,18 +1960,17 @@ fun HomeRail(
         "challenges" -> Icons.Default.EmojiEvents
         "stats"      -> Icons.Default.BarChart
         "bingo"      -> Icons.Default.GridView
-        "wrapped"    -> Icons.Default.CardGiftcard
-        else         -> Icons.Default.Search
+        else         -> Icons.Default.CardGiftcard
     }
 
     Column(
         Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 📜 historial — casilla fija superior (spec D-002)
+        // 📜 historial — casilla fija superior (spec D-002); toggle del panel
         RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
-        // 📚 biblioteca — fija; marcada como pantalla actual
-        RailItem("📚", theme, highlighted = true, enabled = false)
+        // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
+        RailItem("📚", theme, highlighted = true, enabled = !editMode, onClick = onLibrary)
         HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
         order.forEach { dest ->
             var dragging by remember(dest) { mutableStateOf(false) }
@@ -2042,8 +2013,7 @@ fun HomeRail(
                             "challenges" -> onChallenges()
                             "stats"      -> onStats()
                             "bingo"      -> onBingo()
-                            "wrapped"    -> onWrapped()
-                            else         -> onSearchOnline()
+                            else         -> onWrapped()
                         }
                     }
                 )
@@ -2566,7 +2536,6 @@ fun ListScreen(
     onWrapped: (Int) -> Unit = {},
     onChallenges: () -> Unit = {},
     onDetail: (Long) -> Unit,
-    onOpenHistory: () -> Unit,
     onSettings: () -> Unit = {},
     onScanIsbnSearch: () -> Unit = {},
     onNavigateToBookSearch: () -> Unit = {},
@@ -2583,6 +2552,10 @@ fun ListScreen(
     var scannedIsbnForDialog by remember { mutableStateOf("") }
     // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
     var showQuickStartSheet by remember { mutableStateOf(false) }
+    // Feedback 13-07: el historial es un panel del home (no un drawer modal) — así el
+    // rail sigue visible y FUNCIONAL con el panel abierto
+    var historyOpen by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = historyOpen) { historyOpen = false }
 
     // Detectar ISBN escaneado y mostrar dialog de elección
     val listMainRef = androidx.compose.ui.platform.LocalContext.current as? MainActivity
@@ -2833,14 +2806,19 @@ fun ListScreen(
             HomeRail(
                 theme = theme,
                 prefs = prefs,
-                onHistory = onOpenHistory,
-                onStats = onStats,
-                onChallenges = onChallenges,
-                onBingo = onEasterEgg,
-                onWrapped = onWrappedHistory,
-                onSearchOnline = onSearch
+                onHistory = { historyOpen = !historyOpen },
+                // Feedback 13-07: 📚 = "volver a la biblioteca": cierra el panel y sube arriba
+                onLibrary = {
+                    historyOpen = false
+                    listScope.launch { listState.animateScrollToItem(0) }
+                },
+                onStats = { historyOpen = false; onStats() },
+                onChallenges = { historyOpen = false; onChallenges() },
+                onBingo = { historyOpen = false; onEasterEgg() },
+                onWrapped = { historyOpen = false; onWrappedHistory() }
             )
-            Column(Modifier.weight(1f)) {
+            Box(Modifier.weight(1f)) {
+            Column(Modifier.fillMaxSize()) {
             Column(Modifier.padding(end = 16.dp, start = 2.dp)) {
 
             // Search bar
@@ -2855,6 +2833,11 @@ fun ListScreen(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(Icons.Default.Close, null, tint = theme.textDim, modifier = Modifier.size(18.dp))
                             }
+                        }
+                        // Feedback 13-07: la búsqueda online (antes 🔍 del rail) vive aquí,
+                        // junto a la ordenación — buscar libros nuevos en las APIs
+                        IconButton(onClick = onSearch) {
+                            Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = Accent, modifier = Modifier.size(20.dp))
                         }
                         // Sort button inside search row
                         Box {
@@ -3134,6 +3117,29 @@ fun ListScreen(
             }
         }
         } // right column (D-002)
+            // Feedback 13-07: scrim SOLO sobre el contenido (el rail queda libre) + panel
+            // del historial deslizante encajado contra el rail
+            if (historyOpen) {
+                Box(Modifier.fillMaxSize().background(Color(0x88000000)).clickable { historyOpen = false })
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = historyOpen,
+                enter = androidx.compose.animation.slideInHorizontally(initialOffsetX = { -it }),
+                exit = androidx.compose.animation.slideOutHorizontally(targetOffsetX = { -it })
+            ) {
+                Surface(
+                    color = theme.bgDark,
+                    modifier = Modifier.fillMaxHeight().widthIn(max = 400.dp).fillMaxWidth(0.94f)
+                ) {
+                    SessionHistoryScreen(
+                        vm = vm,
+                        theme = theme,
+                        onClose = { historyOpen = false },
+                        onDetail = { id -> historyOpen = false; onDetail(id) }
+                    )
+                }
+            }
+        } // Box contenido + panel (D-002)
         } // Row rail + contenido (D-002)
     }
     // v2.4 rework: host del Snackbar de favoritos, superpuesto al contenido
