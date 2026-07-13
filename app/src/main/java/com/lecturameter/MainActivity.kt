@@ -11640,6 +11640,7 @@ fun challengeTypeLabel(type: ChallengeType): String = when (type) {
 }
 
 @Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -11798,19 +11799,31 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
 
         // D-004: challenges es StateFlow; se colecciona en la raíz de la pantalla
         val challenges by vm.challenges.collectAsState()
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 28.dp)) {
-            if (challenges.isEmpty()) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(top = 60.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.EmojiEvents, null, tint = theme.textDim, modifier = Modifier.size(44.dp))
-                            Spacer(Modifier.height(12.dp))
-                            Text(stringResource(R.string.challenge_empty), color = theme.textDim, fontSize = 14.sp, textAlign = TextAlign.Center)
-                        }
-                    }
+        // Feedback 13-07 (11): sin scroll infinito — los retos van en PÁGINAS horizontales
+        // de 4, con dot-pagination (mismo estilo que el tutorial). El botón de crear queda
+        // fijo abajo, fuera del pager.
+        val perPage = 4
+        if (challenges.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.EmojiEvents, null, tint = theme.textDim, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.challenge_empty), color = theme.textDim, fontSize = 14.sp, textAlign = TextAlign.Center)
                 }
             }
-            items(challenges, key = { it.id }) { challenge ->
+        } else {
+            val pageCount = (challenges.size + perPage - 1) / perPage
+            // El lambda relee `challenges` (delegado de State): si borras retos y baja el
+            // nº de páginas, el pager se ajusta solo
+            val pagerState = androidx.compose.foundation.pager.rememberPagerState { (challenges.size + perPage - 1) / perPage }
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pagerState,
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                val pageItems = challenges.drop(page * perPage).take(perPage)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                    pageItems.forEach { challenge ->
                 val (current, target) = vm.challengeProgress(challenge)
                 val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
                 val done = current >= target
@@ -11856,20 +11869,38 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                         }
                     }
                 }
-            }
-            item {
-                OutlinedButton(
-                    onClick = { showCreateDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Accent)
-                ) {
-                    Icon(Icons.Default.Add, null, tint = Accent, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.challenge_create_button), color = Accent, fontWeight = FontWeight.SemiBold)
+                    } // forEach pageItems
+                } // Column página
+            } // HorizontalPager
+            // Dot-pagination (solo con más de una página)
+            if (pageCount > 1) {
+                Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(pageCount) { i ->
+                            Box(
+                                Modifier
+                                    .size(if (i == pagerState.currentPage) 8.dp else 6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (i == pagerState.currentPage) Accent else theme.border)
+                            )
+                        }
+                    }
                 }
+            } else {
+                Spacer(Modifier.height(8.dp))
             }
         }
+        OutlinedButton(
+            onClick = { showCreateDialog = true },
+            modifier = Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 0.dp),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Accent)
+        ) {
+            Icon(Icons.Default.Add, null, tint = Accent, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.challenge_create_button), color = Accent, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(28.dp))
     }
 }
 
