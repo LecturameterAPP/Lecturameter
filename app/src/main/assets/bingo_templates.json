@@ -1,0 +1,68 @@
+{
+  "templates": [
+    {
+      "id": "clasico",
+      "es": "El clásico",
+      "en": "The classic",
+      "cells": [
+        { "type": "genre",      "value": "Fantasía", "es": "Un libro de fantasía",   "en": "A fantasy book" },
+        { "type": "pages_gt",   "value": "400",      "es": "Más de 400 páginas",     "en": "Over 400 pages" },
+        { "type": "rating",     "value": "5",        "es": "Valorado con 5★",        "en": "Rated 5★" },
+        { "type": "streak",     "value": "3",        "es": "Racha de 3 días",        "en": "3-day streak" },
+        { "type": "author_new", "value": "",         "es": "Autor nuevo para ti",    "en": "New-to-you author" },
+        { "type": "pages_lt",   "value": "200",      "es": "Menos de 200 páginas",   "en": "Under 200 pages" },
+        { "type": "genre",      "value": "Misterio", "es": "Un libro de misterio",   "en": "A mystery book" },
+        { "type": "saga",       "value": "",         "es": "Un libro de una saga",   "en": "Part of a series" },
+        { "type": "streak",     "value": "7",        "es": "Racha de 7 días",        "en": "7-day streak" }
+      ]
+    },
+    {
+      "id": "explorador",
+      "es": "El explorador",
+      "en": "The explorer",
+      "cells": [
+        { "type": "genre",      "value": "Ciencia ficción",  "es": "Ciencia ficción",       "en": "Science fiction" },
+        { "type": "pages_gt",   "value": "500",              "es": "Más de 500 páginas",    "en": "Over 500 pages" },
+        { "type": "rating",     "value": "4",                "es": "Valorado con 4★ o más", "en": "Rated 4★ or more" },
+        { "type": "streak",     "value": "5",                "es": "Racha de 5 días",       "en": "5-day streak" },
+        { "type": "author_new", "value": "",                 "es": "Autor nuevo para ti",   "en": "New-to-you author" },
+        { "type": "saga",       "value": "",                 "es": "Un libro de una saga",  "en": "Part of a series" },
+        { "type": "pages_lt",   "value": "150",              "es": "Menos de 150 páginas",  "en": "Under 150 pages" },
+        { "type": "genre",      "value": "Novela histórica", "es": "Novela histórica",      "en": "Historical fiction" },
+        { "type": "genre",      "value": "Terror",           "es": "Un libro de terror",    "en": "A horror book" }
+      ]
+    },
+    {
+      "id": "maraton",
+      "es": "El maratón",
+      "en": "The marathon",
+      "cells": [
+        { "type": "pages_gt",   "value": "300",      "es": "Más de 300 páginas",   "en": "Over 300 pages" },
+        { "type": "streak",     "value": "7",        "es": "Racha de 7 días",      "en": "7-day streak" },
+        { "type": "pages_gt",   "value": "600",      "es": "Más de 600 páginas",   "en": "Over 600 pages" },
+        { "type": "genre",      "value": "Aventura", "es": "Un libro de aventura", "en": "An adventure book" },
+        { "type": "streak",     "value": "14",       "es": "Racha de 14 días",     "en": "14-day streak" },
+        { "type": "rating",     "value": "5",        "es": "Valorado con 5★",      "en": "Rated 5★" },
+        { "type": "saga",       "value": "",         "es": "Un libro de una saga", "en": "Part of a series" },
+        { "type": "author_new", "value": "",         "es": "Autor nuevo para ti",  "en": "New-to-you author" },
+        { "type": "pages_lt",   "value": "250",      "es": "Menos de 250 páginas", "en": "Under 250 pages" }
+      ]
+    },
+    {
+      "id": "variado",
+      "es": "Cajón de sastre",
+      "en": "Mixed bag",
+      "cells": [
+        { "type": "genre",      "value": "Romance",  "es": "Un romance",            "en": "A romance" },
+        { "type": "pages_gt",   "value": "350",      "es": "Más de 350 páginas",    "en": "Over 350 pages" },
+        { "type": "genre",      "value": "Thriller", "es": "Un thriller",           "en": "A thriller" },
+        { "type": "streak",     "value": "4",        "es": "Racha de 4 días",       "en": "4-day streak" },
+        { "type": "author_new", "value": "",         "es": "Autor nuevo para ti",   "en": "New-to-you author" },
+        { "type": "rating",     "value": "3",        "es": "Valorado con 3★ o más", "en": "Rated 3★ or more" },
+        { "type": "genre",      "value": "Humor",    "es": "Un libro de humor",     "en": "A funny book" },
+        { "type": "pages_lt",   "value": "180",      "es": "Menos de 180 páginas",  "en": "Under 180 pages" },
+        { "type": "saga",       "value": "",         "es": "Un libro de una saga",  "en": "Part of a series" }
+      ]
+    }
+  ]
+}

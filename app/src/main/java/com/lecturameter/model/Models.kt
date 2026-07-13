@@ -15,6 +15,28 @@ data class DateEvent(
     val occurrence: Int = 1
 )
 
+// ── Bingo (Fase 5, MD5) ────────────────────────────────────────────────────────
+// Cartón 3×3 con plantillas rotativas mensuales (assets/bingo_templates.json).
+// Las celdas se marcan solas: genre/pages/rating/author_new/saga al terminar (o
+// valorar) un libro; streak al registrar sesión. completedLines: "row0".."diag1".
+data class BingoCell(
+    val conditionType: String,          // genre | pages_gt | pages_lt | rating | streak | author_new | saga
+    val conditionValue: String,         // género canónico ES, número, o "" según el tipo
+    val labelEs: String,
+    val labelEn: String,
+    val isCompleted: Boolean = false,
+    val completedByBookId: Long? = null // null en celdas streak (no las completa un libro)
+)
+
+data class BingoCard(
+    val templateId: String,
+    val templateNameEs: String,
+    val templateNameEn: String,
+    val monthKey: String,               // yyyy-MM del cartón; si != mes actual, rota
+    val cells: List<BingoCell>,
+    val completedLines: List<String> = emptyList()
+)
+
 // ── Edición de un libro ────────────────────────────────────────────────────────
 // Representa una edición concreta (española, original, etc.) del mismo libro.
 // Un Book puede tener 1 o más ediciones. Las sesiones siguen perteneciendo al

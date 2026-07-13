@@ -912,7 +912,7 @@
     <string name="edition_scan_unindexed">Edition not yet indexed in the databases. Offered with ISBN %1$s and this book\'s data; you can edit it later.</string>
     <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
     <string name="tut10_library_title">Your library</string>
-    <string name="tut10_library_desc">Add books by hand or from search and sort them into shelves. Each book can hold several editions from its detail view. On the left rail, 📜 opens your history and 📚 brings you back here.</string>
+    <string name="tut10_library_desc">Add books by hand or from search and sort them into shelves. Each book can hold several editions from its detail view. On the left rail, 📜 opens your history and 📚 brings you back here. Swipe the rail left to collapse it and gain space.</string>
     <string name="tut10_backup_title">Import and backup</string>
     <string name="tut10_backup_desc">Bring your Goodreads library in one tap. Local or Drive backups, automated if you want.</string>
     <string name="tut10_sessions_title">Reading sessions</string>
@@ -924,6 +924,14 @@
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->
     <string name="search_online_cta">Search "%1$s" in the online catalog</string>
+    <!-- Fase 5 (MD5): rotating-template Bingo -->
+    <string name="bingo_title">Reading bingo</string>
+    <string name="bingo_subtitle">"%1$s" card · %2$s</string>
+    <string name="bingo_renews">Renews on the 1st of every month</string>
+    <string name="bingo_progress">%1$d/9 cells · %2$d lines</string>
+    <string name="bingo_completed">Card completed!&#160;🎉</string>
+    <string name="bingo_new_card">New card</string>
+    <string name="bingo_hint">Cells check themselves as you finish and rate books or log sessions.</string>
     <!-- D-002/T1: quick session start from the home bar -->
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>

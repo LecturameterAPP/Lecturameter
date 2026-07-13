@@ -113,6 +113,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.runtime.getValue
@@ -1841,7 +1842,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
                 composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
                 composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }) } }
-                composable("bingo") { WideScreenCenter { BingoPlaceholderScreen(theme, onBack = { goBack() }) } }
+                composable("bingo") { WideScreenCenter { BingoScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable(
                     "detail/{id}?highlightDate={highlightDate}",
                     arguments = listOf(
@@ -1898,25 +1899,134 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
     }
 }
 
+// ── Bingo (Fase 5, MD5): cartón 3×3 con plantillas rotativas mensuales ─────────
+// Las celdas se marcan solas (ver BingoManager). Al completar el cartón entero
+// antes de fin de mes se ofrece uno nuevo inmediatamente; si no, rota el día 1.
 @Composable
-fun BingoPlaceholderScreen(theme: Theme, onBack: () -> Unit) {
+fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
     BackHandler { onBack() }
-    // Feedback 11-07: flecha en cabecera estándar (arriba a la izquierda, como el
-    // resto de pantallas) — antes iba dentro de la Column centrada y flotaba rara.
-    Box(modifier = androidx.compose.ui.Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding()) {
+    val card by vm.bingoCard.collectAsState()
+    val books by vm.books.collectAsState()
+    // Etiquetas del JSON en el idioma de la app (mismo criterio que el resto de la UI)
+    val isEs = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
+    val accent = accentForTheme(theme)
+    Box(modifier = Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding()) {
         IconButton(
             onClick = onBack,
-            modifier = androidx.compose.ui.Modifier.align(Alignment.TopStart).padding(top = 28.dp, start = 16.dp)
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 28.dp, start = 16.dp)
         ) {
             Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
         }
+        val c = card
+        if (c == null) {
+            // Sin cartón (no debería ocurrir: ensureBingoCard corre en load)
+            Text("…", color = theme.textMuted, modifier = Modifier.align(Alignment.Center))
+            return@Box
+        }
+        val doneCount = c.cells.count { it.isCompleted }
+        val complete = doneCount == 9
+        // Nombre del mes del cartón a partir de monthKey (yyyy-MM), en el idioma de la app
+        val monthLabel = remember(c.monthKey, isEs) {
+            try {
+                val d = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).parse(c.monthKey)
+                java.text.SimpleDateFormat("LLLL yyyy", if (isEs) java.util.Locale("es") else java.util.Locale.ENGLISH)
+                    .format(d!!).replaceFirstChar { it.uppercase() }
+            } catch (_: Exception) { c.monthKey }
+        }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = androidx.compose.ui.Modifier.align(Alignment.Center)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 76.dp, start = 16.dp, end = 16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
-            Text("Bingo", color = theme.textMain, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-            Spacer(androidx.compose.ui.Modifier.height(12.dp))
-            Text("Disponible en Fase 5", color = theme.textMuted, fontSize = 14.sp)
+            Text(stringResource(R.string.bingo_title), color = theme.textMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.bingo_subtitle, if (isEs) c.templateNameEs else c.templateNameEn, monthLabel),
+                color = accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(R.string.bingo_progress, doneCount, c.completedLines.size),
+                color = theme.textMuted, fontSize = 12.sp
+            )
+            Spacer(Modifier.height(14.dp))
+            // Cartón 3×3
+            for (row in 0..2) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                    for (col in 0..2) {
+                        val cell = c.cells[row * 3 + col]
+                        val bg by androidx.compose.animation.animateColorAsState(
+                            targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else theme.bgMid,
+                            animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
+                        )
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 3.dp)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(bg)
+                                .border(
+                                    width = if (cell.isCompleted) 1.5.dp else 1.dp,
+                                    color = if (cell.isCompleted) accent else theme.border,
+                                    shape = RoundedCornerShape(14.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(6.dp)
+                            ) {
+                                // Animación clave 4 (Fase 4): la celda celebra al completarse
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = cell.isCompleted,
+                                    enter = androidx.compose.animation.scaleIn(
+                                        animationSpec = androidx.compose.animation.core.spring(
+                                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                        )
+                                    ) + fadeIn()
+                                ) {
+                                    Text("✓", color = accent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    if (isEs) cell.labelEs else cell.labelEn,
+                                    color = if (cell.isCompleted) theme.textMain else theme.textMuted,
+                                    fontSize = 10.5.sp,
+                                    lineHeight = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 3
+                                )
+                                // Libro que completó la celda (si aplica)
+                                cell.completedByBookId?.let { bid ->
+                                    books.firstOrNull { it.id == bid }?.let { b ->
+                                        Text(
+                                            b.title, color = accent, fontSize = 8.5.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            if (complete) {
+                Text(stringResource(R.string.bingo_completed), color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { vm.ensureBingoCard(prefs, force = true) },
+                    colors = ButtonDefaults.buttonColors(containerColor = accent),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text(stringResource(R.string.bingo_new_card), fontWeight = FontWeight.Bold) }
+            } else {
+                Text(stringResource(R.string.bingo_hint), color = theme.textMuted, fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(2.dp))
+                Text(stringResource(R.string.bingo_renews), color = theme.textMuted, fontSize = 11.5.sp)
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

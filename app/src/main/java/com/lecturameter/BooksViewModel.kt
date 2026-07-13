@@ -319,6 +319,49 @@ class BooksViewModel : ViewModel() {
             saveChallenges(prefs)
         }
     }
+    // ── Bingo con plantillas rotativas (Fase 5, MD5) ────────────────────────────
+    // Cartón 3×3 mensual. Las celdas se validan solas: al terminar/valorar un libro
+    // (genre, pages, rating, author_new, saga) y al registrar sesión (streak).
+    private val _bingoCard = kotlinx.coroutines.flow.MutableStateFlow<com.lecturameter.model.BingoCard?>(null)
+    val bingoCard: kotlinx.coroutines.flow.StateFlow<com.lecturameter.model.BingoCard?> = _bingoCard
+
+    /** Garantiza que hay cartón y que es del mes actual; con [force] rota ya
+     *  (botón "Nuevo cartón" al completarlo antes de fin de mes). Las plantillas
+     *  rotan en orden circular según el índice persistido. */
+    fun ensureBingoCard(prefs: android.content.SharedPreferences, force: Boolean = false) {
+        val ctx = appContext ?: return
+        val templates = com.lecturameter.utils.BingoManager.loadTemplates(ctx)
+        if (templates.isEmpty()) return
+        val month = com.lecturameter.utils.BingoManager.currentMonthKey()
+        val cur = _bingoCard.value
+        if (!force && cur != null && cur.monthKey == month) return
+        val nextIdx = (prefs.getInt("bingo_template_index", -1) + 1).mod(templates.size)
+        val card = com.lecturameter.utils.BingoManager.newCard(templates[nextIdx], month)
+        _bingoCard.value = card
+        prefs.edit().putInt("bingo_template_index", nextIdx).apply()
+        com.lecturameter.repository.BingoRepository.save(prefs, card)
+    }
+
+    /** Hook al terminar (o valorar) un libro: evalúa las celdas de tipo libro. */
+    private fun bingoOnBookFinished(book: Book, prefs: android.content.SharedPreferences) {
+        val card = _bingoCard.value ?: return
+        val updated = com.lecturameter.utils.BingoManager.evaluateBookFinished(card, book, booksInternal)
+        if (updated !== card) {
+            _bingoCard.value = updated
+            com.lecturameter.repository.BingoRepository.save(prefs, updated)
+        }
+    }
+
+    /** Hook al registrar sesión: evalúa las celdas de racha. */
+    private fun bingoOnSession(prefs: android.content.SharedPreferences) {
+        val card = _bingoCard.value ?: return
+        val updated = com.lecturameter.utils.BingoManager.evaluateStreak(card, currentReadingStreak())
+        if (updated !== card) {
+            _bingoCard.value = updated
+            com.lecturameter.repository.BingoRepository.save(prefs, updated)
+        }
+    }
+
     fun addChallenge(challenge: Challenge, prefs: android.content.SharedPreferences) {
         _challenges.value = _challenges.value + challenge
         saveChallenges(prefs)
@@ -393,6 +436,9 @@ class BooksViewModel : ViewModel() {
         // v2.4 rework: favoritos y retos se cargan SIEMPRE, antes del early return por libros vacíos
         showFavoritesOnly = prefs.getBoolean("show_favorites_only", false)
         loadChallenges(prefs)
+        // Fase 5 (MD5): cartón de Bingo — cargar el persistido y rotar si cambió el mes
+        com.lecturameter.repository.BingoRepository.loadOrNull(prefs)?.let { _bingoCard.value = it }
+        ensureBingoCard(prefs)
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
         booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
         themeMode = when (prefs.getString("theme_mode", "dark")) {
@@ -795,6 +841,13 @@ class BooksViewModel : ViewModel() {
     fun updateRating(id: Long, rating: Int, prefs: android.content.SharedPreferences) {
         booksInternal = booksInternal.map { if (it.id == id) it.copy(rating = rating) else it }
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { save(prefs) }
+        // Fase 5 (MD5): la valoración suele llegar DESPUÉS de terminar el libro —
+        // re-evaluar las celdas del Bingo si el libro ya está terminado
+        booksInternal.firstOrNull { it.id == id }?.let { b ->
+            if (b.status == BookStatus.FINISHED || b.status == BookStatus.REREADING) {
+                bingoOnBookFinished(b, prefs)
+            }
+        }
     }
     fun updateGenres(id: Long, genres: List<String>, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.map { if (it.id == id) it.copy(genres = genres) else it }; save(prefs) }
     @Deprecated("Use updateGenres") fun updateGenre(id: Long, genre: String, prefs: android.content.SharedPreferences) = updateGenres(id, if (genre.isBlank()) emptyList() else listOf(genre), prefs)
@@ -1368,6 +1421,8 @@ class BooksViewModel : ViewModel() {
         }
         // Recalcular readingIndex de sesiones del libro tras cambio de status
         val updatedBook = booksInternal.firstOrNull { it.id == id }
+        // Fase 5 (MD5): al pasar a FINISHED se evalúan las celdas del Bingo
+        if (status == BookStatus.FINISHED && updatedBook != null) bingoOnBookFinished(updatedBook, prefs)
         if (updatedBook != null) {
             val events = updatedBook.dateEvents
             // v20.4 (B5): al pasar a REREADING, NO mover sesiones de Lectura a Relectura.
@@ -1417,6 +1472,8 @@ class BooksViewModel : ViewModel() {
         } else session
         sessionsInternal = listOf(finalSession) + sessionsInternal
         saveSessions(prefs)
+        // Fase 5 (MD5): la racha puede haber crecido → evaluar celdas streak del Bingo
+        bingoOnSession(prefs)
     }
     fun deleteSession(sessionId: Long, prefs: android.content.SharedPreferences) {
         sessionsInternal = sessionsInternal.filter { it.id != sessionId }

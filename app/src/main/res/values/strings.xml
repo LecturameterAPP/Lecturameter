@@ -913,7 +913,8 @@
     <string name="edition_scan_unindexed">Edición aún sin indexar en las bases de datos. Se ofrece con el ISBN %1$s y los datos del libro; puedes editarla después.</string>
     <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
     <string name="tut10_library_title">Tu biblioteca</string>
-    <string name="tut10_library_desc">Añade libros a mano o desde la búsqueda y organízalos en estanterías. Cada libro puede guardar varias ediciones desde su detalle. En el rail de la izquierda: 📜 abre tu historial y 📚 te trae de vuelta aquí.</string>
+    <!-- Feedback 13-07 (9): la slide 1 menciona también el asa del rail colapsable -->
+    <string name="tut10_library_desc">Añade libros a mano o desde la búsqueda y organízalos en estanterías. Cada libro puede guardar varias ediciones desde su detalle. En el rail de la izquierda: 📜 abre tu historial y 📚 te trae de vuelta aquí. Desliza el rail a la izquierda para plegarlo y gana espacio.</string>
     <string name="tut10_backup_title">Importa y respalda</string>
     <string name="tut10_backup_desc">Trae tu biblioteca de Goodreads en un toque. Copias de seguridad locales o en Drive, automatizadas si quieres.</string>
     <string name="tut10_sessions_title">Sesiones de lectura</string>
@@ -926,6 +927,14 @@
     <string name="tut_done_toast">¡Ya estás listo para empezar!&#160;🎉</string>
     <!-- Feedback 13-07: CTA de búsqueda online cuando la búsqueda local no encuentra nada -->
     <string name="search_online_cta">Buscar «%1$s» en el catálogo online</string>
+    <!-- Fase 5 (MD5): Bingo con plantillas rotativas -->
+    <string name="bingo_title">Bingo lector</string>
+    <string name="bingo_subtitle">Cartón «%1$s» · %2$s</string>
+    <string name="bingo_renews">Se renueva el día 1 de cada mes</string>
+    <string name="bingo_progress">%1$d/9 casillas · %2$d líneas</string>
+    <string name="bingo_completed">¡Cartón completado!&#160;🎉</string>
+    <string name="bingo_new_card">Nuevo cartón</string>
+    <string name="bingo_hint">Las casillas se marcan solas al terminar y valorar libros o al registrar sesiones.</string>
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>

@@ -62,6 +62,21 @@ object WrappedRepository {
     }
 }
 
+// ── Bingo (Fase 5, MD5): cartón mensual con plantillas rotativas ──────────────
+object BingoRepository {
+    private val gson = Gson()
+
+    /** null = sin cartón aún (primera ejecución o JSON corrupto → se regenera). */
+    fun loadOrNull(prefs: SharedPreferences): BingoCard? {
+        val json = prefs.getString("bingo_card", null) ?: return null
+        return try { gson.fromJson(json, BingoCard::class.java) } catch (_: Exception) { null }
+    }
+
+    fun save(prefs: SharedPreferences, card: BingoCard) {
+        prefs.edit().putString("bingo_card", gson.toJson(card)).apply()
+    }
+}
+
 object ChallengeRepository {
     private val gson = Gson()
 
