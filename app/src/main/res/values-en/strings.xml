@@ -923,7 +923,7 @@
     <string name="tut10_challenges_desc">Set book, page or streak goals and follow your progress, pressure-free.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->
-    <string name="search_online_cta">Search "%1$s" online</string>
+    <string name="search_online_cta">Search "%1$s" in the online catalog</string>
     <!-- D-002/T1: quick session start from the home bar -->
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>

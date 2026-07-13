@@ -925,7 +925,7 @@
     <!-- QA 12-07 r2: espacio no separable antes del emoji — el 🎉 saltaba de línea en el toast -->
     <string name="tut_done_toast">¡Ya estás listo para empezar!&#160;🎉</string>
     <!-- Feedback 13-07: CTA de búsqueda online cuando la búsqueda local no encuentra nada -->
-    <string name="search_online_cta">Buscar «%1$s» en internet</string>
+    <string name="search_online_cta">Buscar «%1$s» en el catálogo online</string>
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>

@@ -1134,16 +1134,25 @@ class MainActivity : ComponentActivity() {
             if (vm.themeMode != displayedThemeMode) {
                 val targetMode = vm.themeMode
                 LaunchedEffect(targetMode) {
-                    val v = window.decorView
-                    if (v.width > 0 && v.height > 0) {
+                    // Feedback 13-07 (8): capturar SOLO el área de contenido (android.R.id.content),
+                    // no el decorView entero — el bitmap incluía las barras del sistema y al
+                    // estirarse sobre el contenido todo se veía "encogido" durante el fundido
+                    // (efecto de la app haciéndose pequeña y volviendo a crecer).
+                    val content = window.decorView.findViewById<android.view.View>(android.R.id.content)
+                    if (content != null && content.width > 0 && content.height > 0) {
+                        val loc = IntArray(2).also { content.getLocationInWindow(it) }
                         val bmp = android.graphics.Bitmap.createBitmap(
-                            v.width, v.height, android.graphics.Bitmap.Config.ARGB_8888
+                            content.width, content.height, android.graphics.Bitmap.Config.ARGB_8888
                         )
                         try {
-                            android.view.PixelCopy.request(window, bmp, { result ->
-                                themeSnapshot = if (result == android.view.PixelCopy.SUCCESS) bmp.asImageBitmap() else null
-                                displayedThemeMode = targetMode
-                            }, android.os.Handler(android.os.Looper.getMainLooper()))
+                            android.view.PixelCopy.request(
+                                window,
+                                android.graphics.Rect(loc[0], loc[1], loc[0] + content.width, loc[1] + content.height),
+                                bmp, { result ->
+                                    themeSnapshot = if (result == android.view.PixelCopy.SUCCESS) bmp.asImageBitmap() else null
+                                    displayedThemeMode = targetMode
+                                }, android.os.Handler(android.os.Looper.getMainLooper())
+                            )
                         } catch (_: Throwable) {
                             themeSnapshot = null
                             displayedThemeMode = targetMode
@@ -1977,7 +1986,11 @@ fun HomeRail(
     onStats: () -> Unit,
     onChallenges: () -> Unit,
     onBingo: () -> Unit,
-    onWrapped: () -> Unit
+    onWrapped: () -> Unit,
+    // Feedback 13-07 (8): swipe horizontal SOBRE EL RAIL abre/cierra el historial —
+    // la franja de 22dp junto al rail era invisible y nadie acertaba a deslizar ahí;
+    // lo natural es arrastrar desde el propio rail (de donde sale el panel)
+    onHistorySwipe: (Boolean) -> Unit = {}
 ) {
     var order by remember {
         mutableStateOf(
@@ -1999,8 +2012,18 @@ fun HomeRail(
         else         -> Icons.Default.CardGiftcard
     }
 
+    val swipeAcc = remember { mutableStateOf(0f) }
     Column(
-        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp),
+        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp)
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    swipeAcc.value += delta
+                    if (swipeAcc.value > 60f) { onHistorySwipe(true); swipeAcc.value = 0f }
+                    else if (swipeAcc.value < -60f) { onHistorySwipe(false); swipeAcc.value = 0f }
+                },
+                onDragStarted = { swipeAcc.value = 0f }
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // 📜 historial — casilla fija superior (spec D-002); toggle del panel
@@ -2870,7 +2893,8 @@ fun ListScreen(
                 onStats = { historyOpen = false; onStats() },
                 onChallenges = { historyOpen = false; onChallenges() },
                 onBingo = { historyOpen = false; onEasterEgg() },
-                onWrapped = { historyOpen = false; onWrappedHistory() }
+                onWrapped = { historyOpen = false; onWrappedHistory() },
+                onHistorySwipe = { open -> historyOpen = open }
             )
             // Feedback 13-07 (4): separación visual del rail — línea fina vertical
             // con el color de borde del tema
@@ -3197,11 +3221,13 @@ fun ListScreen(
         }
         } // right column (D-002)
             // Feedback 13-07 (3): gesto de ABRIR el historial deslizando desde el borde
-            // junto al rail (franja estrecha para no chocar con el swipe de favoritos)
+            // junto al rail (franja estrecha para no chocar con el swipe de favoritos).
+            // Feedback 13-07 (8): franja ampliada a 28dp; el gesto principal ahora vive
+            // en el propio rail (ver HomeRail.onHistorySwipe)
             if (!historyOpen) {
                 val openAcc = remember { mutableStateOf(0f) }
                 Box(
-                    Modifier.align(Alignment.CenterStart).width(22.dp).fillMaxHeight()
+                    Modifier.align(Alignment.CenterStart).width(28.dp).fillMaxHeight()
                         .draggable(
                             orientation = Orientation.Horizontal,
                             state = rememberDraggableState { delta ->
