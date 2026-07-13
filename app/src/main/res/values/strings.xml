@@ -912,7 +912,7 @@
     <string name="edition_scan_unindexed">Edición aún sin indexar en las bases de datos. Se ofrece con el ISBN %1$s y los datos del libro; puedes editarla después.</string>
     <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
     <string name="tut10_library_title">Tu biblioteca</string>
-    <string name="tut10_library_desc">Añade libros a mano o desde la búsqueda y organízalos en estanterías. Cada libro puede guardar varias ediciones desde su detalle.</string>
+    <string name="tut10_library_desc">Añade libros a mano o desde la búsqueda y organízalos en estanterías. Cada libro puede guardar varias ediciones desde su detalle. En el rail de la izquierda: 📜 abre tu historial y 📚 te trae de vuelta aquí.</string>
     <string name="tut10_backup_title">Importa y respalda</string>
     <string name="tut10_backup_desc">Trae tu biblioteca de Goodreads en un toque. Copias de seguridad locales o en Drive, automatizadas si quieres.</string>
     <string name="tut10_sessions_title">Sesiones de lectura</string>

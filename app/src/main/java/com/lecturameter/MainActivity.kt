@@ -30,6 +30,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.IntOffset
@@ -1219,11 +1222,16 @@ class MainActivity : ComponentActivity() {
 }
 
 // QA 12-07 r2: transición de tema sin recrear la app — cada token de color se anima
-// hacia el tema destino (350 ms, como el Crossfade que sustituye). isDark y accent
-// cambian al instante (no son interpolables de forma útil).
+// hacia el tema destino. isDark y accent cambian al instante (no son interpolables).
+// Feedback 13-07: el fade se veía "tosco" porque bgDeep animaba hacia TRANSPARENTE al
+// salir de Aurora (el fondo se ennegrecía por el stop transparente). Ahora bgDeep anima
+// siempre entre colores REALES (si el tema no define deep, se usa su bgDark) y el
+// degradado del fondo es SIEMPRE de 3 stops → la transición fluye sin saltos. Además,
+// 450 ms con FastOutSlowIn (más orgánico que el lineal corto).
 @Composable
 fun animateThemeColors(target: Theme): Theme {
-    val spec = tween<Color>(durationMillis = 350)
+    val spec = tween<Color>(durationMillis = 450, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+    val targetDeep = if (target.bgDeep != Color.Transparent) target.bgDeep else target.bgDark
     val bgDark    by animateColorAsState(target.bgDark,    spec, label = "th_bgDark")
     val bgMid     by animateColorAsState(target.bgMid,     spec, label = "th_bgMid")
     val surface   by animateColorAsState(target.surface,   spec, label = "th_surface")
@@ -1233,7 +1241,7 @@ fun animateThemeColors(target: Theme): Theme {
     val textDim   by animateColorAsState(target.textDim,   spec, label = "th_textDim")
     val bgSurf    by animateColorAsState(target.bgSurf,    spec, label = "th_bgSurf")
     val bgSurf2   by animateColorAsState(target.bgSurf2,   spec, label = "th_bgSurf2")
-    val bgDeep    by animateColorAsState(target.bgDeep,    spec, label = "th_bgDeep")
+    val bgDeep    by animateColorAsState(targetDeep,       spec, label = "th_bgDeep")
     return target.copy(
         bgDark = bgDark, bgMid = bgMid, surface = surface, border = border,
         textMain = textMain, textMuted = textMuted, textDim = textDim,
@@ -1651,12 +1659,10 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         // Feedback WhatsApp 10-07: imePadding para que el teclado no tape el campo con foco.
         // Con targetSdk 35 (Android 15+) adjustResize se ignora (edge-to-edge forzado); en
         // versiones anteriores la ventana se redimensiona y el inset IME queda a 0 (no duplica).
-        // Fase 3 (Aurora C): con bgDeep definido, el fondo es el degradado completo
-        // teal → azul → púrpura del mockup; el resto de temas conservan el clásico.
-        val bgBrush = if (theme.bgDeep != Color.Transparent)
-            Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep))
-        else
-            Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDark))
+        // Fase 3 (Aurora C) + feedback 13-07: el degradado es SIEMPRE de 3 stops —
+        // animateThemeColors garantiza que bgDeep nunca es Transparent (si el tema no
+        // define deep, es su propio bgDark), así el cambio de tema fluye sin saltos.
+        val bgBrush = Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep))
         // QA 12-07 r2 (B-012): el velo vive FUERA del padding de insets — si cubriera solo
         // la zona con padding, el reacomodo de los insets en el arranque en frío seguiría
         // siendo visible en los bordes.
@@ -3117,6 +3123,22 @@ fun ListScreen(
             }
         }
         } // right column (D-002)
+            // Feedback 13-07 (3): gesto de ABRIR el historial deslizando desde el borde
+            // junto al rail (franja estrecha para no chocar con el swipe de favoritos)
+            if (!historyOpen) {
+                val openAcc = remember { mutableStateOf(0f) }
+                Box(
+                    Modifier.align(Alignment.CenterStart).width(22.dp).fillMaxHeight()
+                        .draggable(
+                            orientation = Orientation.Horizontal,
+                            state = rememberDraggableState { delta ->
+                                openAcc.value += delta
+                                if (openAcc.value > 60f) { historyOpen = true; openAcc.value = 0f }
+                            },
+                            onDragStarted = { openAcc.value = 0f }
+                        )
+                )
+            }
             // Feedback 13-07: scrim SOLO sobre el contenido (el rail queda libre) + panel
             // del historial deslizante encajado contra el rail
             if (historyOpen) {
@@ -3127,9 +3149,21 @@ fun ListScreen(
                 enter = androidx.compose.animation.slideInHorizontally(initialOffsetX = { -it }),
                 exit = androidx.compose.animation.slideOutHorizontally(targetOffsetX = { -it })
             ) {
-                Surface(
-                    color = theme.bgDark,
-                    modifier = Modifier.fillMaxHeight().widthIn(max = 400.dp).fillMaxWidth(0.94f)
+                // Feedback 13-07 (3): fondo con el MISMO degradado azulado de la app (nada
+                // de huecos negros entre cards) + gesto de CERRAR deslizando a la izquierda
+                val closeAcc = remember { mutableStateOf(0f) }
+                Box(
+                    Modifier
+                        .fillMaxHeight().widthIn(max = 400.dp).fillMaxWidth(0.94f)
+                        .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep)))
+                        .draggable(
+                            orientation = Orientation.Horizontal,
+                            state = rememberDraggableState { delta ->
+                                closeAcc.value += delta
+                                if (closeAcc.value < -60f) { historyOpen = false; closeAcc.value = 0f }
+                            },
+                            onDragStarted = { closeAcc.value = 0f }
+                        )
                 ) {
                     SessionHistoryScreen(
                         vm = vm,
@@ -8938,8 +8972,12 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         Box(
             Modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(theme.bgDark, if (theme.bgDeep != Color.Transparent) theme.bgDeep else theme.bgMid)))
-                .padding(top = 40.dp, bottom = 16.dp, start = 20.dp, end = 12.dp)
+                // Feedback 13-07: bgDeep ya nunca es Transparent (== bgDark si el tema no
+                // define deep) — en ese caso la cabecera cae a bgMid como siempre
+                .background(Brush.verticalGradient(listOf(theme.bgDark, if (theme.bgDeep != theme.bgDark) theme.bgDeep else theme.bgMid)))
+                // Feedback 13-07 (3): el panel ya no vive bajo la status bar (drawer) —
+                // el top de 40dp dejaba un hueco; alineado con el icono 📜 del rail
+                .padding(top = 14.dp, bottom = 14.dp, start = 20.dp, end = 12.dp)
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
