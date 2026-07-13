@@ -586,8 +586,9 @@
     <!-- Bulk refresh -->
     <string name="bulk_refresh_title_genres">Recarga masiva de Géneros</string>
     <string name="bulk_refresh_title_covers">Recarga masiva de Portadas</string>
-    <string name="bulk_refresh_subtitle_genres">Actualiza el género de los libros consultando las APIs. Puede tardar varios minutos.</string>
-    <string name="bulk_refresh_subtitle_covers">Actualiza las portadas de los libros consultando las APIs. Puede tardar varios minutos.</string>
+    <!-- Feedback 13-07: nada de "APIs" de cara al usuario — lenguaje llano -->
+    <string name="bulk_refresh_subtitle_genres">Actualiza el género de los libros buscándolos en internet. Puede tardar varios minutos.</string>
+    <string name="bulk_refresh_subtitle_covers">Actualiza las portadas de los libros buscándolas en internet. Puede tardar varios minutos.</string>
     <string name="bulk_refresh_screen_title">Recargar %1$s</string>
     <string name="bulk_refresh_dialog_title">Recarga masiva de %1$s</string>
     <string name="bulk_refresh_all">🔄  Recargar todo</string>

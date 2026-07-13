@@ -2856,7 +2856,9 @@ fun ListScreen(
             Box(Modifier.fillMaxHeight().width(1.dp).background(theme.border))
             Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxSize()) {
-            Column(Modifier.padding(end = 16.dp, start = 2.dp)) {
+            // Feedback 13-07: la línea del rail queda ENTRE MEDIAS — mismo aire a ambos
+            // lados (el rail ya deja ~3dp; el contenido deja 10dp aquí)
+            Column(Modifier.padding(end = 16.dp, start = 10.dp)) {
 
             // Search bar
             OutlinedTextField(
@@ -3064,8 +3066,8 @@ fun ListScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
                 state = listState,
-                // D-002: alineado con la barra de búsqueda (el rail ya aporta el margen izquierdo)
-                modifier = Modifier.fillMaxSize().padding(start = 2.dp, end = 16.dp),
+                // D-002: alineado con la barra de búsqueda (línea del rail entre medias)
+                modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 16.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {

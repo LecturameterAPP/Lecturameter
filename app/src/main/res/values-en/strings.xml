@@ -586,8 +586,8 @@
     <!-- Bulk refresh -->
     <string name="bulk_refresh_title_genres">Bulk refresh of Genres</string>
     <string name="bulk_refresh_title_covers">Bulk refresh of Covers</string>
-    <string name="bulk_refresh_subtitle_genres">Update the genre of the books by querying the APIs. This may take several minutes.</string>
-    <string name="bulk_refresh_subtitle_covers">Update the book covers by querying the APIs. This may take several minutes.</string>
+    <string name="bulk_refresh_subtitle_genres">Update the genre of your books by looking them up online. This may take several minutes.</string>
+    <string name="bulk_refresh_subtitle_covers">Update your book covers by looking them up online. This may take several minutes.</string>
     <string name="bulk_refresh_screen_title">Refresh %1$s</string>
     <string name="bulk_refresh_dialog_title">Bulk refresh of %1$s</string>
     <string name="bulk_refresh_all">🔄  Refresh all</string>
