@@ -1274,6 +1274,10 @@ class MainActivity : ComponentActivity() {
         // Si el móvil estaba bloqueado al terminar la sesión, al desbloquear
         // onResume dispara el bridge para que LecturaMeterApp navegue al detail.
         WidgetIntentBridge.onNewIntent?.invoke()
+        // Feedback 13-07 (12): rotación del Bingo también al volver a primer plano —
+        // cubre la app viva en recientes cruzando la medianoche del día 1. Comprobación
+        // perezosa a propósito: nada de alarmas/workers (MIUI los mata y gastan batería).
+        vm.ensureBingoCard(getSharedPreferences("lecturameter", MODE_PRIVATE))
     }
 
     override fun onDestroy() {

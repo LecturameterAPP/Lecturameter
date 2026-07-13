@@ -349,6 +349,9 @@ class BooksViewModel : ViewModel() {
 
     /** Hook al terminar (o valorar) un libro: evalúa las celdas de tipo libro. */
     private fun bingoOnBookFinished(book: Book, prefs: android.content.SharedPreferences) {
+        // Feedback 13-07 (12): rotar ANTES de evaluar — un libro terminado el día 1 con
+        // la app viva desde el mes anterior no debe marcar el cartón caducado
+        ensureBingoCard(prefs)
         val card = _bingoCard.value ?: return
         val updated = com.lecturameter.utils.BingoManager.evaluateBookFinished(card, book, booksInternal)
         if (updated !== card) {
@@ -359,6 +362,8 @@ class BooksViewModel : ViewModel() {
 
     /** Hook al registrar sesión: evalúa las celdas de racha. */
     private fun bingoOnSession(prefs: android.content.SharedPreferences) {
+        // Feedback 13-07 (12): igual que en bingoOnBookFinished — rotar antes de evaluar
+        ensureBingoCard(prefs)
         val card = _bingoCard.value ?: return
         val updated = com.lecturameter.utils.BingoManager.evaluateStreak(card, currentReadingStreak())
         if (updated !== card) {
