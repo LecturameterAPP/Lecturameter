@@ -50,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
-import androidx.core.view.drawToBitmap
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
@@ -1132,9 +1131,22 @@ class MainActivity : ComponentActivity() {
             var lastThemeMode by remember { mutableStateOf(vm.themeMode) }
             if (vm.themeMode != lastThemeMode) {
                 lastThemeMode = vm.themeMode
-                // El decorView aún muestra el último frame DIBUJADO (tema viejo)
+                // El decorView aún muestra el último frame DIBUJADO (tema viejo).
+                // Feedback 13-07 (6): captura a MEDIA resolución y RGB_565 — el dibujo
+                // por software a resolución completa costaba un frame largo justo al
+                // empezar el fundido ("le cuesta"). A media resolución es ~8× más barato
+                // y durante un fundido de 250 ms la diferencia es invisible.
                 themeSnapshot = try {
-                    window.decorView.drawToBitmap().asImageBitmap()
+                    val v = window.decorView
+                    if (v.width > 0 && v.height > 0) {
+                        val bmp = android.graphics.Bitmap.createBitmap(
+                            v.width / 2, v.height / 2, android.graphics.Bitmap.Config.RGB_565
+                        )
+                        val canvas = android.graphics.Canvas(bmp)
+                        canvas.scale(0.5f, 0.5f)
+                        v.draw(canvas)
+                        bmp.asImageBitmap()
+                    } else null
                 } catch (_: Throwable) { null }
             }
             Box {
@@ -1177,7 +1189,8 @@ class MainActivity : ComponentActivity() {
             themeSnapshot?.let { snap ->
                 val fadeAlpha = remember(snap) { Animatable(1f) }
                 LaunchedEffect(snap) {
-                    fadeAlpha.animateTo(0f, tween(durationMillis = 400, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+                    // Feedback 13-07 (6): 250 ms — el fundido anterior (400) se sentía lento
+                    fadeAlpha.animateTo(0f, tween(durationMillis = 250, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
                     themeSnapshot = null
                 }
                 androidx.compose.foundation.Image(
