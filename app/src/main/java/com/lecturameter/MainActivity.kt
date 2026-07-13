@@ -1123,32 +1123,38 @@ class MainActivity : ComponentActivity() {
             // COLORES del tema (mismo efecto de fundido, sin perder la navegación).
             // Feedback 13-07 (4): CROSSFADE REAL entre temas — animar los ~10 colores del
             // tema recomponía el árbol entero en cada frame (stutter = sensación "tosca").
-            // Ahora, al cambiar de tema, se captura un bitmap del frame actual (tema viejo),
-            // el tema nuevo se aplica al instante debajo y el bitmap se funde en 400 ms.
-            // Un solo alpha animado: cero recomposición por frame, fundido de verdad.
-            val theme = remember(vm.themeMode) { normalizeThemeDeep(buildTheme(vm.themeMode)) }
+            // Feedback 13-07 (7): el snapshot por software (v.draw en Canvas) clavaba un
+            // frame largo que se comía media animación → el fundido no se notaba. Ahora la
+            // captura es con PixelCopy (copia por GPU del frame ya presentado, coste ~0 en
+            // el hilo principal, resolución completa) y el TEMA NUEVO no se aplica hasta
+            // que la copia termina: cero carrera, cero jank. Si PixelCopy falla, el cambio
+            // es instantáneo sin fade (mejor seco que tosco).
+            var displayedThemeMode by remember { mutableStateOf(vm.themeMode) }
             var themeSnapshot by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-            var lastThemeMode by remember { mutableStateOf(vm.themeMode) }
-            if (vm.themeMode != lastThemeMode) {
-                lastThemeMode = vm.themeMode
-                // El decorView aún muestra el último frame DIBUJADO (tema viejo).
-                // Feedback 13-07 (6): captura a MEDIA resolución y RGB_565 — el dibujo
-                // por software a resolución completa costaba un frame largo justo al
-                // empezar el fundido ("le cuesta"). A media resolución es ~8× más barato
-                // y durante un fundido de 250 ms la diferencia es invisible.
-                themeSnapshot = try {
+            if (vm.themeMode != displayedThemeMode) {
+                val targetMode = vm.themeMode
+                LaunchedEffect(targetMode) {
                     val v = window.decorView
                     if (v.width > 0 && v.height > 0) {
                         val bmp = android.graphics.Bitmap.createBitmap(
-                            v.width / 2, v.height / 2, android.graphics.Bitmap.Config.RGB_565
+                            v.width, v.height, android.graphics.Bitmap.Config.ARGB_8888
                         )
-                        val canvas = android.graphics.Canvas(bmp)
-                        canvas.scale(0.5f, 0.5f)
-                        v.draw(canvas)
-                        bmp.asImageBitmap()
-                    } else null
-                } catch (_: Throwable) { null }
+                        try {
+                            android.view.PixelCopy.request(window, bmp, { result ->
+                                themeSnapshot = if (result == android.view.PixelCopy.SUCCESS) bmp.asImageBitmap() else null
+                                displayedThemeMode = targetMode
+                            }, android.os.Handler(android.os.Looper.getMainLooper()))
+                        } catch (_: Throwable) {
+                            themeSnapshot = null
+                            displayedThemeMode = targetMode
+                        }
+                    } else {
+                        themeSnapshot = null
+                        displayedThemeMode = targetMode
+                    }
+                }
             }
+            val theme = remember(displayedThemeMode) { normalizeThemeDeep(buildTheme(displayedThemeMode)) }
             Box {
             LecturaMeterTheme(theme) {
                 // Primera apertura: selección de idioma
@@ -1189,8 +1195,10 @@ class MainActivity : ComponentActivity() {
             themeSnapshot?.let { snap ->
                 val fadeAlpha = remember(snap) { Animatable(1f) }
                 LaunchedEffect(snap) {
-                    // Feedback 13-07 (6): 250 ms — el fundido anterior (400) se sentía lento
-                    fadeAlpha.animateTo(0f, tween(durationMillis = 250, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+                    // Feedback 13-07 (7): 300 ms LINEAL — con easing LinearOutSlowIn el 80%
+                    // del cambio ocurría en los primeros ~100 ms y parecía un corte seco.
+                    // Un fundido constante se percibe entero de principio a fin.
+                    fadeAlpha.animateTo(0f, tween(durationMillis = 300, easing = androidx.compose.animation.core.LinearEasing))
                     themeSnapshot = null
                 }
                 androidx.compose.foundation.Image(
@@ -2758,8 +2766,9 @@ fun ListScreen(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
-                // Feedback 13-07 (4): el selector de tema va PEGADO al título
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.weight(1f))
+                // Feedback 13-07 (7): el selector de tema vuelve a la barra de acciones,
+                // a la IZQUIERDA del crono (pegado al título no convencía)
                 var showThemeMenu by remember { mutableStateOf(false) }
                 val barContext = LocalContext.current
                 Box {
@@ -2810,7 +2819,6 @@ fun ListScreen(
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
                 // ⏱️ crono desde el home (T1 elegida por Víctor): selector Leyendo/Releyendo
                 IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
                     Icon(Icons.Default.Timer, contentDescription = "Timer", tint = Accent, modifier = Modifier.size(19.dp))
