@@ -2107,19 +2107,15 @@ fun HomeRail(
     onChallenges: () -> Unit,
     onBingo: () -> Unit,
     onWrapped: () -> Unit,
-    // Feedback 13-07 (8): swipe horizontal SOBRE EL RAIL abre/cierra el historial —
-    // la franja de 22dp junto al rail era invisible y nadie acertaba a deslizar ahí;
-    // lo natural es arrastrar desde el propio rail (de donde sale el panel)
-    onHistorySwipe: (Boolean) -> Unit = {},
-    // Feedback 13-07 (9): el rail necesita saber si el panel está abierto para decidir
-    // qué significa el swipe a la izquierda (cerrar panel vs colapsar rail)
-    historyOpen: Boolean = false
+    // Feedback 14-07: swipe → sobre 📜 abre el historial; swipe ← en cualquier punto
+    // del rail (incluida la raya separadora, que forma parte de su borde) lo cierra
+    onHistoryOpen: () -> Unit = {},
+    onRailClose: () -> Unit = {},
 ) {
     var order by remember {
         mutableStateOf(
             prefs.getString("rail_order", null)
                 ?.split(",")?.filter { it in RAIL_DEFAULT_ORDER }
-                // Órdenes guardados con claves antiguas o incompletas: completar con el default
                 ?.let { saved -> saved + RAIL_DEFAULT_ORDER.filter { it !in saved } }
                 ?: RAIL_DEFAULT_ORDER
         )
@@ -2127,7 +2123,6 @@ fun HomeRail(
     var editMode by remember { mutableStateOf(false) }
     val slotPx = with(androidx.compose.ui.platform.LocalDensity.current) { 46.dp.toPx() }
 
-    // Feedback 13-07: destinos con los iconos Material azules de la fila antigua
     fun railIcon(dest: String) = when (dest) {
         "challenges" -> Icons.Default.EmojiEvents
         "stats"      -> Icons.Default.BarChart
@@ -2135,65 +2130,40 @@ fun HomeRail(
         else         -> Icons.Default.CardGiftcard
     }
 
-    // Feedback 13-07 (9): rail COLAPSABLE — colapsado queda un asa fina de 16dp
-    // (pastilla vertical de acento) y la lista gana los ~30dp restantes. Tocar el asa
-    // o deslizar a la derecha expande; deslizar a la izquierda colapsa (o cierra el
-    // panel del historial si está abierto). La preferencia se recuerda en prefs.
-    // Solo cambia con gesto MANUAL: navegar a un destino no lo toca.
-    var railExpanded by remember { mutableStateOf(prefs.getBoolean("rail_expanded", true)) }
-    fun setRailExpanded(v: Boolean) {
-        railExpanded = v
-        prefs.edit().putBoolean("rail_expanded", v).apply()
-    }
-    val railWidth by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (railExpanded) 46.dp else 16.dp,
-        animationSpec = tween(durationMillis = 200),
-        label = "rail_width"
-    )
-    val swipeAcc = remember { mutableStateOf(0f) }
+    // Feedback 14-07: gestos del rail — swipe ← lo cierra (el gesto arranca en el propio
+    // rail o en la raya que lo separa de los libros); swipe → no hace nada aquí (el de
+    // reabrir vive en la franja del borde cuando está cerrado, ver call site)
+    val railAcc = remember { mutableStateOf(0f) }
     Column(
-        Modifier.width(railWidth).fillMaxHeight().padding(top = 4.dp)
+        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp)
             .draggable(
                 orientation = Orientation.Horizontal,
                 state = rememberDraggableState { delta ->
-                    swipeAcc.value += delta
-                    if (swipeAcc.value > 60f) {
-                        if (!railExpanded) setRailExpanded(true) else onHistorySwipe(true)
-                        swipeAcc.value = 0f
-                    } else if (swipeAcc.value < -60f) {
-                        if (historyOpen) onHistorySwipe(false) else setRailExpanded(false)
-                        swipeAcc.value = 0f
-                    }
+                    railAcc.value += delta
+                    if (railAcc.value < -60f) { onRailClose(); railAcc.value = 0f }
                 },
-                onDragStarted = { swipeAcc.value = 0f }
+                onDragStarted = { railAcc.value = 0f }
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (!railExpanded) {
-            // Asa de expansión: pastilla vertical centrada, target táctil = toda la columna
-            // Feedback 13-07 (14): if/else en vez de return@Column — el early return dentro
-            // del lambda inline de Column corrompía el slot table de Compose
-            // (ArrayIndexOutOfBounds en SlotTable.key) y la app entraba en BUCLE DE CRASH
-            // al arrancar con rail_expanded=false persistido.
-            Box(
-                Modifier.fillMaxSize().clickable { setRailExpanded(true) },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    Modifier.width(5.dp).height(44.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(Accent.copy(alpha = 0.55f))
-                )
-            }
-        } else {
-        // 📜 historial — casilla fija superior (spec D-002); toggle del panel
-        RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
-        // 📚 biblioteca — fija; cierra el panel del historial y sube la lista arriba
-        // Feedback 13-07 (10): sin highlight — el resaltado permanente no significaba nada
+        // 📜 con gesto propio: swipe → abre el historial (además del tap); swipe ← cierra
+        // el rail (consume el drag del padre, así que replica ese caso)
+        val histAcc = remember { mutableStateOf(0f) }
+        Box(
+            Modifier.draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    histAcc.value += delta
+                    if (histAcc.value > 60f) { onHistoryOpen(); histAcc.value = 0f }
+                    else if (histAcc.value < -60f) { onRailClose(); histAcc.value = 0f }
+                },
+                onDragStarted = { histAcc.value = 0f }
+            )
+        ) {
+            RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
+        }
         RailItem("📚", theme, enabled = !editMode, onClick = onLibrary)
         HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
-        // Feedback 13-07 (4): los botones no arrastrados se DESLIZAN a su hueco nuevo
-        // (posiciones absolutas animadas en vez de flujo de Column)
         Box(Modifier.height(46.dp * order.size).fillMaxWidth()) {
         RAIL_DEFAULT_ORDER.forEach { dest ->
             val idx = order.indexOf(dest)
@@ -2249,14 +2219,13 @@ fun HomeRail(
                 )
             }
         }
-        } // Box de posiciones absolutas (animación de reorden)
+        }
         if (editMode) {
             RailItem(null, theme, highlighted = true, icon = Icons.Default.Check, onClick = {
                 prefs.edit().putString("rail_order", order.joinToString(",")).apply()
                 editMode = false
             })
         }
-        } // else rail expandido (Feedback 13-07 (14))
     }
 }
 
@@ -2816,6 +2785,47 @@ fun ListScreen(
     // v2.4 rework: al activar/desactivar el filtro de favoritos, volver arriba
     LaunchedEffect(vm.showFavoritesOnly) { listScope.launch { listState.animateScrollToItem(0) } }
 
+    // Feedback 14-07 v2: rail auto-hide en scroll con UMBRAL acumulado (la versión
+    // por-evento parpadeaba con cualquier temblor del dedo). Además el rail se puede
+    // cerrar a mano (swipe ← desde el rail/raya) y reabrir (swipe → desde el borde).
+    // Cierre manual = pegajoso: el scroll no lo reabre hasta que se reabra a mano.
+    var railVisible by rememberSaveable { mutableStateOf(true) }
+    var railManuallyHidden by rememberSaveable { mutableStateOf(false) }
+    val hideThresholdPx = with(androidx.compose.ui.platform.LocalDensity.current) { 32.dp.toPx() }
+    LaunchedEffect(listState) {
+        var lastIdx = listState.firstVisibleItemIndex
+        var lastOff = listState.firstVisibleItemScrollOffset
+        var acc = 0f
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (idx, off) ->
+                // Aproximación del delta: dentro del mismo item es exacto; al cambiar
+                // de item se asume el signo del cambio con un paso grande
+                val delta = when {
+                    idx == lastIdx -> (off - lastOff).toFloat()
+                    idx > lastIdx  -> hideThresholdPx
+                    else           -> -hideThresholdPx
+                }
+                lastIdx = idx; lastOff = off
+                if (idx == 0 && off == 0) {
+                    acc = 0f
+                    if (!railManuallyHidden) railVisible = true
+                } else {
+                    // El acumulador se resetea al cambiar de dirección
+                    acc = if (delta > 0 == acc > 0) acc + delta else delta
+                    if (acc > hideThresholdPx) { railVisible = false; acc = 0f }
+                    else if (acc < -hideThresholdPx) {
+                        if (!railManuallyHidden) railVisible = true
+                        acc = 0f
+                    }
+                }
+            }
+    }
+    val railWidth by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (railVisible) 46.dp else 0.dp,
+        animationSpec = tween(durationMillis = 280, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "rail_auto_hide"
+    )
+
     // Compute per-shelf book lists (filtered + sorted) — with fuzzy/accent-insensitive search
     val searchFiltered = if (searchQuery.isBlank()) booksAll
         else booksAll.filter {
@@ -3042,12 +3052,12 @@ fun ListScreen(
 
         // ── D-002 (Fase 4): rail a la izquierda + contenido a la derecha ────────
         Row(Modifier.weight(1f)) {
+            if (railWidth > 0.dp) {
+            Box(Modifier.width(railWidth)) {
             HomeRail(
                 theme = theme,
                 prefs = prefs,
                 onHistory = { historyOpen = !historyOpen },
-                // (la línea separadora del rail se pinta a su derecha, ver Box de abajo)
-                // Feedback 13-07: 📚 = "volver a la biblioteca": cierra el panel y sube arriba
                 onLibrary = {
                     historyOpen = false
                     listScope.launch { listState.animateScrollToItem(0) }
@@ -3056,12 +3066,12 @@ fun ListScreen(
                 onChallenges = { historyOpen = false; onChallenges() },
                 onBingo = { historyOpen = false; onEasterEgg() },
                 onWrapped = { historyOpen = false; onWrappedHistory() },
-                onHistorySwipe = { open -> historyOpen = open },
-                historyOpen = historyOpen
+                onHistoryOpen = { historyOpen = true },
+                onRailClose = { railManuallyHidden = true; railVisible = false },
             )
-            // Feedback 13-07 (4): separación visual del rail — línea fina vertical
-            // con el color de borde del tema
+            }
             Box(Modifier.fillMaxHeight().width(1.dp).background(theme.border))
+            }
             Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxSize()) {
             // Feedback 13-07: la línea del rail queda ENTRE MEDIAS — mismo aire a ambos
@@ -3383,60 +3393,63 @@ fun ListScreen(
             }
         }
         } // right column (D-002)
-            // Feedback 13-07 (3): gesto de ABRIR el historial deslizando desde el borde
-            // junto al rail (franja estrecha para no chocar con el swipe de favoritos).
-            // Feedback 13-07 (8): franja ampliada a 28dp; el gesto principal ahora vive
-            // en el propio rail (ver HomeRail.onHistorySwipe)
-            if (!historyOpen) {
-                val openAcc = remember { mutableStateOf(0f) }
-                Box(
-                    Modifier.align(Alignment.CenterStart).width(28.dp).fillMaxHeight()
-                        .draggable(
-                            orientation = Orientation.Horizontal,
-                            state = rememberDraggableState { delta ->
-                                openAcc.value += delta
-                                if (openAcc.value > 60f) { historyOpen = true; openAcc.value = 0f }
-                            },
-                            onDragStarted = { openAcc.value = 0f }
-                        )
-                )
-            }
-            // Feedback 13-07: scrim SOLO sobre el contenido (el rail queda libre) + panel
-            // del historial deslizante encajado contra el rail
-            if (historyOpen) {
-                Box(Modifier.fillMaxSize().background(Color(0x88000000)).clickable { historyOpen = false })
-            }
-            androidx.compose.animation.AnimatedVisibility(
-                visible = historyOpen,
-                enter = androidx.compose.animation.slideInHorizontally(initialOffsetX = { -it }),
-                exit = androidx.compose.animation.slideOutHorizontally(targetOffsetX = { -it })
-            ) {
-                // Feedback 13-07 (3): fondo con el MISMO degradado azulado de la app (nada
-                // de huecos negros entre cards) + gesto de CERRAR deslizando a la izquierda
-                val closeAcc = remember { mutableStateOf(0f) }
-                Box(
-                    Modifier
-                        .fillMaxHeight().widthIn(max = 400.dp).fillMaxWidth(0.94f)
-                        .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep)))
-                        .draggable(
-                            orientation = Orientation.Horizontal,
-                            state = rememberDraggableState { delta ->
-                                closeAcc.value += delta
-                                if (closeAcc.value < -60f) { historyOpen = false; closeAcc.value = 0f }
-                            },
-                            onDragStarted = { closeAcc.value = 0f }
-                        )
-                ) {
-                    SessionHistoryScreen(
-                        vm = vm,
-                        theme = theme,
-                        onClose = { historyOpen = false },
-                        onDetail = { id -> historyOpen = false; onDetail(id) }
-                    )
-                }
-            }
-        } // Box contenido + panel (D-002)
+        } // Box contenido (D-002)
         } // Row rail + contenido (D-002)
+    } // Column (header + contenido)
+
+    // Feedback 14-07: rail cerrado → swipe → desde el borde izquierdo lo reabre
+    // (franja invisible de 16dp; solo existe con el rail oculto, no roba gestos)
+    if (!railVisible && !historyOpen) {
+        val reopenAcc = remember { mutableStateOf(0f) }
+        Box(
+            Modifier.align(Alignment.CenterStart).width(16.dp).fillMaxHeight()
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        reopenAcc.value += delta
+                        if (reopenAcc.value > 60f) {
+                            railManuallyHidden = false
+                            railVisible = true
+                            reopenAcc.value = 0f
+                        }
+                    },
+                    onDragStarted = { reopenAcc.value = 0f }
+                )
+        )
+    }
+
+    // Feedback 14-07: historial a PANTALLA COMPLETA — vive al nivel del Box raíz
+    // (dentro del Column con weight le quedaba altura 0 y no se veía nada).
+    // Swipe ← sobre el panel lo cierra; el rail no se entera.
+    if (historyOpen) {
+        Box(Modifier.fillMaxSize().background(Color(0x88000000)).clickable { historyOpen = false })
+    }
+    androidx.compose.animation.AnimatedVisibility(
+        visible = historyOpen,
+        enter = androidx.compose.animation.slideInHorizontally(initialOffsetX = { -it }),
+        exit = androidx.compose.animation.slideOutHorizontally(targetOffsetX = { -it })
+    ) {
+        val closeAcc = remember { mutableStateOf(0f) }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep)))
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        closeAcc.value += delta
+                        if (closeAcc.value < -60f) { historyOpen = false; closeAcc.value = 0f }
+                    },
+                    onDragStarted = { closeAcc.value = 0f }
+                )
+        ) {
+            SessionHistoryScreen(
+                vm = vm,
+                theme = theme,
+                onClose = { historyOpen = false },
+                onDetail = { id -> historyOpen = false; onDetail(id) }
+            )
+        }
     }
     // v2.4 rework: host del Snackbar de favoritos, superpuesto al contenido
     androidx.compose.material3.SnackbarHost(
