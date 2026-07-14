@@ -1113,12 +1113,22 @@ class BooksViewModel : ViewModel() {
      *  desactiva el resto y sincroniza los campos cache del libro (coverUrl, pages, isbn). */
     /** v2.4: conserva el sufijo de saga "(Saga, #N)" del título anterior cuando el
      *  título nuevo (de una edición OL/GB) no trae ninguno. Evita que cambiar de
-     *  edición borre la saga del libro. El título de la EDICIÓN no se toca. */
-    private fun preserveSagaSuffix(oldTitle: String, newTitle: String): String {
+     *  edición borre la saga del libro. El título de la EDICIÓN no se toca.
+     *  Feedback 14-07: el nombre de la saga se TRADUCE al idioma de la edición
+     *  destino si está en la tabla de alias (SagaAliases); si no, se conserva
+     *  tal cual (nunca se inventa). */
+    private fun preserveSagaSuffix(oldTitle: String, newTitle: String, targetLang: String? = null): String {
         if (newTitle.isBlank()) return oldTitle
         val sagaRegex = Regex("""\s*(\([^()]*#\s*[\d.\-]+\s*\))\s*$""")
         val oldSuffix = sagaRegex.find(oldTitle)?.groupValues?.get(1) ?: return newTitle
-        return if (sagaRegex.containsMatchIn(newTitle)) newTitle else "$newTitle $oldSuffix"
+        if (sagaRegex.containsMatchIn(newTitle)) return newTitle
+        // Separar nombre y número del sufijo para traducir solo el nombre
+        val parts = Regex("""\(\s*([^()#]*?)[,;]?\s*#\s*([\d.\-]+)\s*\)""").find(oldSuffix)
+        val suffix = if (parts != null && parts.groupValues[1].isNotBlank()) {
+            val translated = com.lecturameter.utils.translateSagaName(parts.groupValues[1].trim(), targetLang)
+            "(${translated}, #${parts.groupValues[2]})"
+        } else oldSuffix
+        return "$newTitle $suffix"
     }
 
     fun upsertEdition(bookId: Long, edition: BookEdition, prefs: android.content.SharedPreferences) {
@@ -1136,7 +1146,7 @@ class BooksViewModel : ViewModel() {
             val active = finalEditions.firstOrNull { it.isActive } ?: finalEditions.first()
             book.copy(
                 editions     = finalEditions,
-                title        = preserveSagaSuffix(book.title, active.title.ifBlank { book.title }),
+                title        = preserveSagaSuffix(book.title, active.title.ifBlank { book.title }, com.lecturameter.utils.sagaTargetLang(active.language, active.languageLabel)),
                 coverUrl     = active.coverUrl,
                 pages        = if (active.pages > 0) active.pages else book.pages,
                 isbn         = active.isbn ?: book.isbn,
@@ -1165,7 +1175,7 @@ class BooksViewModel : ViewModel() {
             if (b.id != bookId) b
             else b.copy(
                 editions     = finalEditions,
-                title        = preserveSagaSuffix(b.title, active.title.ifBlank { b.title }),
+                title        = preserveSagaSuffix(b.title, active.title.ifBlank { b.title }, com.lecturameter.utils.sagaTargetLang(active.language, active.languageLabel)),
                 coverUrl     = active.coverUrl,
                 pages        = if (active.pages > 0) active.pages else b.pages,
                 isbn         = active.isbn ?: b.isbn,
@@ -1183,7 +1193,7 @@ class BooksViewModel : ViewModel() {
             val active = editions.firstOrNull { it.isActive } ?: return@map book
             book.copy(
                 editions     = editions,
-                title        = preserveSagaSuffix(book.title, active.title.ifBlank { book.title }),
+                title        = preserveSagaSuffix(book.title, active.title.ifBlank { book.title }, com.lecturameter.utils.sagaTargetLang(active.language, active.languageLabel)),
                 coverUrl     = active.coverUrl,
                 pages        = if (active.pages > 0) active.pages else book.pages,
                 isbn         = active.isbn ?: book.isbn,
