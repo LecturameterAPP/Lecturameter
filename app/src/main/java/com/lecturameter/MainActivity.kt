@@ -3435,7 +3435,11 @@ fun ListScreen(
         Box(
             Modifier
                 .fillMaxSize()
-                .padding(end = 16.dp)
+                .padding(end = 20.dp)
+                // Esquinas derechas redondeadas + borde: sin esto el margen era invisible
+                // (scrim negro sobre tema oscuro) y el panel no se leía como flotante
+                .clip(RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp))
+                .border(1.dp, theme.border, RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp))
                 .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep)))
                 .draggable(
                     orientation = Orientation.Horizontal,
