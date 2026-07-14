@@ -340,6 +340,9 @@ class BooksViewModel : ViewModel() {
         val stale = cur != null && templates.firstOrNull { it.id == cur.templateId }
             ?.let { it.cells.size != cur.cells.size } ?: true
         if (!force && cur != null && cur.monthKey == month && !stale) return
+        // Fase 6.3/6.4: al retirar un cartón con progreso se guarda su resumen mensual
+        // (lo consumen la tarjeta anual del Wrapped y el recap mensual)
+        if (cur != null) com.lecturameter.utils.BingoManager.appendMonthSummary(prefs, cur)
         val nextIdx = (prefs.getInt("bingo_template_index", -1) + 1).mod(templates.size)
         val card = com.lecturameter.utils.BingoManager.newCard(templates[nextIdx], month)
         _bingoCard.value = card

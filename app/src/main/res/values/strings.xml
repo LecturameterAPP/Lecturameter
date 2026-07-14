@@ -992,4 +992,56 @@
     <string name="recap_challenges_bingo_value">🎯 +%1$d · ▦ +%2$d</string>
     <string name="recap_challenges_bingo">Retos avanzados · casillas bingo</string>
     <string name="recap_book_of_week">Libro de la semana · %1$d páginas</string>
+    <!-- Fase 6.4: Recap mensual M-1 -->
+    <string name="recapm_card_line">📆 Tu %1$s, en un vistazo</string>
+    <string name="recapm_title">📆 Tu %1$s</string>
+    <string name="recapm_finished">Terminados</string>
+    <string name="recapm_started">Empezados</string>
+    <string name="recapm_dropped">Abandonados</string>
+    <string name="recapm_best_week_title">Semana del %1$s al %2$s</string>
+    <string name="recapm_best_week_sub">Tu mejor semana · %1$d páginas</string>
+    <string name="recapm_bingo_title">Bingo de %1$s</string>
+    <string name="recapm_bingo_sub">%1$d casillas · %2$d líneas</string>
+    <string name="recapm_bingo_completed_suffix">" · cartón completado"</string>
+    <string name="recapm_book">Libro del mes · %1$d páginas</string>
+    <!-- Fase 6.3 + P-015: Wrapped Bingo anual + cierre -->
+    <string name="wbingo_title">Tu año de Bingo</string>
+    <string name="wbingo_best_month">%1$s fue tu mejor cartón</string>
+    <string name="wbingo_cells">casillas en el año</string>
+    <string name="wbingo_lines">líneas</string>
+    <string name="wbingo_full_cards">cartones completos</string>
+    <string name="wbingo_first_line">Primera línea del año</string>
+    <string name="wbingo_hardest">Tu casilla más difícil</string>
+    <string name="wbingo_completed_ribbon">🏆 Cartón de %1$s completado</string>
+    <string name="wclose_title">Has llegado al final de tu repaso</string>
+    <string name="wclose_vs">%1$d frente a %2$d</string>
+    <string name="wclose_totals">Tu año, en números</string>
+    <string name="wclose_books">Libros terminados</string>
+    <string name="wclose_pages">Páginas leídas</string>
+    <string name="wclose_time">Tiempo de lectura</string>
+    <string name="wclose_quote">«Cada página de este año ya es tuya.\n¿Qué quieres leer el que viene?»</string>
+    <!-- Fase 6.2: micro-encuesta voluntaria -->
+    <string name="survey_invite_title">¿Nos cuentas cómo usas Lecturameter?</string>
+    <string name="survey_invite_body">Una pregunta, diez segundos. Nada se envía sin que tú lo mandes.</string>
+    <string name="survey_invite_action">Responder</string>
+    <string name="survey_privacy">Responder es opcional y anónimo. Nos ayuda a decidir qué mejorar primero.</string>
+    <string name="survey_send">Enviar</string>
+    <string name="survey_not_now">Ahora no</string>
+    <string name="survey_sent_toast">¡Gracias! Opinión enviada.</string>
+    <string name="survey_more_link">¿Algo más que contar? Envía feedback completo</string>
+    <string name="survey_q_section">¿Qué sección usas más?</string>
+    <string name="survey_o_library">📚 Biblioteca</string>
+    <string name="survey_o_stats">📊 Estadísticas</string>
+    <string name="survey_o_challenges">🎯 Retos</string>
+    <string name="survey_o_bingo">▦ Bingo</string>
+    <string name="survey_o_wrapped">🎁 Wrapped</string>
+    <string name="survey_q_missing">¿Qué echas de menos?</string>
+    <string name="survey_o_more_challenges">Más retos</string>
+    <string name="survey_o_more_stats">Más estadísticas</string>
+    <string name="survey_o_social">Algo social</string>
+    <string name="survey_o_nothing">Nada, así está bien</string>
+    <string name="survey_q_recommend">¿Recomendarías Lecturameter?</string>
+    <string name="survey_o_yes">Sí</string>
+    <string name="survey_o_no">No</string>
+    <string name="survey_o_not_yet">Aún no</string>
 </resources>

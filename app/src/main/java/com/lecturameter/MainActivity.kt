@@ -1353,6 +1353,7 @@ sealed class Screen {
     object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
     object WeeklyRecap : Screen()
+    object MonthlyRecap : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
     data class AuthorBooks(val author: String) : Screen()
     data class Wrapped(val year: Int) : Screen()
@@ -1375,6 +1376,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
     is Screen.WeeklyRecap -> "weekly_recap"
+    is Screen.MonthlyRecap -> "monthly_recap"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
     is Screen.AuthorBooks -> "author/${Uri.encode(author)}"
     is Screen.Wrapped -> "wrapped/$year"
@@ -1859,8 +1861,9 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                             )
                     }
                 }
-                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }, onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) }) } }
+                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }, onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) }, onMonthlyRecap = { navigateTo(Screen.MonthlyRecap) }) } }
                 composable("weekly_recap") { WideScreenCenter { WeeklyRecapScreen(vm, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
+                composable("monthly_recap") { WideScreenCenter { MonthlyRecapScreen(vm, prefs, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
                 composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
@@ -3100,6 +3103,10 @@ fun ListScreen(
     val tipWidget = TipSnack(Tips.WIDGET, stringResource(R.string.tip_widget_title), stringResource(R.string.tip_widget_body))
     val tipRecap = TipSnack(Tips.FIRST_RECAP, stringResource(R.string.tip_recap_title), stringResource(R.string.tip_recap_body), stringResource(R.string.tip_recap_action)) { onWeeklyRecap() }
     val tipUnvisited = TipSnack(Tips.UNVISITED, stringResource(R.string.tip_unvisited_title), "", stringResource(R.string.tip_unvisited_action)) { onStats() }
+    // Fase 6.2: micro-encuesta voluntaria (invitación por el mismo canal de snackbars)
+    var showSurveyDialog by remember { mutableStateOf(false) }
+    var showSurveyFeedback by remember { mutableStateOf(false) }
+    val surveyInvite = TipSnack("survey", stringResource(R.string.survey_invite_title), stringResource(R.string.survey_invite_body), stringResource(R.string.survey_invite_action)) { showSurveyDialog = true }
     LaunchedEffect(booksAll, sessionsForTips, railTipVisible) {
         // Uno por arranque; la card del rail tiene prioridad y silencia los snackbars
         if (Tips.snackShownThisLaunch || railTipVisible || activeTipSnack != null || booksAll.isEmpty()) return@LaunchedEffect
@@ -3117,7 +3124,38 @@ fun ListScreen(
             Tips.mark(prefs, candidate.key)
             Tips.snackShownThisLaunch = true
             activeTipSnack = candidate
+        } else {
+            // ── Fase 6.2: la invitación de la micro-encuesta usa el mismo hueco ──
+            // (un solo snackbar por arranque; los tips tienen prioridad)
+            val now = System.currentTimeMillis()
+            val first = prefs.getLong("first_launch_ts", now)
+            val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            if (prefs.getInt("survey_year", 0) != year) {
+                prefs.edit().putInt("survey_year", year).putInt("survey_count_year", 0).apply()
+            }
+            val eligible = finishedCount >= 5 || now - first >= 60L * 86_400_000
+            val cooldownOk = now - prefs.getLong("survey_last_ts", 0L) >= 120L * 86_400_000
+            val snoozeOk = now >= prefs.getLong("survey_snooze_until", 0L)
+            if (eligible && cooldownOk && snoozeOk && prefs.getInt("survey_count_year", 0) < 3) {
+                Tips.snackShownThisLaunch = true
+                activeTipSnack = surveyInvite
+            }
         }
+    }
+
+    // ── Fase 6.2: diálogo de la encuesta + acceso al feedback completo ──────────
+    if (showSurveyDialog) {
+        SurveyDialog(
+            theme, prefs,
+            onDismiss = {
+                showSurveyDialog = false
+                prefs.edit().putLong("survey_snooze_until", System.currentTimeMillis() + 60L * 86_400_000).apply()
+            },
+            onOpenFeedback = { showSurveyDialog = false; showSurveyFeedback = true }
+        )
+    }
+    if (showSurveyFeedback) {
+        FeedbackDialog(theme, onDismiss = { showSurveyFeedback = false })
     }
 
     // ── D-002/T1: bottom sheet de inicio rápido — libros Leyendo/Releyendo con ▶ ──
@@ -3739,10 +3777,15 @@ fun ListScreen(
         hostState = favSnackbarState,
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
     )
-    // Fase 6.1 (D-008): snackbar de tips (formato A) — hitos de datos
+    // Fase 6.1 (D-008): snackbar de tips (formato A) — hitos de datos.
+    // 6.2: si es la invitación de la encuesta, descartarla pospone 2 meses.
     activeTipSnack?.let { t ->
         TipSnackbar(
-            t, theme, onGone = { activeTipSnack = null },
+            t, theme,
+            onGone = {
+                if (t.key == "survey") prefs.edit().putLong("survey_snooze_until", System.currentTimeMillis() + 60L * 86_400_000).apply()
+                activeTipSnack = null
+            },
             modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp).padding(bottom = 14.dp)
         )
     }
@@ -4324,7 +4367,14 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var sharing by remember { mutableStateOf(false) }
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState { if (wrapped != null) 10 else 1 }
+    // Fase 6.3: tarjeta anual del Bingo — solo si el año tiene casillas registradas
+    // en el historial mensual (se acumula desde esta versión; regla: no inventar)
+    val bingoYear = remember(year) {
+        com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).filter { it.monthKey.startsWith("$year-") && it.cellsDone > 0 }
+    }
+    val hasBingoSlide = bingoYear.isNotEmpty()
+    // 0..9 clásicas + Bingo anual (condicional, 6.3) + cierre-comparativa (P-015)
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState { if (wrapped != null) 11 + (if (hasBingoSlide) 1 else 0) else 1 }
     // v2.5: coordenadas del pager para recortar screenshot (excluir barra superior)
     var pagerBounds by remember { mutableStateOf<android.graphics.Rect?>(null) }
 
@@ -5220,6 +5270,115 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     }
                     Spacer(Modifier.height(40.dp))
                 }
+
+                // ── SLIDES DINÁMICAS: Bingo anual (6.3, condicional) + cierre (P-015) ──
+                else -> {
+                    val isBingoPage = hasBingoSlide && page == 10
+                    if (isBingoPage) Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                        val best = bingoYear.maxByOrNull { it.cellsDone }!!
+                        val isEsW = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.wbingo_title), fontSize = 30.sp, fontWeight = FontWeight.Black,
+                            style = androidx.compose.ui.text.TextStyle(
+                                brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                            ), textAlign = TextAlign.Center)
+                        Text(stringResource(R.string.wbingo_best_month, fmtMonthName(best.monthKey)).replaceFirstChar { it.uppercase(appDisplayLocale) },
+                            color = Color(0xFFC7D2FE), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
+                        // Cartón visual del mejor mes (patrón 1/0)
+                        val bSide = com.lecturameter.utils.BingoManager.sideOf(best.pattern.length).coerceAtLeast(3)
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            for (r in 0 until bSide) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    for (cIdx in 0 until bSide) {
+                                        val on = best.pattern.getOrNull(r * bSide + cIdx) == '1'
+                                        Box(
+                                            Modifier.size(46.dp).clip(RoundedCornerShape(9.dp))
+                                                .background(if (on) Accent.copy(alpha = 0.30f) else Color(0x10FFFFFF))
+                                                .border(1.dp, if (on) Accent else theme.border, RoundedCornerShape(9.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) { if (on) Text("✓", color = Color(0xFFC7D2FE), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            WrappedMiniCard("${bingoYear.sumOf { it.cellsDone }}", stringResource(R.string.wbingo_cells), Accent, Modifier.weight(1f))
+                            WrappedMiniCard("${bingoYear.sumOf { it.lines }}", stringResource(R.string.wbingo_lines), Accent2, Modifier.weight(1f))
+                            WrappedMiniCard("${bingoYear.count { it.complete }}", stringResource(R.string.wbingo_full_cards), Amber, Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        bingoYear.filter { it.lines > 0 }.minByOrNull { it.monthKey }?.let { first ->
+                            WrappedFavRow("", stringResource(R.string.wbingo_first_line), fmtMonthName(first.monthKey), "", Accent, theme)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        // Casilla más difícil: la etiqueta que más veces quedó sin completar
+                        val hardest = bingoYear.flatMap { if (isEsW) it.uncompletedEs else it.uncompletedEn }
+                            .groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+                        if (hardest != null) {
+                            WrappedFavRow("", stringResource(R.string.wbingo_hardest), "«$hardest»", "", Accent2, theme)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        bingoYear.filter { it.complete }.minByOrNull { it.monthKey }?.let { full ->
+                            Surface(shape = RoundedCornerShape(999.dp), color = Gold.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, Gold.copy(alpha = 0.5f))) {
+                                Text(stringResource(R.string.wbingo_completed_ribbon, fmtMonthName(full.monthKey)),
+                                    color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(40.dp))
+                    } else Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                        // ── P-015: cierre con comparativa vs año anterior ────────
+                        Spacer(Modifier.height(12.dp))
+                        Text(stringResource(R.string.wclose_title), fontSize = 26.sp, fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.Center, lineHeight = 32.sp,
+                            style = androidx.compose.ui.text.TextStyle(
+                                brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                            ))
+                        val hasPrev = wrapped.previousYearBooks > 0 || wrapped.previousYearPages > 0
+                        Text(
+                            if (hasPrev) stringResource(R.string.wclose_vs, wrapped.year, wrapped.year - 1)
+                            else stringResource(R.string.wclose_totals),
+                            color = Color(0xFFC7D2FE), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                        )
+                        @Composable
+                        fun cmpRow(label: String, value: String, delta: Int?) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(label, color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                    Text(value, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    if (delta != null && delta != 0) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            if (delta > 0) "▲ +${delta.toLocaleString()}" else "▼ ${delta.toLocaleString()}",
+                                            color = if (delta > 0) Green else Red, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(7.dp))
+                        }
+                        cmpRow(stringResource(R.string.wclose_books), "${wrapped.totalBooks}",
+                            if (hasPrev) wrapped.totalBooks - wrapped.previousYearBooks else null)
+                        cmpRow(stringResource(R.string.wclose_pages), wrapped.totalPages.toLocaleString(),
+                            if (hasPrev) wrapped.totalPages - wrapped.previousYearPages else null)
+                        if (wrapped.totalMinutes > 0) {
+                            val prevMinutes = vm.wrappedForYear(year - 1)?.totalMinutes ?: 0
+                            cmpRow(stringResource(R.string.wclose_time), fmtMinutes(wrapped.totalMinutes),
+                                if (prevMinutes > 0) wrapped.totalMinutes - prevMinutes else null)
+                        }
+                        if (wrapped.favoriteGenre.isNotBlank()) {
+                            cmpRow(stringResource(R.string.wcard_genre_year), displayGenre(wrapped.favoriteGenre), null)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(stringResource(R.string.wclose_quote), color = Color(0xFFA5F3E8), fontSize = 14.sp,
+                            fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 22.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp))
+                        Spacer(Modifier.height(40.dp))
+                    }
+                }
             }
         }
 
@@ -5640,6 +5799,131 @@ private fun RecapMini(value: String, label: String, valueColor: Color?, theme: T
     }
 }
 
+// ── Fase 6.4: Recap mensual — mes CERRADO, mockup M-1 aprobado 14-07 ──────────
+// Ajustes de Víctor: sin emoji de medalla en "mejor semana"; la banda del Bingo
+// usa el icono Material (GridView, el del rail); el libro del mes lleva PORTADA
+// real y navega a su detalle.
+
+// Nombre del mes en el idioma de la app, tal como lo da el locale (en ES minúscula:
+// "julio" — los meses en español no se capitalizan a mitad de frase). Donde el mes
+// abre frase (subtítulo del Wrapped) se capitaliza el resultado completo.
+private fun fmtMonthName(monthKey: String): String = try {
+    java.text.SimpleDateFormat("LLLL", appDisplayLocale)
+        .format(java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).parse(monthKey)!!)
+} catch (_: Exception) { monthKey }
+
+@Composable
+private fun RecapBand(theme: Theme, icon: @Composable () -> Unit, title: String, sub: String,
+                      onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null) {
+    Surface(
+        shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border),
+        modifier = Modifier.fillMaxWidth().let { if (onClick != null) it.clickable { onClick() } else it }
+    ) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            icon()
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(title, color = theme.textMain, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, color = theme.textMuted, fontSize = 11.5.sp)
+            }
+            trailing?.invoke()
+        }
+    }
+}
+
+@Composable
+fun MonthlyRecapScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onDetail: (Long) -> Unit) {
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    val recap = remember(books, sessions) {
+        com.lecturameter.utils.computeMonthlyRecap(books, sessions, today())
+    }
+    val bingoMonth = remember(recap?.monthKey) {
+        recap?.let { r ->
+            com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).filter { it.monthKey == r.monthKey }
+        } ?: emptyList()
+    }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.recapm_title, recap?.monthKey?.let { fmtMonthName(it) } ?: ""),
+                    color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold
+                )
+                if (recap != null) {
+                    Text("${fmtDayMonth(recap.startIso)} – ${fmtDayMonth(recap.endIso)}", color = theme.textMuted, fontSize = 13.sp)
+                }
+            }
+        }
+
+        if (recap == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📆", fontSize = 48.sp) }
+        } else {
+            val minis = buildList {
+                add(Triple(recap.finishedCount.toString(), stringResource(R.string.recapm_finished), null as Color?))
+                add(Triple(recap.startedCount.toString(), stringResource(R.string.recapm_started), null))
+                add(Triple(recap.droppedCount.toString(), stringResource(R.string.recapm_dropped), null))
+                add(Triple(recap.pages.toString(), stringResource(R.string.recap_pages), null))
+                recap.minutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_time), null)) }
+                recap.pagesPerMin?.let { add(Triple(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), null)) }
+                recap.deltaPages?.let { d ->
+                    val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
+                    add(Triple(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
+                }
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                minis.chunked(3).forEach { rowItems ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+                        rowItems.forEach { (v, l, c) -> RecapMini(v, l, c, theme, Modifier.weight(1f)) }
+                        repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                // Mejor semana (sin emoji — ajuste de Víctor); solo con ≥2 semanas con sesiones
+                recap.bestWeekStartIso?.let { ws ->
+                    RecapBand(
+                        theme,
+                        icon = { Icon(Icons.Default.DateRange, null, tint = accentForTheme(theme), modifier = Modifier.size(22.dp)) },
+                        title = stringResource(R.string.recapm_best_week_title, fmtDayMonth(ws), fmtDayMonth(com.lecturameter.utils.isoPlusDays(ws, 6))),
+                        sub = stringResource(R.string.recapm_best_week_sub, recap.bestWeekPages)
+                    )
+                }
+                // Bingo del mes — icono Material GridView (ajuste de Víctor)
+                if (bingoMonth.isNotEmpty()) {
+                    val cells = bingoMonth.sumOf { it.cellsDone }
+                    val lines = bingoMonth.sumOf { it.lines }
+                    val completed = bingoMonth.any { it.complete }
+                    RecapBand(
+                        theme,
+                        icon = { Icon(Icons.Default.GridView, null, tint = accentForTheme(theme), modifier = Modifier.size(22.dp)) },
+                        title = stringResource(R.string.recapm_bingo_title, fmtMonthName(recap.monthKey)),
+                        sub = stringResource(R.string.recapm_bingo_sub, cells, lines) +
+                              if (completed) stringResource(R.string.recapm_bingo_completed_suffix) else ""
+                    )
+                }
+                // Libro del mes — PORTADA real, clicable al detalle (ajuste de Víctor)
+                recap.bookOfMonthId?.let { id ->
+                    books.find { it.id == id }?.let { b ->
+                        RecapBand(
+                            theme,
+                            icon = { BookCover(b.coverUrl, b.title, size = 40, isbnFallback = b.isbn) },
+                            title = b.title,
+                            sub = stringResource(R.string.recapm_book, recap.bookOfMonthPages),
+                            onClick = { onDetail(b.id) },
+                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
 @Composable
 fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDetail: (Long) -> Unit) {
     val books by vm.books.collectAsState()
@@ -5720,7 +6004,7 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
 }
 
 @Composable
-fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}, onWeeklyRecap: () -> Unit = {}) {
+fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}, onWeeklyRecap: () -> Unit = {}, onMonthlyRecap: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
@@ -5863,6 +6147,30 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
+                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                    )
+                    Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
+                }
+            }
+        }
+
+        // ── Fase 6.4 (M-2): tarjeta del recap MENSUAL — solo los primeros 7 días ─
+        // del mes nuevo, y solo si el mes cerrado tuvo sesiones
+        val monthlyRecap = remember(books, sessions) {
+            val dayOfMonth = today().takeLast(2).toIntOrNull() ?: 99
+            if (dayOfMonth <= 7) com.lecturameter.utils.computeMonthlyRecap(books, sessions, today()) else null
+        }
+        if (monthlyRecap != null) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = theme.surface,
+                border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.45f)),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onMonthlyRecap() }
+            ) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.recapm_card_line, fmtMonthName(monthlyRecap.monthKey)),
                         color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
                     )
@@ -11146,6 +11454,100 @@ private fun scheduleWidgetRefresh(context: android.content.Context, intervalMinu
 }
 
 // ── FeedbackDialog ────────────────────────────────────────────────────────────
+
+// ── Fase 6.2: micro-encuesta voluntaria (mockup E-2 aprobado 14-07) ───────────
+// Una pregunta rotativa de opción única; envío por la misma Cloud Function del
+// feedback (type "survey"). NO es telemetría: solo se envía al pulsar Enviar.
+@Composable
+fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismiss: () -> Unit, onOpenFeedback: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val questions = listOf(
+        Triple("section", R.string.survey_q_section, listOf(
+            "library" to R.string.survey_o_library, "stats" to R.string.survey_o_stats,
+            "challenges" to R.string.survey_o_challenges, "bingo" to R.string.survey_o_bingo,
+            "wrapped" to R.string.survey_o_wrapped)),
+        Triple("missing", R.string.survey_q_missing, listOf(
+            "challenges" to R.string.survey_o_more_challenges, "stats" to R.string.survey_o_more_stats,
+            "social" to R.string.survey_o_social, "nothing" to R.string.survey_o_nothing)),
+        Triple("recommend", R.string.survey_q_recommend, listOf(
+            "yes" to R.string.survey_o_yes, "no" to R.string.survey_o_no, "not_yet" to R.string.survey_o_not_yet))
+    )
+    val idx = remember { prefs.getInt("survey_index", 0).mod(questions.size) }
+    val (qid, qRes, options) = questions[idx]
+    var selected by remember { mutableStateOf<String?>(null) }
+    var sending by remember { mutableStateOf(false) }
+    val sentMsg = stringResource(R.string.survey_sent_toast)
+    val failMsg = stringResource(R.string.err_feedback_send_retry)
+
+    AlertDialog(
+        onDismissRequest = { if (!sending) onDismiss() },
+        containerColor = theme.bgMid,
+        title = { Text(stringResource(qRes), color = theme.textMain, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(stringResource(R.string.survey_privacy), color = theme.textMuted, fontSize = 12.sp)
+                Spacer(Modifier.height(10.dp))
+                options.forEach { (key, res) ->
+                    val sel = selected == key
+                    Surface(
+                        onClick = { selected = key },
+                        shape = RoundedCornerShape(11.dp),
+                        color = if (sel) Accent.copy(alpha = 0.14f) else theme.surface,
+                        border = BorderStroke(1.dp, if (sel) Accent else theme.border),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                    ) {
+                        Text(
+                            stringResource(res),
+                            color = if (sel) Accent else theme.textMain, fontSize = 13.sp,
+                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+                Text(
+                    stringResource(R.string.survey_more_link), color = Accent, fontSize = 11.5.sp,
+                    modifier = Modifier.clickable(enabled = !sending) { onOpenFeedback() }.padding(top = 4.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = selected != null && !sending, onClick = {
+                sending = true
+                scope.launch {
+                    val info = "App: Lecturameter ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
+                        "Package: ${BuildConfig.APPLICATION_ID}\n" +
+                        "Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})"
+                    val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        FeedbackSender.send("survey", "Q: $qid\nA: $selected", info, null, emptyList())
+                    }
+                    sending = false
+                    if (ok) {
+                        val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+                        prefs.edit()
+                            .putLong("survey_last_ts", System.currentTimeMillis())
+                            .putInt("survey_index", idx + 1)
+                            .putInt("survey_year", year)
+                            .putInt("survey_count_year", prefs.getInt("survey_count_year", 0) + 1)
+                            .apply()
+                        android.widget.Toast.makeText(context, sentMsg, android.widget.Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    } else {
+                        android.widget.Toast.makeText(context, failMsg, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }) {
+                if (sending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Accent)
+                else Text(stringResource(R.string.survey_send), color = Accent, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !sending, onClick = onDismiss) {
+                Text(stringResource(R.string.survey_not_now), color = theme.textMuted)
+            }
+        }
+    )
+}
 
 @Composable
 fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {}) {

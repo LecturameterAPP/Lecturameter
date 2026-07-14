@@ -31,6 +31,21 @@ data class BingoTemplate(
 
 private data class BingoTemplateFile(val templates: List<BingoTemplate> = emptyList())
 
+// Fase 6.3/6.4: resumen de un cartón retirado (uno por cartón; un mes puede tener
+// dos si se completó y se pidió cartón nuevo). Campos default para Gson.
+data class BingoMonthSummary(
+    val monthKey: String = "",
+    val templateNameEs: String = "",
+    val templateNameEn: String = "",
+    val cellsDone: Int = 0,
+    val cellsTotal: Int = 0,
+    val lines: Int = 0,
+    val complete: Boolean = false,
+    val pattern: String = "",                       // '1'/'0' por celda (cartón visual del Wrapped)
+    val uncompletedEs: List<String> = emptyList(),  // etiquetas no completadas ("casilla más difícil")
+    val uncompletedEn: List<String> = emptyList()
+)
+
 object BingoManager {
     private val gson = Gson()
     private var cachedTemplates: List<BingoTemplate>? = null
@@ -53,6 +68,39 @@ object BingoManager {
 
     /** Fase 4 (D-003, animación de línea): índices de las celdas de una línea ("row0".."diag1"). */
     fun lineIndices(side: Int, lineKey: String): List<Int> = linesFor(side)[lineKey] ?: emptyList()
+
+    // ── Fase 6.3/6.4: historial mensual del Bingo ─────────────────────────────
+    // Al retirar un cartón (rotación del día 1 o "cartón nuevo" tras completar) se
+    // guarda un resumen del mes. Lo consumen la tarjeta anual del Wrapped y el
+    // recap mensual. Entra en el backup al vivir en las prefs normales.
+    private const val HISTORY_KEY = "bingo_month_history"
+
+    fun loadMonthSummaries(prefs: android.content.SharedPreferences): List<BingoMonthSummary> {
+        return try {
+            val json = prefs.getString(HISTORY_KEY, null) ?: return emptyList()
+            gson.fromJson(json, Array<BingoMonthSummary>::class.java)?.toList() ?: emptyList()
+        } catch (_: Exception) { emptyList() }
+    }
+
+    fun appendMonthSummary(prefs: android.content.SharedPreferences, card: BingoCard) {
+        val done = card.cells.count { it.isCompleted }
+        // Cartones sin ningún progreso (incluidos los regenerados por migración) no cuentan
+        if (done == 0) return
+        val summary = BingoMonthSummary(
+            monthKey = card.monthKey,
+            templateNameEs = card.templateNameEs,
+            templateNameEn = card.templateNameEn,
+            cellsDone = done,
+            cellsTotal = card.cells.size,
+            lines = card.completedLines.size,
+            complete = done == card.cells.size,
+            pattern = card.cells.joinToString("") { if (it.isCompleted) "1" else "0" },
+            uncompletedEs = card.cells.filter { !it.isCompleted }.map { it.labelEs },
+            uncompletedEn = card.cells.filter { !it.isCompleted }.map { it.labelEn }
+        )
+        val list = loadMonthSummaries(prefs) + summary
+        prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
+    }
 
     fun loadTemplates(context: Context): List<BingoTemplate> {
         cachedTemplates?.let { return it }

@@ -102,6 +102,73 @@ data class WeeklyRecap(
     val bookOfWeekPages: Int
 )
 
+// ── Recap mensual (6.4) ───────────────────────────────────────────────────────
+
+data class MonthlyRecap(
+    val monthKey: String,            // yyyy-MM del mes CERRADO
+    val startIso: String,
+    val endIso: String,
+    val finishedCount: Int,
+    val startedCount: Int,
+    val droppedCount: Int,
+    val pages: Int,
+    val deltaPages: Int?,            // vs mes anterior; null si aquel no tuvo sesiones
+    val minutes: Int?,
+    val pagesPerMin: Double?,
+    val bestWeekStartIso: String?,   // lunes de la mejor semana; null si <2 semanas con sesiones
+    val bestWeekPages: Int,
+    val bookOfMonthId: Long?,
+    val bookOfMonthPages: Int
+)
+
+internal fun monthRange(monthKey: String): Pair<String, String> {
+    val first = "$monthKey-01"
+    val c = isoToCal(first) ?: return first to first
+    c.add(Calendar.MONTH, 1)
+    c.add(Calendar.DAY_OF_YEAR, -1)
+    return first to ISO.get()!!.format(c.time)
+}
+
+/** Recap del mes CERRADO anterior a [todayIso] (julio se ve en agosto).
+ *  Null si ese mes no tiene ninguna sesión — ni tarjeta ni pantalla. */
+fun computeMonthlyRecap(books: List<Book>, sessions: List<ReadingSession>, todayIso: String): MonthlyRecap? {
+    val firstOfCurrent = todayIso.take(7) + "-01"
+    val lastOfPrev = isoPlusDays(firstOfCurrent, -1)
+    val monthKey = lastOfPrev.take(7)
+    if (monthKey >= todayIso.take(7)) return null
+    val (start, end) = monthRange(monthKey)
+    val month = sessions.filter { it.date in start..end }
+    if (month.isEmpty()) return null
+
+    val pages = month.sumOf { it.pages }
+    val mins = month.mapNotNull { it.minutes }.sum().takeIf { it > 0 }
+    val ppm = if (mins != null && mins >= 10 && pages > 0) pages.toDouble() / mins else null
+
+    val prevKey = isoPlusDays(start, -1).take(7)
+    val (pStart, pEnd) = monthRange(prevKey)
+    val prev = sessions.filter { it.date in pStart..pEnd }
+    val delta = if (prev.isNotEmpty()) pages - prev.sumOf { it.pages } else null
+
+    // Mejor semana (lunes como clave); con una sola semana con sesiones no hay "mejor"
+    val byWeek = month.groupBy { mondayOf(it.date) }.mapValues { (_, s) -> s.sumOf { it.pages } }
+    val bestWeek = if (byWeek.size >= 2) byWeek.maxByOrNull { it.value } else null
+
+    val finished = books.count { it.endDate != null && it.endDate in start..end }
+    val started = books.count { it.startDate != null && it.startDate in start..end }
+    val dropped = books.count { b -> b.dateEvents.any { it.type == "drop" && it.date in start..end } }
+
+    val byBook = month.groupBy { it.bookId }.mapValues { (_, s) -> s.sumOf { it.pages } }
+    val topBook = byBook.filterValues { it > 0 }.maxByOrNull { it.value }
+
+    return MonthlyRecap(
+        monthKey = monthKey, startIso = start, endIso = end,
+        finishedCount = finished, startedCount = started, droppedCount = dropped,
+        pages = pages, deltaPages = delta, minutes = mins, pagesPerMin = ppm,
+        bestWeekStartIso = bestWeek?.key, bestWeekPages = bestWeek?.value ?: 0,
+        bookOfMonthId = topBook?.key, bookOfMonthPages = topBook?.value ?: 0
+    )
+}
+
 /** Recap de la semana (lunes–domingo) que contiene [todayIso]. Devuelve null si
  *  la semana no tiene ninguna sesión (no hay nada que contar). */
 fun computeWeeklyRecap(
