@@ -3727,16 +3727,11 @@ fun ListScreen(
                 vm = vm,
                 theme = theme,
                 onClose = { historyOpen = false },
-                onDetail = { id -> historyOpen = false; onDetail(id) }
+                onDetail = { id -> historyOpen = false; onDetail(id) },
+                // Fase 6.1 (D-008, T2): primera apertura del historial — cómo se cierra
+                showCloseTip = historyTipVisible,
+                onDismissCloseTip = { Tips.mark(prefs, Tips.HISTORY); historyTipVisible = false }
             )
-            // Fase 6.1 (D-008, T2): primera apertura del historial — cómo se cierra
-            if (historyTipVisible) {
-                TipCard(
-                    stringResource(R.string.tip_history_title), stringResource(R.string.tip_history_body), theme,
-                    onDismiss = { Tips.mark(prefs, Tips.HISTORY); historyTipVisible = false },
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 78.dp, start = 12.dp, end = 12.dp)
-                )
-            }
         }
     }
     // v2.4 rework: host del Snackbar de favoritos, superpuesto al contenido
@@ -9652,7 +9647,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 private data class BookLangKey(val bookId: Long, val language: String)
 
 @Composable
-fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, onDetail: (Long) -> Unit = {}) {
+fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, onDetail: (Long) -> Unit = {}, showCloseTip: Boolean = false, onDismissCloseTip: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
@@ -9797,6 +9792,16 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         }
 
         HorizontalDivider(color = theme.border, thickness = 0.5.dp)
+
+        // Fase 6.1 (D-008, T2): primera apertura — cómo se cierra el panel.
+        // En el flujo del layout (no overlay): no tapa las pills ni el orden.
+        if (showCloseTip) {
+            TipCard(
+                stringResource(R.string.tip_history_title), stringResource(R.string.tip_history_body), theme,
+                onDismiss = onDismissCloseTip,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
 
         // ── Orden + Búsqueda ──────────────────────────────────────────────────
         Column(
