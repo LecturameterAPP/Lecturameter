@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#EEF2FF" />
+    <!-- Fase 3 (Claro C2): degradado frío a juego con el fondo de la app -->
+    <gradient
+        android:angle="315"
+        android:startColor="#F4F4FB"
+        android:endColor="#E8EAF6"
+        android:type="linear" />
     <corners android:radius="20dp" />
 </shape>

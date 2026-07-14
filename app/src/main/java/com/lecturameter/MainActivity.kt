@@ -410,7 +410,7 @@ val AccentAurora = Color(0xFFB794F6)
 val AccentLight  = Color(0xFF4338CA)
 fun accentForTheme(theme: Theme): Color = when {
     theme.accent != null                               -> theme.accent  // Dinámico (Material You)
-    !theme.isDark && theme.bgDark == Color(0xFFDDE3EC) -> AccentLight   // Claro D
+    !theme.isDark                                      -> AccentLight   // Claro (único tema claro)
     theme.bgDark == BgDarkA                            -> AccentAurora  // Aurora
     else -> Accent
 }
@@ -424,8 +424,10 @@ val BgDarkD = Color(0xFF0F172A); val BgMidD = Color(0xFF1E1B4B)
 val SurfaceD = Color(0x0DFFFFFF); val BorderD = Color(0x2BFFFFFF)
 val TextMainD = Color(0xFFF1F5F9); val TextMutedD = Color(0xFF94A3B8); val TextDimD = Color(0xFF64748B)
 
-val BgDarkL = Color(0xFFDDE3EC); val BgMidL = Color(0xFFD0D9E5)
-val SurfaceL = Color(0xFFEEF2F8); val BorderL = Color(0xFFBCC8D8)
+// Fase 3 (Claro C2 "Híbrido", mockup aprobado 14-07): fondo frío menos gris que el anterior
+// (#DDE3EC → #F4F4FB) y la mejora clave tomada de REX: tarjetas BLANCAS que despegan del fondo.
+val BgDarkL = Color(0xFFF4F4FB); val BgMidL = Color(0xFFE8EAF6)
+val SurfaceL = Color(0xFFFFFFFF); val BorderL = Color(0xFFCBD0E4)
 val TextMainL = Color(0xFF1A2030); val TextMutedL = Color(0xFF485868); val TextDimL = Color(0xFF7A90A4)
 
 // Aurora C "Aurora boreal" (Fase 3, mockup aprobado 11-07): degradado teal → púrpura.
@@ -451,7 +453,7 @@ enum class ThemeMode(val value: String) {
 data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent, val bgDeep: Color = Color.Transparent, val accent: Color? = null)
 
 fun buildTheme(mode: ThemeMode) = when (mode) {
-    ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFEEF2F8), bgSurf2 = Color(0xFFDDE3EC))
+    ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFFFFFFF), bgSurf2 = Color(0xFFE8EAF6))
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
     ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))
@@ -1348,6 +1350,8 @@ sealed class Screen {
     object List : Screen(); object Add : Screen(); object BookSearch : Screen(); object Stats : Screen()
     object ImportExport : Screen(); object WrappedHistory : Screen()
     object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
+    // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
+    object WeeklyRecap : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
     data class AuthorBooks(val author: String) : Screen()
     data class Wrapped(val year: Int) : Screen()
@@ -1369,6 +1373,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
+    is Screen.WeeklyRecap -> "weekly_recap"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
     is Screen.AuthorBooks -> "author/${Uri.encode(author)}"
     is Screen.Wrapped -> "wrapped/$year"
@@ -8431,6 +8436,35 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val avgPerSessionDay = totalSessionPages.toDouble() / sessionDays
                             StatBox(String.format("%.1f", avgPerSessionDay), stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, highlight = true)
                         }
+                    }
+                }
+                // ── Fase 5: Predictor de finalización (P-C aprobada 14-07) ──────────
+                // Línea sutil bajo las pills. Solo lectura en curso con ≥3 sesiones con
+                // páginas en 30 días; si no hay datos, no aparece (regla: no inventar).
+                if (book.status == BookStatus.READING && !book.isRereading) {
+                    val predPagesRead = bookSessions.sumOf { it.pages }
+                    val predTotal = when {
+                        book.firstFunctionalPage != null && book.lastFunctionalPage != null ->
+                            (book.lastFunctionalPage - book.firstFunctionalPage + 1).coerceAtLeast(1)
+                        book.lastFunctionalPage != null -> book.lastFunctionalPage
+                        else -> book.pages
+                    }
+                    val prediction = remember(bookSessions, predTotal) {
+                        com.lecturameter.utils.predictFinish(bookSessions, predTotal - predPagesRead, today())
+                    }
+                    if (prediction != null) {
+                        val predLocale = appDisplayLocale
+                        val predDate = remember(prediction, predLocale) {
+                            try {
+                                val d = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(prediction.targetDateIso)
+                                java.text.SimpleDateFormat("d MMM", predLocale).format(d!!)
+                            } catch (_: Exception) { prediction.targetDateIso }
+                        }
+                        Text(
+                            stringResource(R.string.finish_prediction_line, prediction.pagesPerDay, predDate, prediction.daysLeft),
+                            color = theme.textMuted, fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
                 } // end !hasRereads
