@@ -11178,6 +11178,8 @@ fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {})
     val deviceInfo = remember {
         buildString {
             append("App: Lecturameter ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n")
+            // 14-07: el refac comparte versionName con la 2.7 — el package distingue origen
+            append("Package: ${BuildConfig.APPLICATION_ID}\n")
             append("Marca: ${android.os.Build.BRAND}\n")
             append("Modelo: ${android.os.Build.MODEL}\n")
             append("Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n")
