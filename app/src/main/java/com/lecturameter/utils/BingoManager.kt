@@ -51,6 +51,9 @@ object BingoManager {
         return lines
     }
 
+    /** Fase 4 (D-003, animación de línea): índices de las celdas de una línea ("row0".."diag1"). */
+    fun lineIndices(side: Int, lineKey: String): List<Int> = linesFor(side)[lineKey] ?: emptyList()
+
     fun loadTemplates(context: Context): List<BingoTemplate> {
         cachedTemplates?.let { return it }
         return try {

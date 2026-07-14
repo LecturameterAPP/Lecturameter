@@ -937,6 +937,35 @@
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>
     <string name="quickstart_session_running">Session in progress</string>
     <string name="finish_prediction_line">🔮 At your current pace (%1$d pages/day) you\'ll finish around %2$s (~%3$d days)</string>
+    <!-- Fase 6.1 (D-008): one-time contextual tips -->
+    <string name="tip_rail_title">Your sections rail</string>
+    <string name="tip_rail_body">It hides when you scroll and with ←; swipe → from the edge to bring it back. Long-press to reorder.</string>
+    <string name="tip_history_title">To close</string>
+    <string name="tip_history_body">Swipe left, or tap the edge strip.</string>
+    <string name="tip_first_book_title">First book finished</string>
+    <string name="tip_first_book_body">Your stats are starting to make sense.</string>
+    <string name="tip_first_book_action">View stats</string>
+    <string name="tip_recap_title">Your first weekly recap is ready</string>
+    <string name="tip_recap_body">A summary of your reading week, in Statistics.</string>
+    <string name="tip_recap_action">See it</string>
+    <string name="tip_bingo_title">Card completed</string>
+    <string name="tip_bingo_body">A new one arrives on the 1st.</string>
+    <string name="tip_unvisited_title">Discover your reading stats</string>
+    <string name="tip_unvisited_action">Open</string>
+    <string name="tip_widget_title">Put your current book on your home screen</string>
+    <string name="tip_widget_body">Add the Lecturameter widget from your launcher.</string>
+    <!-- Fase 4 (D-009): 5-slide philosophical tutorial -->
+    <string name="tut5_value_title">Your reading, letter by letter</string>
+    <string name="tut5_value_desc">Lecturameter measures how you read: your books, your sessions and your pace.</string>
+    <string name="tut5_basics_title">Start with the basics</string>
+    <string name="tut5_basics_desc">Add a book and log your first session. That\'s all you need.</string>
+    <string name="tut5_promise_title">The rest comes on its own</string>
+    <string name="tut5_promise_desc">Over time you\'ll discover stats, challenges and recaps of your reading year.</string>
+    <string name="tut5_privacy_title">Your data is yours</string>
+    <string name="tut5_privacy_desc">Everything stays on your device. Lecturameter doesn\'t know what you read or how you read.</string>
+    <string name="tut5_battery_title">One important setting</string>
+    <string name="tut5_battery_desc">Turn off battery optimization so the timer never stops.</string>
+    <string name="tut5_battery_cta">Open battery settings</string>
     <!-- Fase 5 (P-023): Weekly recap R-1 -->
     <string name="recap_card_line">📅 Your week: %1$d pages · %2$d sess.</string>
     <string name="recap_title">📅 Your week</string>

@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -1722,18 +1723,20 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         // siendo visible en los bordes.
         Box(Modifier.fillMaxSize().background(bgBrush)) {
         Box(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-            // Fase 1.4: NavHost sin transiciones (paridad visual con 2.7; animaciones = Fase 4).
-            // Feedback 11-07: EnterTransition.None NO es instantáneo — el reloj de la
-            // transición sigue corriendo y la pantalla saliente queda visible (fade feo
-            // con solape). snap() hace el cambio en un frame.
+            // Fase 4 (D-003, 1A): transición slide+fade direccional ~220 ms — la pantalla
+            // nueva entra deslizando ligeramente desde la derecha; al volver, desde la
+            // izquierda. Sustituye al snap() de Fase 1.4 (B-005: None no era instantáneo;
+            // con animación real el reloj de transición se usa de verdad y no hay solape).
             // v2.4: pantallas secundarias centradas en anchos ≥600dp via WideScreenCenter.
+            val navSpec = androidx.compose.animation.core.tween<androidx.compose.ui.unit.IntOffset>(220)
+            val navFadeSpec = androidx.compose.animation.core.tween<Float>(220)
             NavHost(
                 navController = navController,
                 startDestination = "list",
-                enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.snap()) },
-                exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.snap()) },
-                popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.snap()) },
-                popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.snap()) }
+                enterTransition = { androidx.compose.animation.slideInHorizontally(navSpec) { it / 6 } + androidx.compose.animation.fadeIn(navFadeSpec) },
+                exitTransition = { androidx.compose.animation.slideOutHorizontally(navSpec) { -it / 8 } + androidx.compose.animation.fadeOut(navFadeSpec) },
+                popEnterTransition = { androidx.compose.animation.slideInHorizontally(navSpec) { -it / 6 } + androidx.compose.animation.fadeIn(navFadeSpec) },
+                popExitTransition = { androidx.compose.animation.slideOutHorizontally(navSpec) { it / 8 } + androidx.compose.animation.fadeOut(navFadeSpec) }
             ) {
                 composable("list") {
                     WideScreenCenter(enabled = false) {
@@ -1748,6 +1751,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                                 onDetail = { navigateTo(Screen.Detail(it)) },
                                 onSettings = { navigateTo(Screen.Settings) },
                                 onImportExport = { navigateTo(Screen.ImportExport) },
+                                onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) },
                                 onScanIsbnSearch = {
                                     if (mainActivity != null) {
                                         val camPerm = android.Manifest.permission.CAMERA
@@ -1944,6 +1948,41 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
         }
         // Feedback 13-07 (10): cartón 4×4 (lado dinámico según la plantilla)
         val side = com.lecturameter.utils.BingoManager.sideOf(c.cells.size).coerceAtLeast(3)
+
+        // ── Fase 4 (D-003, 4): flip + glow fusionados, SOLO la primera vez ──────────
+        // La celda completada gira una vez y suelta un destello que se apaga; al cerrar
+        // una línea, el glow la recorre y muere. Un set persistido por cartón recuerda
+        // qué celdas/líneas ya animaron (al volver al Bingo se pintan quietas).
+        // Con "reducir animaciones" del sistema se marca sin animar.
+        val bingoCtx = androidx.compose.ui.platform.LocalContext.current
+        val bingoReduceMotion = remember {
+            android.provider.Settings.Global.getFloat(
+                bingoCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        }
+        var animatedCells by remember { mutableStateOf(prefs.getStringSet("bingo_anim_cells", emptySet())!!.toSet()) }
+        var animatedLines by remember { mutableStateOf(prefs.getStringSet("bingo_anim_lines", emptySet())!!.toSet()) }
+        fun markCellAnimated(k: String) { animatedCells = animatedCells + k; prefs.edit().putStringSet("bingo_anim_cells", animatedCells).apply() }
+        fun markLineAnimated(k: String) { animatedLines = animatedLines + k; prefs.edit().putStringSet("bingo_anim_lines", animatedLines).apply() }
+        val cellAnim = remember(c.monthKey, c.templateId) { List(c.cells.size) { androidx.compose.animation.core.Animatable(0f) } }
+        val sweepAnim = remember(c.monthKey, c.templateId) { List(c.cells.size) { androidx.compose.animation.core.Animatable(0f) } }
+        LaunchedEffect(c.completedLines, c.monthKey) {
+            val pendingLines = c.completedLines.filter { "${c.monthKey}:${c.templateId}:$it" !in animatedLines }
+            for (line in pendingLines) {
+                val key = "${c.monthKey}:${c.templateId}:$line"
+                if (!bingoReduceMotion) {
+                    kotlinx.coroutines.delay(450)
+                    for (i in com.lecturameter.utils.BingoManager.lineIndices(side, line)) {
+                        launch {
+                            sweepAnim[i].snapTo(0f)
+                            sweepAnim[i].animateTo(1f, tween(300))
+                            sweepAnim[i].animateTo(0f, tween(650))
+                        }
+                        kotlinx.coroutines.delay(150)
+                    }
+                }
+                markLineAnimated(key)
+            }
+        }
         val doneCount = c.cells.count { it.isCompleted }
         val complete = doneCount == c.cells.size
         // Tipografías según densidad del cartón (4×4 necesita textos más compactos)
@@ -1980,16 +2019,46 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
             for (row in 0 until side) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     for (col in 0 until side) {
-                        val cell = c.cells[row * side + col]
+                        val cellIdx = row * side + col
+                        val cell = c.cells[cellIdx]
                         val bg by androidx.compose.animation.animateColorAsState(
                             targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else theme.bgMid,
                             animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
                         )
+                        // Fase 4 (D-003, 4): dispara el flip+glow SOLO si esta celda nunca animó
+                        val cellKey = "${c.monthKey}:${c.templateId}:$cellIdx"
+                        LaunchedEffect(cell.isCompleted, cellKey) {
+                            if (cell.isCompleted && cellKey !in animatedCells) {
+                                if (!bingoReduceMotion) {
+                                    cellAnim[cellIdx].snapTo(0.001f)
+                                    cellAnim[cellIdx].animateTo(1f, tween(1500))
+                                    cellAnim[cellIdx].snapTo(0f)
+                                }
+                                markCellAnimated(cellKey)
+                            }
+                        }
                         Box(
                             Modifier
                                 .weight(1f)
                                 .padding(horizontal = 2.dp)
                                 .aspectRatio(1f)
+                                .graphicsLayer {
+                                    val p = cellAnim[cellIdx].value
+                                    if (p > 0f) {
+                                        rotationY = 360f * (p / 0.38f).coerceAtMost(1f)
+                                        cameraDistance = 12f * density
+                                    }
+                                }
+                                .drawBehind {
+                                    val p = cellAnim[cellIdx].value
+                                    val glowA = if (p > 0.2f) (1f - kotlin.math.abs(p - 0.6f) / 0.4f).coerceIn(0f, 1f) else 0f
+                                    val a = maxOf(glowA, sweepAnim[cellIdx].value)
+                                    if (a > 0f) drawRoundRect(
+                                        color = accent.copy(alpha = 0.6f * a),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6.dp.toPx()),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
+                                    )
+                                }
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(bg)
                                 .border(
@@ -2052,6 +2121,22 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 Text(stringResource(R.string.bingo_renews), color = theme.textMuted, fontSize = 11.5.sp)
             }
             Spacer(Modifier.height(24.dp))
+        }
+        // Fase 6.1 (D-008, T5): primer cartón completado — tip de la rotación mensual
+        var bingoTipVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(complete) {
+            if (complete && !Tips.seen(prefs, Tips.BINGO_DONE) && !Tips.snackShownThisLaunch) {
+                Tips.mark(prefs, Tips.BINGO_DONE)
+                Tips.snackShownThisLaunch = true
+                bingoTipVisible = true
+            }
+        }
+        if (bingoTipVisible) {
+            TipSnackbar(
+                TipSnack(Tips.BINGO_DONE, stringResource(R.string.tip_bingo_title), stringResource(R.string.tip_bingo_body)),
+                theme, onGone = { bingoTipVisible = false },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+            )
         }
     }
 }
@@ -2319,6 +2404,93 @@ fun LanguageSelectionScreen(theme: Theme, onLanguageSelected: (String) -> Unit) 
                 color = theme.textDim,
                 fontSize = 12.sp
             )
+        }
+    }
+}
+
+// ── Fase 6.1 (D-008): tips contextuales de una sola vez ──────────────────────
+// 7 tips en toda la vida de la app: rail · historial · primer libro terminado ·
+// primer recap · bingo completado · sección no abierta · widget (1ª sesión).
+// Formato B (card anclada) para gestos/UI; formato A (snackbar) para hitos.
+// Un flag por tip en prefs; nunca dos snackbars en el mismo arranque;
+// "Restablecer tutorial" también los resetea.
+object Tips {
+    const val RAIL = "tip_rail_shown"
+    const val HISTORY = "tip_history_shown"
+    const val FIRST_BOOK = "tip_first_book_shown"
+    const val FIRST_RECAP = "tip_first_recap_shown"
+    const val BINGO_DONE = "tip_bingo_done_shown"
+    const val UNVISITED = "tip_unvisited_shown"
+    const val WIDGET = "tip_widget_shown"
+    val ALL = listOf(RAIL, HISTORY, FIRST_BOOK, FIRST_RECAP, BINGO_DONE, UNVISITED, WIDGET)
+    /** Si dos hitos coinciden, el segundo espera a la siguiente apertura. */
+    var snackShownThisLaunch = false
+    fun seen(prefs: android.content.SharedPreferences, key: String) = prefs.getBoolean(key, false)
+    fun mark(prefs: android.content.SharedPreferences, key: String) { prefs.edit().putBoolean(key, true).apply() }
+    fun resetAll(prefs: android.content.SharedPreferences) {
+        prefs.edit().apply { ALL.forEach { remove(it) } }.apply()
+        snackShownThisLaunch = false
+    }
+}
+
+/** Datos de un tip de formato A (snackbar con acción opcional). */
+data class TipSnack(val key: String, val title: String, val body: String, val actionLabel: String? = null, val onAction: (() -> Unit)? = null)
+
+/** Formato B: card destacada in-place, anclada al elemento del que habla. */
+@Composable
+fun TipCard(title: String, body: String, theme: Theme, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    val acc = accentForTheme(theme)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = acc.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, acc.copy(alpha = 0.55f)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 2.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = acc, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                if (body.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(body, color = theme.textMuted, fontSize = 11.5.sp, lineHeight = 15.sp)
+                }
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(14.dp))
+            }
+        }
+    }
+}
+
+/** Formato A: snackbar inferior con acción; se descarta sola (~8 s), con ✕ o al actuar. */
+@Composable
+fun TipSnackbar(tip: TipSnack, theme: Theme, onGone: () -> Unit, modifier: Modifier = Modifier) {
+    val acc = accentForTheme(theme)
+    LaunchedEffect(tip.key) { kotlinx.coroutines.delay(8000); onGone() }
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = theme.bgMid,
+        border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)),
+        shadowElevation = 8.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 14.dp, end = 4.dp, top = 10.dp, bottom = 10.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(tip.title, color = theme.textMain, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                if (tip.body.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(tip.body, color = theme.textMuted, fontSize = 11.5.sp, lineHeight = 15.sp)
+                }
+                if (tip.actionLabel != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        tip.actionLabel, color = acc, fontSize = 11.5.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { tip.onAction?.invoke(); onGone() }
+                    )
+                }
+            }
+            IconButton(onClick = onGone, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(14.dp))
+            }
         }
     }
 }
@@ -2600,65 +2772,80 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
         // donaciones (Víctor 12-07). La slide 4 se reparte distinto en horizontal para
         // que el mock de la sesión desplegada no se corte: el historial pasa a ser el
         // visual de la izquierda y las pills acompañan al texto a la derecha.
+        // Fase 4 (D-009, 14-07): rework 10 → 5 slides FILOSÓFICAS (mockup r2 aprobado).
+        // El tutorial ya no explica features (eso son los tips contextuales de Fase 6):
+        // valor → básico → promesa → privacidad → batería. Textos estilo Augur, 1-2 frases.
+        // La slide 2 llevará captura real POR IDIOMA al cerrar F4; hasta entonces usa el
+        // mock de tarjeta (theme-aware y traducido). Emojis provisionales ("ya se cambiarán").
+        val tutContext = androidx.compose.ui.platform.LocalContext.current
         val pages = listOf(
-            // 1 — Tu biblioteca (antes 1+3; tarjeta mock + frase de ediciones)
-            TutorialPage("📚", stringResource(R.string.tut10_library_title), stringResource(R.string.tut10_library_desc),
+            // 1 — Propuesta de valor
+            TutorialPage("📚", stringResource(R.string.tut5_value_title), stringResource(R.string.tut5_value_desc)),
+            // 2 — Lo mínimo para empezar (captura real por idioma pendiente de F4)
+            TutorialPage("＋", stringResource(R.string.tut5_basics_title), stringResource(R.string.tut5_basics_desc),
                 visual = { TutorialBookCardVisual(theme) }),
-            // 2 — Importa y respalda
-            TutorialPage("📤", stringResource(R.string.tut10_backup_title), stringResource(R.string.tut10_backup_desc)),
-            // 3 — Sesiones (antes 4+8: cronómetro + registro manual)
-            TutorialPage("⏱️", stringResource(R.string.tut10_sessions_title), stringResource(R.string.tut10_sessions_desc)),
-            // 4 — Estadísticas (antes 5+7; mock de pills — opción A de Víctor: el mock usa
-            // los StatBox/DrawerStatChipH reales, así que hereda los colores vigentes)
-            if (isLandscape)
-                TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
-                    visual = { TutorialHistoryRowVisual(theme) },
-                    descriptionComposable = { th ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // 3 — La promesa (emoji provisional 🧭)
+            TutorialPage("🧭", stringResource(R.string.tut5_promise_title), stringResource(R.string.tut5_promise_desc)),
+            // 4 — Privacidad como identidad
+            TutorialPage("🔒", stringResource(R.string.tut5_privacy_title), stringResource(R.string.tut5_privacy_desc)),
+            // 5 — Batería, con CTA que abre los ajustes del sistema
+            TutorialPage("🔋", stringResource(R.string.tut5_battery_title), "",
+                descriptionComposable = { th ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.tut5_battery_desc),
+                            color = th.textMuted, fontSize = 15.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Surface(
+                            onClick = {
+                                try {
+                                    tutContext.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                } catch (_: Exception) {
+                                    try {
+                                        tutContext.startActivity(android.content.Intent(
+                                            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                            android.net.Uri.parse("package:" + tutContext.packageName)))
+                                    } catch (_: Exception) { }
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0x26F59E0B),
+                            border = BorderStroke(1.dp, Color(0x80F59E0B))
+                        ) {
                             Text(
-                                stringResource(R.string.tut10_stats_desc),
-                                color = th.textMuted, fontSize = 15.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
+                                stringResource(R.string.tut5_battery_cta),
+                                color = Amber, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
                             )
-                            Spacer(Modifier.height(12.dp))
-                            TutorialStatsPillsVisual(th)
                         }
                     }
-                )
-            else
-                TutorialPage("📊", stringResource(R.string.tut10_stats_title), "",
-                    visual = { TutorialStatsPillsVisual(theme) },
-                    descriptionComposable = { th ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                stringResource(R.string.tut10_stats_desc),
-                                color = th.textMuted, fontSize = 15.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            TutorialHistoryRowVisual(th)
-                        }
-                    }
-                ),
-            // 5 — Retos
-            TutorialPage("🏆", stringResource(R.string.tut10_challenges_title), stringResource(R.string.tut10_challenges_desc)),
-            // 6 — Widget
-            TutorialPage("🧩", stringResource(R.string.tut_widget_title), stringResource(R.string.tut_widget_desc), visual = { TutorialWidgetVisual(theme) }),
-            // 7 — Herramientas en Ajustes
-            TutorialPage("🛠️", stringResource(R.string.tut_p10_title), stringResource(R.string.tut_p10_desc)),
-            // 8 — Restricciones de batería
-            TutorialPage("🔋", stringResource(R.string.tut_p12_title), stringResource(R.string.tut_p12_desc)),
-            // 9 — Feedback
-            TutorialPage("📨", stringResource(R.string.tut_p11_title), stringResource(R.string.tut_p11_desc)),
-            // 10 — Donaciones
-            TutorialPage("", stringResource(R.string.tut_donations_title), stringResource(R.string.tut_donations_desc), visual = { TutorialDonationsVisual(theme) })
+                })
         )
         val pagerState = androidx.compose.foundation.pager.rememberPagerState { pages.size }
+        // D-009: el atrás del sistema retrocede de slide (en la 1 no intercepta)
+        BackHandler(enabled = pagerState.currentPage > 0) {
+            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        }
         Column(
             Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // D-009: barra de progreso superior por segmentos (sustituye al contador y a
+            // los puntitos de abajo — feedback 14-07)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.widthIn(max = footerMax).fillMaxWidth().padding(top = 8.dp, bottom = 4.dp)
+            ) {
+                repeat(pages.size) { i ->
+                    Box(
+                        Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(2.dp))
+                            .background(if (i <= pagerState.currentPage) Accent else theme.border)
+                    )
+                }
+            }
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
@@ -2668,22 +2855,9 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                 }
             }
 
-            // Indicador de página: número + fila de puntos (estilo dot-pagination)
-            Text(
-                "${pagerState.currentPage + 1} / ${pages.size}",
-                color = theme.textDim, fontSize = 13.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 16.dp)) {
-                repeat(pages.size) { i ->
-                    Box(
-                        Modifier
-                            .size(if (i == pagerState.currentPage) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(if (i == pagerState.currentPage) Accent else theme.border)
-                    )
-                }
-            }
+            // D-009 (feedback 14-07): contador y puntitos ELIMINADOS — la posición la
+            // indica solo la barra de segmentos superior.
+            Spacer(Modifier.height(16.dp))
 
             // Feedback 2.6: 3 slots simétricos (weight 1 a cada lado) — Saltar queda centrado
             // en pantalla Y equidistante de Atrás/Siguiente. El texto de los botones laterales
@@ -2760,7 +2934,8 @@ fun ListScreen(
     onScanIsbnSearch: () -> Unit = {},
     onNavigateToBookSearch: () -> Unit = {},
     onAddWithIsbn: (String) -> Unit = {},
-    onEasterEgg: () -> Unit = {}
+    onEasterEgg: () -> Unit = {},
+    onWeeklyRecap: () -> Unit = {}
 ) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val booksAll by vm.books.collectAsState()
@@ -2910,6 +3085,39 @@ fun ListScreen(
             onSkip    = { vm.completeTutorial(prefs); android.widget.Toast.makeText(tutCtx, tutDoneMsg, android.widget.Toast.LENGTH_SHORT).show() }
         )
         return
+    }
+
+    // ── Fase 6.1 (D-008): tips contextuales — estado y selector ──────────────────
+    val sessionsForTips by vm.sessions.collectAsState()
+    var railTipVisible by remember { mutableStateOf(!Tips.seen(prefs, Tips.RAIL)) }
+    var historyTipVisible by remember { mutableStateOf(!Tips.seen(prefs, Tips.HISTORY)) }
+    var activeTipSnack by remember { mutableStateOf<TipSnack?>(null) }
+    // Marca del primer arranque (para el tip de sección no abierta tras N días)
+    LaunchedEffect(Unit) {
+        if (!prefs.contains("first_launch_ts")) prefs.edit().putLong("first_launch_ts", System.currentTimeMillis()).apply()
+    }
+    val tipFirstBook = TipSnack(Tips.FIRST_BOOK, stringResource(R.string.tip_first_book_title), stringResource(R.string.tip_first_book_body), stringResource(R.string.tip_first_book_action)) { onStats() }
+    val tipWidget = TipSnack(Tips.WIDGET, stringResource(R.string.tip_widget_title), stringResource(R.string.tip_widget_body))
+    val tipRecap = TipSnack(Tips.FIRST_RECAP, stringResource(R.string.tip_recap_title), stringResource(R.string.tip_recap_body), stringResource(R.string.tip_recap_action)) { onWeeklyRecap() }
+    val tipUnvisited = TipSnack(Tips.UNVISITED, stringResource(R.string.tip_unvisited_title), "", stringResource(R.string.tip_unvisited_action)) { onStats() }
+    LaunchedEffect(booksAll, sessionsForTips, railTipVisible) {
+        // Uno por arranque; la card del rail tiene prioridad y silencia los snackbars
+        if (Tips.snackShownThisLaunch || railTipVisible || activeTipSnack != null || booksAll.isEmpty()) return@LaunchedEffect
+        val finishedCount = booksAll.count { it.status == BookStatus.FINISHED }
+        val recapReady = com.lecturameter.utils.computeWeeklyRecap(booksAll, sessionsForTips, vm.bingoCard.value, vm.challenges.value, today()) != null
+        val daysSinceFirst = (System.currentTimeMillis() - prefs.getLong("first_launch_ts", System.currentTimeMillis())) / 86_400_000L
+        val candidate = when {
+            !Tips.seen(prefs, Tips.FIRST_BOOK) && finishedCount == 1 -> tipFirstBook
+            !Tips.seen(prefs, Tips.WIDGET) && sessionsForTips.size == 1 -> tipWidget
+            !Tips.seen(prefs, Tips.FIRST_RECAP) && recapReady -> tipRecap
+            !Tips.seen(prefs, Tips.UNVISITED) && !prefs.getBoolean("stats_opened", false) && daysSinceFirst >= 7 -> tipUnvisited
+            else -> null
+        }
+        if (candidate != null) {
+            Tips.mark(prefs, candidate.key)
+            Tips.snackShownThisLaunch = true
+            activeTipSnack = candidate
+        }
     }
 
     // ── D-002/T1: bottom sheet de inicio rápido — libros Leyendo/Releyendo con ▶ ──
@@ -3320,6 +3528,15 @@ fun ListScreen(
             }
         }
 
+        // ── Fase 6.1 (D-008, T1): card del rail — primera vez en el home ─────
+        if (railTipVisible) {
+            TipCard(
+                stringResource(R.string.tip_rail_title), stringResource(R.string.tip_rail_body), theme,
+                onDismiss = { Tips.mark(prefs, Tips.RAIL); railTipVisible = false },
+                modifier = Modifier.padding(start = 10.dp, end = 16.dp, top = 6.dp)
+            )
+        }
+
         // ── Content: books for active shelf ─────────────────────────────────
         val activeStatus = SHELF_ORDER[activeTab]
         val activeBooks  = shelves[activeStatus] ?: emptyList()
@@ -3512,6 +3729,14 @@ fun ListScreen(
                 onClose = { historyOpen = false },
                 onDetail = { id -> historyOpen = false; onDetail(id) }
             )
+            // Fase 6.1 (D-008, T2): primera apertura del historial — cómo se cierra
+            if (historyTipVisible) {
+                TipCard(
+                    stringResource(R.string.tip_history_title), stringResource(R.string.tip_history_body), theme,
+                    onDismiss = { Tips.mark(prefs, Tips.HISTORY); historyTipVisible = false },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 78.dp, start = 12.dp, end = 12.dp)
+                )
+            }
         }
     }
     // v2.4 rework: host del Snackbar de favoritos, superpuesto al contenido
@@ -3519,6 +3744,13 @@ fun ListScreen(
         hostState = favSnackbarState,
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
     )
+    // Fase 6.1 (D-008): snackbar de tips (formato A) — hitos de datos
+    activeTipSnack?.let { t ->
+        TipSnackbar(
+            t, theme, onGone = { activeTipSnack = null },
+            modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp).padding(bottom = 14.dp)
+        )
+    }
     } // Box
 }
 
@@ -5497,6 +5729,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
+    // Fase 6.1 (D-008, T6): registrar que Estadísticas ya se ha abierto
+    LaunchedEffect(Unit) { _prefs.edit().putBoolean("stats_opened", true).apply() }
     // Solo FINISHED con fechas distintas (mismo día distorsiona velocidad)
     val finished = books.filter {
         it.status == BookStatus.FINISHED &&
@@ -8373,8 +8607,33 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                         Icon(Icons.Default.PlayArrow, contentDescription = "Start", tint = Color.White, modifier = Modifier.size(24.dp))
                                     }
                                 } else {
+                                    // Fase 4 (D-003, 2A): halo que respira alrededor del control
+                                    // mientras la sesión corre. drawBehind no altera el layout.
+                                    // Con "reducir animaciones" del sistema, el halo no se pinta.
+                                    val haloT = androidx.compose.animation.core.rememberInfiniteTransition(label = "timerHalo")
+                                    val haloP by haloT.animateFloat(
+                                        initialValue = 0f, targetValue = 1f,
+                                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                            animation = tween(1600, easing = androidx.compose.animation.core.LinearEasing)
+                                        ), label = "timerHaloP"
+                                    )
+                                    val reduceMotion = remember {
+                                        android.provider.Settings.Global.getFloat(
+                                            context.contentResolver,
+                                            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f
+                                        ) == 0f
+                                    }
                                     Box(
-                                        Modifier.size(44.dp).clip(CircleShape)
+                                        Modifier.size(44.dp)
+                                            .drawBehind {
+                                                if (!reduceMotion) {
+                                                    drawCircle(
+                                                        color = Amber.copy(alpha = 0.35f * (1f - haloP)),
+                                                        radius = size.minDimension / 2f + 9.dp.toPx() * haloP
+                                                    )
+                                                }
+                                            }
+                                            .clip(CircleShape)
                                             .background(Amber)
                                             .clickable { com.lecturameter.TimerService.pause(context) },
                                         contentAlignment = Alignment.Center
@@ -8470,7 +8729,28 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                           }
                         }
                     }
-                    Box {
+                    // Fase 4 (D-003, 3A): al pasar a Leído, tinte verde breve tras los badges
+                    // + pop del ✅ que se desvanece. Una vez por transición; con "reducir
+                    // animaciones" del sistema no se anima.
+                    var prevStatusAnim by remember { mutableStateOf(book.status) }
+                    val finishFlash = remember { androidx.compose.animation.core.Animatable(0f) }
+                    LaunchedEffect(book.status) {
+                        val was = prevStatusAnim; prevStatusAnim = book.status
+                        val reduce = android.provider.Settings.Global.getFloat(
+                            context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+                        if (book.status == BookStatus.FINISHED && was != BookStatus.FINISHED && !reduce) {
+                            finishFlash.snapTo(1f)
+                            finishFlash.animateTo(0f, animationSpec = tween(850))
+                        }
+                    }
+                    Box(
+                        Modifier.drawBehind {
+                            if (finishFlash.value > 0f) drawRoundRect(
+                                color = Green.copy(alpha = 0.30f * finishFlash.value),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx())
+                            )
+                        }
+                    ) {
                         // v20.7: xN = relecturas iniciadas (incluyendo la en curso)
                         val completedRR = startedRereads(book.dateEvents)
                         // Ambos badges: FINISHED+isRereading, o REREADING+endDate (retrocompat), o solo el estado
@@ -8501,6 +8781,15 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         DropdownMenu(expanded = showStatusMenu, onDismissRequest = { showStatusMenu = false }) {
                             Text(stringResource(R.string.txt_c4b4e77a), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                             SHELF_ORDER.forEach { s -> DropdownMenuItem(text = { Text(statusLabel(s), color = if (book.status == s) statusColor(s) else theme.textMain) }, onClick = { vm.updateStatus(id, s, prefs); refreshWidgetForBookIfSelected(context, id); showStatusMenu = false }) }
+                        }
+                        if (finishFlash.value > 0f) {
+                            Text(
+                                "✅", fontSize = 18.sp,
+                                modifier = Modifier.align(Alignment.CenterEnd)
+                                    .offset(x = 26.dp)
+                                    .scale(1f + 0.35f * finishFlash.value)
+                                    .alpha(finishFlash.value)
+                            )
                         }
                     }
                 }
@@ -11689,7 +11978,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 subtitle = stringResource(R.string.settings_tutorial_row_subtitle),
                 running = false,
                 theme = theme,
-                onClick = { vm.resetTutorial(prefs); onResetTutorial() }
+                onClick = { vm.resetTutorial(prefs); Tips.resetAll(prefs); onResetTutorial() }
             )
         }
 
