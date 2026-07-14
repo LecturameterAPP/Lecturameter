@@ -11728,6 +11728,17 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
     var showCreateDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Challenge?>(null) }
 
+    // Feedback 14-07: nombre traducido de los retos por defecto (el sembrado congela
+    // el nombre en el idioma del momento) — usado en la tarjeta Y en el diálogo de borrar
+    @Composable
+    fun challengeDisplayName(challenge: Challenge): String = if (challenge.isDefault) when (challenge.type) {
+        ChallengeType.BOOKS    -> stringResource(R.string.challenge_default_books)
+        ChallengeType.STREAK   -> stringResource(R.string.challenge_default_streak)
+        ChallengeType.PAGES    -> stringResource(R.string.challenge_default_pages)
+        ChallengeType.SESSIONS -> stringResource(R.string.challenge_default_sessions)
+        ChallengeType.MINUTES  -> stringResource(R.string.challenge_default_minutes)
+    } else challenge.name
+
     // ── Diálogo crear reto ────────────────────────────────────────────────────
     if (showCreateDialog) {
         var name by remember { mutableStateOf("") }
@@ -11858,7 +11869,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             onDismissRequest = { deleteTarget = null },
             containerColor = theme.bgMid,
             title = { Text(stringResource(R.string.challenge_delete_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.challenge_delete_text, challenge.name), color = theme.textMuted, fontSize = 13.sp) },
+            text = { Text(stringResource(R.string.challenge_delete_text, challengeDisplayName(challenge)), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
                 TextButton(onClick = { vm.deleteChallenge(challenge.id, prefs); deleteTarget = null }) {
                     Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold)
@@ -11921,12 +11932,9 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                // v2.5: los retos predeterminados se traducen al idioma actual
-                                val displayName = if (challenge.isDefault) when (challenge.type) {
-                                    ChallengeType.BOOKS  -> stringResource(R.string.challenge_default_books)
-                                    ChallengeType.STREAK -> stringResource(R.string.challenge_default_streak)
-                                    else -> challenge.name
-                                } else challenge.name
+                                // v2.5 + Feedback 14-07: los retos predeterminados se traducen
+                                // al idioma actual (los 5, no solo libros/racha)
+                                val displayName = challengeDisplayName(challenge)
                                 Text(displayName, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 val meta = buildString {
                                     append(if (challenge.isDefault) stringResource(R.string.challenge_meta_default) else stringResource(R.string.challenge_meta_custom))
