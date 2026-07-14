@@ -943,7 +943,7 @@
     <string name="finish_prediction_line">🔮 Al ritmo actual (%1$d págs/día) lo terminarás hacia el %2$s (~%3$d días)</string>
     <!-- Fase 6.1 (D-008): tips contextuales de una sola vez -->
     <string name="tip_rail_title">Tu rail de secciones</string>
-    <string name="tip_rail_body">Se oculta al hacer scroll y con ←; vuelve deslizando → desde el borde. Mantén pulsado para reordenar.</string>
+    <string name="tip_rail_body">Se oculta al deslizar la lista y con ←; vuelve deslizando → desde el borde. Mantén pulsado para reordenar.</string>
     <string name="tip_history_title">Para cerrar</string>
     <string name="tip_history_body">Desliza a la izquierda, o toca la franja del borde.</string>
     <string name="tip_first_book_title">Primer libro terminado</string>
