@@ -5450,7 +5450,7 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
                     val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
                     add(Triple(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
                 }
-                if (streak > 0) add(Triple(stringResource(R.string.recap_streak_value, streak), stringResource(R.string.recap_streak), Amber))
+                if (streak > 0) add(Triple(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Amber))
                 recap.bestDayIso?.let { add(Triple(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), null)) }
                 recap.longestSessionMinutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_longest), null)) }
                 add(Triple(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null))

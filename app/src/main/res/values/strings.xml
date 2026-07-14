@@ -952,7 +952,10 @@
     <string name="recap_slot_value">%1$d–%2$dh</string>
     <string name="recap_delta">Págs vs anterior</string>
     <string name="recap_streak">Racha</string>
-    <string name="recap_streak_value">🔥 %1$d días</string>
+    <plurals name="recap_streak_value">
+        <item quantity="one">🔥 %1$d día</item>
+        <item quantity="other">🔥 %1$d días</item>
+    </plurals>
     <string name="recap_best_day">Mejor día · %1$d p</string>
     <string name="recap_longest">Sesión más larga</string>
     <string name="recap_finished_started_value">%1$d ✅ · %2$d 📖</string>
