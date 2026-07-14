@@ -25,7 +25,10 @@ data class BingoCell(
     val labelEs: String,
     val labelEn: String,
     val isCompleted: Boolean = false,
-    val completedByBookId: Long? = null // null en celdas streak (no las completa un libro)
+    val completedByBookId: Long? = null, // null en celdas streak (no las completa un libro)
+    // Fase 5 (Recap semanal): fecha de completado yyyy-MM-dd. Null en celdas
+    // marcadas antes de añadir el campo (Gson tolera la ausencia).
+    val completedAt: String? = null
 )
 
 data class BingoCard(

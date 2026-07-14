@@ -936,4 +936,5 @@
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>
     <string name="quickstart_session_running">Session in progress</string>
+    <string name="finish_prediction_line">🔮 At your current pace (%1$d pages/day) you\'ll finish around %2$s (~%3$d days)</string>
 </resources>

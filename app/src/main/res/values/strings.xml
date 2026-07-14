@@ -940,4 +940,5 @@
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
     <string name="quickstart_session_running">Sesión en curso</string>
+    <string name="finish_prediction_line">🔮 Al ritmo actual (%1$d págs/día) lo terminarás hacia el %2$s (~%3$d días)</string>
 </resources>

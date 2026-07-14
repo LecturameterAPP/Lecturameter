@@ -66,6 +66,10 @@ object BingoManager {
     fun currentMonthKey(): String =
         SimpleDateFormat("yyyy-MM", Locale.US).format(Date())
 
+    // Fase 5 (Recap semanal): fecha de completado de las celdas
+    private fun todayIso(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
     fun newCard(template: BingoTemplate, monthKey: String): BingoCard = BingoCard(
         templateId = template.id,
         templateNameEs = template.es,
@@ -93,7 +97,7 @@ object BingoManager {
                 "saga"       -> looksLikeSaga(book)
                 else         -> false
             }
-            if (ok) { changed = true; cell.copy(isCompleted = true, completedByBookId = book.id) } else cell
+            if (ok) { changed = true; cell.copy(isCompleted = true, completedByBookId = book.id, completedAt = todayIso()) } else cell
         }
         if (!changed) return card
         return card.copy(cells = cells, completedLines = computeLines(cells))
@@ -105,7 +109,7 @@ object BingoManager {
         val cells = card.cells.map { cell ->
             if (cell.isCompleted || cell.conditionType != "streak") return@map cell
             if (streakDays >= (cell.conditionValue.toIntOrNull() ?: Int.MAX_VALUE)) {
-                changed = true; cell.copy(isCompleted = true)
+                changed = true; cell.copy(isCompleted = true, completedAt = todayIso())
             } else cell
         }
         if (!changed) return card
