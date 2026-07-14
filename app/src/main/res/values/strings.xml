@@ -941,4 +941,23 @@
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
     <string name="quickstart_session_running">Sesión en curso</string>
     <string name="finish_prediction_line">🔮 Al ritmo actual (%1$d págs/día) lo terminarás hacia el %2$s (~%3$d días)</string>
+    <!-- Fase 5 (P-023): Recap semanal R-1 -->
+    <string name="recap_card_line">📅 Tu semana: %1$d págs · %2$d ses.</string>
+    <string name="recap_title">📅 Tu semana</string>
+    <string name="recap_sessions">Sesiones</string>
+    <string name="recap_pages">Páginas</string>
+    <string name="recap_time">Tiempo</string>
+    <string name="recap_speed">Págs/min</string>
+    <string name="recap_slot">Tu franja</string>
+    <string name="recap_slot_value">%1$d–%2$dh</string>
+    <string name="recap_delta">Págs vs anterior</string>
+    <string name="recap_streak">Racha</string>
+    <string name="recap_streak_value">🔥 %1$d días</string>
+    <string name="recap_best_day">Mejor día · %1$d p</string>
+    <string name="recap_longest">Sesión más larga</string>
+    <string name="recap_finished_started_value">%1$d ✅ · %2$d 📖</string>
+    <string name="recap_finished_started">Terminados · empezados</string>
+    <string name="recap_challenges_bingo_value">🎯 +%1$d · ▦ +%2$d</string>
+    <string name="recap_challenges_bingo">Retos avanzados · casillas bingo</string>
+    <string name="recap_book_of_week">Libro de la semana · %1$d páginas</string>
 </resources>

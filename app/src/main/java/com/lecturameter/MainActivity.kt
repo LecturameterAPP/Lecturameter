@@ -1855,7 +1855,8 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                             )
                     }
                 }
-                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }) } }
+                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }, onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) }) } }
+                composable("weekly_recap") { WideScreenCenter { WeeklyRecapScreen(vm, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
                 composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
@@ -5383,8 +5384,116 @@ fun AdvancedStatsSections(vm: BooksViewModel, theme: Theme) {
 
 // ── StatsScreen ───────────────────────────────────────────────────────────────
 
+// ── Fase 5 (P-023): Recap semanal — pantalla R-1 del mockup_predictor_recap.html ──
+// Una página de un golpe de vista (scroll solo de seguridad en pantallas muy bajas).
+// Regla de oro: métrica sin datos suficientes = no aparece; nunca se inventa.
+
+private fun fmtDayMonth(iso: String): String = try {
+    java.text.SimpleDateFormat("d MMM", appDisplayLocale)
+        .format(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(iso)!!)
+} catch (_: Exception) { iso }
+
+private fun fmtWeekdayName(iso: String): String = try {
+    java.text.SimpleDateFormat("EEEE", appDisplayLocale)
+        .format(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(iso)!!)
+        .replaceFirstChar { it.uppercase(appDisplayLocale) }
+} catch (_: Exception) { iso }
+
 @Composable
-fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}) {
+private fun RecapMini(value: String, label: String, valueColor: Color?, theme: Theme, modifier: Modifier) {
+    Surface(shape = RoundedCornerShape(12.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = modifier.fillMaxHeight()) {
+        Column(
+            Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AutoSizeText(value, color = valueColor ?: theme.textMain, maxFontSize = 16.sp, minFontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text(label, color = theme.textDim, fontSize = 9.sp, textAlign = TextAlign.Center, maxLines = 2, lineHeight = 11.sp, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDetail: (Long) -> Unit) {
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    val bingoCard by vm.bingoCard.collectAsState()
+    val challenges by vm.challenges.collectAsState()
+    val recap = remember(books, sessions, bingoCard, challenges) {
+        com.lecturameter.utils.computeWeeklyRecap(books, sessions, bingoCard, challenges, today())
+    }
+    val streak = remember(sessions) { vm.currentReadingStreak() }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.recap_title), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                if (recap != null) {
+                    Text("${fmtDayMonth(recap.weekStartIso)} – ${fmtDayMonth(recap.weekEndIso)}", color = theme.textMuted, fontSize = 13.sp)
+                }
+            }
+        }
+
+        if (recap == null) {
+            // Solo alcanzable por estados intermedios: la tarjeta de acceso ya filtra
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📅", fontSize = 48.sp) }
+        } else {
+            val minis = buildList {
+                add(Triple(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions), null as Color?))
+                add(Triple(recap.pages.toString(), stringResource(R.string.recap_pages), null))
+                recap.minutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_time), null)) }
+                recap.pagesPerMin?.let { add(Triple(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), null)) }
+                recap.topSlotStartHour?.let { add(Triple(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot), null)) }
+                recap.deltaPages?.let { d ->
+                    val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
+                    add(Triple(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
+                }
+                if (streak > 0) add(Triple(stringResource(R.string.recap_streak_value, streak), stringResource(R.string.recap_streak), Amber))
+                recap.bestDayIso?.let { add(Triple(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), null)) }
+                recap.longestSessionMinutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_longest), null)) }
+                add(Triple(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null))
+                add(Triple(stringResource(R.string.recap_challenges_bingo_value, recap.challengesAdvanced, recap.bingoCellsCompleted), stringResource(R.string.recap_challenges_bingo), null))
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                minis.chunked(3).forEach { rowItems ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+                        rowItems.forEach { (v, l, c) -> RecapMini(v, l, c, theme, Modifier.weight(1f)) }
+                        repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                // Libro de la semana — banda inferior; es lo primero que cae si no cabe (regla 11-07)
+                recap.bookOfWeekId?.let { id ->
+                    books.find { it.id == id }?.let { b ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = theme.surface,
+                            border = BorderStroke(1.dp, theme.border),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clickable { onDetail(b.id) }
+                        ) {
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                BookCover(b.coverUrl, b.title, size = 44, isbnFallback = b.isbn)
+                                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                    Text(b.title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(stringResource(R.string.recap_book_of_week, recap.bookOfWeekPages), color = theme.textMuted, fontSize = 12.sp)
+                                }
+                                Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}, onWeeklyRecap: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
@@ -5506,6 +5615,29 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                         Text(if (alreadySaved) stringResource(R.string.wrapped_banner_saved) else stringResource(R.string.wrapped_banner_available), color = Gold.copy(alpha = 0.75f), fontSize = 12.sp)
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = Gold)
+                }
+            }
+        }
+
+        // ── Fase 5 (P-023, acceso A): tarjeta compacta del recap semanal ─────────
+        // Solo aparece si la semana en curso tiene alguna sesión (regla: no inventar)
+        val weeklyRecap = remember(books, sessions) {
+            com.lecturameter.utils.computeWeeklyRecap(books, sessions, vm.bingoCard.value, vm.challenges.value, today())
+        }
+        if (weeklyRecap != null) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = theme.surface,
+                border = BorderStroke(1.dp, theme.border),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
+            ) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
+                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                    )
+                    Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
                 }
             }
         }
