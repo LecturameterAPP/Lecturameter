@@ -3418,9 +3418,11 @@ fun ListScreen(
         )
     }
 
-    // Feedback 14-07: historial a PANTALLA COMPLETA — vive al nivel del Box raíz
+    // Feedback 14-07: historial CASI a pantalla completa — vive al nivel del Box raíz
     // (dentro del Column con weight le quedaba altura 0 y no se veía nada).
-    // Swipe ← sobre el panel lo cierra; el rail no se entera.
+    // Deja ~16dp a la derecha con el scrim asomando: pista visual de que el panel
+    // se cierra con swipe ← (tocar la franja también cierra). Pendiente de explicarse
+    // en el onboarding contextual (Fase 6).
     if (historyOpen) {
         Box(Modifier.fillMaxSize().background(Color(0x88000000)).clickable { historyOpen = false })
     }
@@ -3433,6 +3435,7 @@ fun ListScreen(
         Box(
             Modifier
                 .fillMaxSize()
+                .padding(end = 16.dp)
                 .background(Brush.verticalGradient(listOf(theme.bgDark, theme.bgMid, theme.bgDeep)))
                 .draggable(
                     orientation = Orientation.Horizontal,
