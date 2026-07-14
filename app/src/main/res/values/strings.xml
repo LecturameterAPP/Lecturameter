@@ -857,11 +857,11 @@
     <!-- v2.4 rework: widget personalizable -->
     <string name="widget_config_title">Personalizar widget</string>
     <string name="widget_cfg_emojis">😊 Mostrar emojis en chips</string>
-    <string name="widget_cfg_days">📅 Días leyendo</string>
-    <string name="widget_cfg_time">⏱️ Tiempo última sesión</string>
-    <string name="widget_cfg_sessions">📖 Sesiones</string>
-    <string name="widget_cfg_pages">📄 Páginas última sesión</string>
-    <string name="widget_cfg_percent">📊 Porcentaje</string>
+    <string name="widget_cfg_days">📅 Mostrar días leyendo</string>
+    <string name="widget_cfg_time">⏱️ Mostrar tiempo última sesión</string>
+    <string name="widget_cfg_sessions">📖 Mostrar sesiones</string>
+    <string name="widget_cfg_pages">📄 Mostrar páginas última sesión</string>
+    <string name="widget_cfg_percent">📊 Mostrar porcentaje</string>
     <string name="widget_cfg_save">Guardar</string>
     <!-- v2.4 rework: wrapped favoritos -->
     <string name="wrapped_favorites_section">Tus 3 favoritos del año</string>
@@ -939,4 +939,5 @@
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
+    <string name="quickstart_session_running">Sesión en curso</string>
 </resources>

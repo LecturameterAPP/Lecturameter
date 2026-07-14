@@ -155,15 +155,10 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_emojis), showEmojis) {
-                        showEmojis = it
-                        // v2.5: apagar el master de emojis desmarca el resto de toggles
-                        if (!it) { showDays = false; showTime = false; showSessions = false; showPages = false; showPercent = false }
-                        // QA 12-07 (B-011): encender el master con todo apagado re-activa el resto
-                        else if (!showDays && !showTime && !showSessions && !showPages && !showPercent) {
-                            showDays = true; showTime = true; showSessions = true; showPages = true; showPercent = true
-                        }
-                    }
+                    // Feedback 14-07 (F2): el toggle de emojis deja de ser "master" (B-011
+                    // revertido) — es un toggle independiente: solo controla si los chips
+                    // llevan emoji, no qué chips se muestran
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_emojis), showEmojis) { showEmojis = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_days), showDays) { showDays = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_time), showTime) { showTime = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_sessions), showSessions) { showSessions = it }

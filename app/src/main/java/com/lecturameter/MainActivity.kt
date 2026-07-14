@@ -419,7 +419,9 @@ val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)
 
 val BgDarkD = Color(0xFF0F172A); val BgMidD = Color(0xFF1E1B4B)
-val SurfaceD = Color(0x0DFFFFFF); val BorderD = Color(0x14FFFFFF)
+// Feedback 14-07 (F5): borde del tema oscuro más visible (8% → 17% de blanco,
+// contraste comparable al borde teal al 25% de Aurora)
+val SurfaceD = Color(0x0DFFFFFF); val BorderD = Color(0x2BFFFFFF)
 val TextMainD = Color(0xFFF1F5F9); val TextMutedD = Color(0xFF94A3B8); val TextDimD = Color(0xFF64748B)
 
 val BgDarkL = Color(0xFFDDE3EC); val BgMidL = Color(0xFFD0D9E5)
@@ -1049,6 +1051,10 @@ class MainActivity : ComponentActivity() {
     internal var pendingScannedIsbn = androidx.compose.runtime.mutableStateOf<String?>(null)
     // ISBN escaneado desde BookSearch — activa dialog directamente en BookSearchScreen
     internal var isbnFromScannerForBookSearch = androidx.compose.runtime.mutableStateOf<String?>(null)
+    // Feedback 14-07 (F6): query inicial para BookSearch (CTA «Buscar "X" en internet»).
+    // Canal PROPIO: antes se reutilizaba pendingScannedIsbn y al volver a la lista el
+    // observador del escáner mostraba el diálogo "ISBN escaneado: Sanderson"
+    internal var pendingSearchQuery = androidx.compose.runtime.mutableStateOf<String?>(null)
     // Diálogo educativo de permiso de cámara
     internal var showCameraPermDialog = androidx.compose.runtime.mutableStateOf(false)
     // Callback a ejecutar si el permiso es concedido (qué scanner lanzar)
@@ -1805,11 +1811,14 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("book_search") {
                     WideScreenCenter {
                             val bsMain = context as? MainActivity
-                            val isbnForSearch = bsMain?.pendingScannedIsbn?.value ?: ""
+                            // Feedback 14-07 (F6): la query de texto llega por su canal propio;
+                            // pendingScannedIsbn queda solo para ISBNs reales del escáner
+                            val isbnForSearch = bsMain?.pendingSearchQuery?.value
+                                ?: bsMain?.pendingScannedIsbn?.value ?: ""
                             val isbnFromScanner = bsMain?.isbnFromScannerForBookSearch?.value
                             BookSearchScreen(
                                 vm, prefs, theme,
-                                onBack = { bsMain?.pendingScannedIsbn?.value = null; bsMain?.isbnFromScannerForBookSearch?.value = null; goBack() },
+                                onBack = { bsMain?.pendingSearchQuery?.value = null; bsMain?.pendingScannedIsbn?.value = null; bsMain?.isbnFromScannerForBookSearch?.value = null; goBack() },
                                 initialQuery = isbnForSearch,
                                 isbnFromScanner = isbnFromScanner,
                                 onClearIsbnFromScanner = { bsMain?.isbnFromScannerForBookSearch?.value = null },
@@ -2136,6 +2145,9 @@ fun HomeRail(
     val railAcc = remember { mutableStateOf(0f) }
     Column(
         Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp)
+            // Feedback 14-07 (F10): en landscape no caben los 6 iconos — la columna
+            // scrollea en vertical para que todos sean alcanzables
+            .verticalScroll(rememberScrollState())
             .draggable(
                 orientation = Orientation.Horizontal,
                 state = rememberDraggableState { delta ->
@@ -2776,14 +2788,27 @@ fun ListScreen(
     // v2.4 rework: Snackbar de favoritos (preferido sobre Toast)
     val favSnackbarState = remember { androidx.compose.material3.SnackbarHostState() }
     LaunchedEffect(searchQuery) { vm.savedSearchQuery = searchQuery }
+    // Feedback 14-07 (F8): estos efectos hacían scroll-a-0 también en su PRIMERA
+    // ejecución — es decir, al VOLVER del detalle (el grid restaura su posición pero
+    // estos la machacaban). Se saltan la primera pasada y solo actúan ante cambios.
+    var sortEffectArmed by remember { mutableStateOf(false) }
     LaunchedEffect(sortOrder) {
         vm.savedSortOrder = sortOrder
         prefs.edit().putString("sort_order", sortOrder.name).apply()
-        listScope.launch { listState.animateScrollToItem(0) }
+        if (sortEffectArmed) listScope.launch { listState.animateScrollToItem(0) }
+        else sortEffectArmed = true
     }
-    LaunchedEffect(activeTab) { listScope.launch { listState.animateScrollToItem(0) } }
+    var tabEffectArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(activeTab) {
+        if (tabEffectArmed) listScope.launch { listState.animateScrollToItem(0) }
+        else tabEffectArmed = true
+    }
     // v2.4 rework: al activar/desactivar el filtro de favoritos, volver arriba
-    LaunchedEffect(vm.showFavoritesOnly) { listScope.launch { listState.animateScrollToItem(0) } }
+    var favEffectArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(vm.showFavoritesOnly) {
+        if (favEffectArmed) listScope.launch { listState.animateScrollToItem(0) }
+        else favEffectArmed = true
+    }
 
     // Feedback 14-07 v2: rail auto-hide en scroll con UMBRAL acumulado (la versión
     // por-evento parpadeaba con cualquier temblor del dedo). Además el rail se puede
@@ -2818,6 +2843,14 @@ fun ListScreen(
                         acc = 0f
                     }
                 }
+            }
+    }
+    // Feedback 14-07 (F4): al DEJAR de hacer scroll el rail vuelve solo (si no está
+    // cerrado a mano) — el auto-hide es solo mientras el dedo mueve la lista
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collect { scrolling ->
+                if (!scrolling && !railManuallyHidden) railVisible = true
             }
     }
     val railWidth by androidx.compose.animation.core.animateDpAsState(
@@ -2897,10 +2930,13 @@ fun ListScreen(
                     )
                 }
                 qsBooks.forEach { b ->
+                    // Feedback 14-07 (F13a): si el crono YA corre para este libro, la fila
+                    // lo indica (borde ámbar + icono de crono en vez de ▶)
+                    val timerActiveHere = TimerStateHolder.running && TimerStateHolder.activeBookId == b.id
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = theme.surface,
-                        border = BorderStroke(1.dp, theme.border),
+                        border = BorderStroke(1.dp, if (timerActiveHere) Amber else theme.border),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     ) {
                         Row(
@@ -2910,22 +2946,34 @@ fun ListScreen(
                             BookCover(b.coverUrl, b.title, size = 34, isbnFallback = b.isbn)
                             Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                                 Text(b.title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(
-                                    statusLabel(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
-                                    color = statusColor(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
-                                    fontSize = 11.sp
-                                )
+                                if (timerActiveHere) {
+                                    Text(
+                                        stringResource(R.string.quickstart_session_running),
+                                        color = Amber, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                                    )
+                                } else {
+                                    Text(
+                                        statusLabel(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                        color = statusColor(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                             Box(
-                                Modifier.size(36.dp).clip(CircleShape).background(Green)
+                                Modifier.size(36.dp).clip(CircleShape)
+                                    .background(if (timerActiveHere) Amber else Green)
                                     .clickable {
                                         showQuickStartSheet = false
-                                        TimerQuickStart.pendingBookId = b.id
+                                        // Con el crono ya corriendo en este libro, solo navegar
+                                        if (!timerActiveHere) TimerQuickStart.pendingBookId = b.id
                                         onDetail(b.id)
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    if (timerActiveHere) Icons.Default.Timer else Icons.Default.PlayArrow,
+                                    contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
@@ -3313,7 +3361,9 @@ fun ListScreen(
                                     Spacer(Modifier.height(16.dp))
                                     Button(
                                         onClick = {
-                                            listMainRef?.pendingScannedIsbn?.value = searchQuery
+                                            // Feedback 14-07 (F6): canal propio de query — NO
+                                            // pendingScannedIsbn (disparaba el diálogo del escáner)
+                                            listMainRef?.pendingSearchQuery?.value = searchQuery
                                             onNavigateToBookSearch()
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
@@ -7173,6 +7223,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             TimerQuickStart.pendingBookId = -1L
             if (!TimerStateHolder.running) {
                 startTimerWithPermCheck { com.lecturameter.TimerService.start(context, id, book.title) }
+            } else if (TimerStateHolder.activeBookId != id) {
+                // Feedback 14-07 (F13b): crono activo en OTRO libro — misma pantalla de
+                // conflicto que el ▶ manual del detalle (antes: no pasaba nada y el crono
+                // seguía corriendo "invisible" para este libro)
+                showConflictSessionDialog = true
             }
         }
     }
@@ -11826,10 +11881,10 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
 
         // D-004: challenges es StateFlow; se colecciona en la raíz de la pantalla
         val challenges by vm.challenges.collectAsState()
-        // Feedback 13-07 (11): sin scroll infinito — los retos van en PÁGINAS horizontales
-        // de 4, con dot-pagination (mismo estilo que el tutorial). El botón de crear queda
-        // fijo abajo, fuera del pager.
-        val perPage = 4
+        // Feedback 13-07 (11): sin scroll infinito — los retos van en PÁGINAS horizontales,
+        // con dot-pagination (mismo estilo que el tutorial). El botón de crear queda
+        // fijo abajo, fuera del pager. Feedback 14-07 (F3): caben 5 por página.
+        val perPage = 5
         if (challenges.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -11843,6 +11898,14 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             // El lambda relee `challenges` (delegado de State): si borras retos y baja el
             // nº de páginas, el pager se ajusta solo
             val pagerState = androidx.compose.foundation.pager.rememberPagerState { (challenges.size + perPage - 1) / perPage }
+            // Feedback 14-07 (F15): reajuste EN VIVO — al borrar el último reto de la
+            // última página, currentPage quedaba fuera de rango y la pantalla se veía
+            // vacía hasta reentrar. Clamp inmediato a la última página válida.
+            LaunchedEffect(pageCount) {
+                if (pagerState.currentPage >= pageCount) {
+                    pagerState.animateScrollToPage((pageCount - 1).coerceAtLeast(0))
+                }
+            }
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pagerState,
                 verticalAlignment = Alignment.Top,

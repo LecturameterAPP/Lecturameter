@@ -353,6 +353,11 @@ class BooksViewModel : ViewModel() {
         // la app viva desde el mes anterior no debe marcar el cartón caducado
         ensureBingoCard(prefs)
         val card = _bingoCard.value ?: return
+        // Feedback 14-07 (F11): el cartón es MENSUAL — solo cuentan libros terminados en
+        // el mes del cartón. Sin esto, valorar o cambiar el género de un libro terminado
+        // hace meses marcaba el cartón actual. endDate null = terminado ahora mismo (vale).
+        val finishedMonth = book.endDate?.take(7)
+        if (finishedMonth != null && finishedMonth != card.monthKey) return
         val updated = com.lecturameter.utils.BingoManager.evaluateBookFinished(card, book, booksInternal)
         if (updated !== card) {
             _bingoCard.value = updated
@@ -822,7 +827,14 @@ class BooksViewModel : ViewModel() {
         setThemeMode(next, prefs, context)
     }
     val isDarkMode get() = themeMode != ThemeMode.LIGHT
-    fun addBook(book: Book, prefs: android.content.SharedPreferences) { booksInternal = listOf(book) + booksInternal; save(prefs) }
+    fun addBook(book: Book, prefs: android.content.SharedPreferences) {
+        booksInternal = listOf(book) + booksInternal
+        save(prefs)
+        // Feedback 14-07 (F11): un libro añadido YA terminado también evalúa el bingo
+        // (antes solo lo hacía la transición de estado en updateStatus y el cartón se
+        // quedaba sin marcar — caso real: añadir a mano un clásico ya leído)
+        if (book.status == BookStatus.FINISHED) bingoOnBookFinished(book, prefs)
+    }
 
     /** v2.5: duplicado = mismo ISBN (no vacío) o mismo título+autor normalizados.
      *  Feedback 2.6 (duplicados inconsistentes): ahora compara también los ISBNs de
@@ -859,7 +871,14 @@ class BooksViewModel : ViewModel() {
             }
         }
     }
-    fun updateGenres(id: Long, genres: List<String>, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.map { if (it.id == id) it.copy(genres = genres) else it }; save(prefs) }
+    fun updateGenres(id: Long, genres: List<String>, prefs: android.content.SharedPreferences) {
+        booksInternal = booksInternal.map { if (it.id == id) it.copy(genres = genres) else it }
+        save(prefs)
+        // Feedback 14-07 (F11): el género suele ponerse DESPUÉS de terminar el libro —
+        // re-evaluar el bingo para libros ya terminados (igual que hace updateRating)
+        booksInternal.find { it.id == id }?.takeIf { it.status == BookStatus.FINISHED }
+            ?.let { bingoOnBookFinished(it, prefs) }
+    }
     @Deprecated("Use updateGenres") fun updateGenre(id: Long, genre: String, prefs: android.content.SharedPreferences) = updateGenres(id, if (genre.isBlank()) emptyList() else listOf(genre), prefs)
     fun updateCover(id: Long, coverUrl: String, prefs: android.content.SharedPreferences) {
         booksInternal = booksInternal.map { book ->
