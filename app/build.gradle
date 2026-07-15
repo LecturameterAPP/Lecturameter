@@ -48,8 +48,8 @@ android {
             def pr = new Properties()
             if (lpr.exists()) lpr.withInputStream { pr.load(it) }
             if (pr.getProperty('RELEASE_STORE_FILE')) signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {

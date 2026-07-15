@@ -1340,16 +1340,26 @@ fun LecturaMeterTheme(theme: Theme, content: @Composable () -> Unit) {
 @Composable
 fun WideScreenCenter(enabled: Boolean = true, maxContentWidth: Dp = 640.dp, content: @Composable () -> Unit) {
     if (!enabled) { content(); return }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (maxWidth <= 600.dp) {
-            content()
-        } else {
-            Box(
-                Modifier
-                    .widthIn(max = maxContentWidth)
-                    .fillMaxSize()
-                    .align(Alignment.TopCenter)
-            ) { content() }
+    // B-031: aquí había un BoxWithConstraints y cerraba la app en release.
+    //
+    // Esta función envuelve CADA pantalla del NavHost, y el NavHost tiene transiciones
+    // (slideInHorizontally + fadeIn), que por dentro son AnimatedVisibility.
+    // BoxWithConstraints hace subcompose, y subcomponer dentro de la medida de un
+    // AnimatedVisibility corrompe el SlotTable de Compose (bug conocido de 1.6.x):
+    //   ArrayIndexOutOfBoundsException: length=0; index=-5
+    //     at androidx.compose.runtime.SlotTableKt.key(SlotTable.kt:3522)
+    //     at ...BoxWithConstraints... at AnimatedEnterExitMeasurePolicy.measure
+    // Es sensible al timing: en debug no salta y en release sí. El home se libraba de
+    // rebote porque se compone con enabled=false (sale por el return de arriba).
+    //
+    // Para decidir "¿pantalla ancha?" no hacen falta las constraints del padre: basta
+    // el ancho de la ventana, que da LocalConfiguration sin subcomponer nada.
+    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+    if (screenWidthDp <= 600.dp) {
+        content()
+    } else {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            Box(Modifier.widthIn(max = maxContentWidth).fillMaxSize()) { content() }
         }
     }
 }

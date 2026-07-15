@@ -1,3 +1,14 @@
+# B-031 (15-07): R8 optimizando el codigo generado por el compilador de Compose
+# corrompe su SlotTable. El Bingo cerraba la app SOLO en release; traza desofuscada:
+#   ArrayIndexOutOfBoundsException: length=0; index=-5
+#     at androidx.compose.runtime.SlotTableKt.key(SlotTable.kt:3522)
+#     at androidx.compose.ui.layout.LayoutNodeSubcompositionsState.subcompose(...)
+# Compose intenta cerrar un grupo que nunca se abrio -> la estructura de grupos que
+# genera el compilador no sobrevive a las optimizaciones de proguard-android-optimize.
+# Se conservan el shrinking y la ofuscacion (el APK sigue siendo la mitad que el debug);
+# solo se renuncia a las optimizaciones de codigo.
+-dontoptimize
+
 # Lecturameter ProGuard rules
 # Generado v2.4 — activar R8 con minifyEnabled true
 
