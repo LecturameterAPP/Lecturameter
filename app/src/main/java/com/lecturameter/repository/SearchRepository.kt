@@ -245,7 +245,7 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
     // Ambos mergeados con dedup por título normalizado.
     val encoded = URLEncoder.encode(query, "UTF-8")
     try {
-        val url1 = "https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books"
+        val url1 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books")
         val conn1 = URL(url1).openConnection() as HttpURLConnection
         conn1.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn1.connectTimeout = 8000; conn1.readTimeout = 8000
@@ -253,7 +253,7 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
     } catch (_: Exception) {}
     // v2.6 (búsqueda r1): langRestrict = idioma de la app, no "es" fijo.
     try {
-        val url2 = "https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books&langRestrict=$preferredLang"
+        val url2 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books&langRestrict=$preferredLang")
         val conn2 = URL(url2).openConnection() as HttpURLConnection
         conn2.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn2.connectTimeout = 8000; conn2.readTimeout = 8000
@@ -262,7 +262,7 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
     // v2.6: 3) CON langRestrict=ca — ediciones catalanas (Sanderson en català etc.)
     //    nunca salían: ni el top global ni el filtro es las traían. Solo si app en español.
     if (preferredLang == "es") try {
-        val url3 = "https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=10&printType=books&langRestrict=ca"
+        val url3 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=10&printType=books&langRestrict=ca")
         val conn3 = URL(url3).openConnection() as HttpURLConnection
         conn3.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn3.connectTimeout = 8000; conn3.readTimeout = 8000
@@ -274,6 +274,15 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
 // Auditoría APIs r2: User-Agent identificable con contacto. OpenLibrary da prioridad
 // BAJA y limita agresivamente a clientes sin UA claro. Aplicado a TODAS las APIs.
 internal const val APP_USER_AGENT = "Lecturameter/2.5 (lecturameter.app@gmail.com)"
+
+// Fase 7: la API key de Google Books viaja de local.properties → BuildConfig → aquí.
+// Autentica todas las llamadas a googleapis.com/books (sin key ⇒ cuota anónima y 429
+// frecuentes). Si el build no tiene key, la URL queda intacta y todo sigue funcionando.
+internal fun withGbKey(url: String): String {
+    val key = com.lecturameter.BuildConfig.GOOGLE_BOOKS_API_KEY
+    if (key.isBlank()) return url
+    return url + (if ('?' in url) "&" else "?") + "key=" + key
+}
 
 // Auditoría APIs r3: Mutex corrutinas (idiomático) vs synchronized bloqueante.
 internal object ApiThrottle {
@@ -368,7 +377,7 @@ private suspend fun fetchSpanishCoverByTitle(title: String, author: String): Str
 /** Llama directamente al endpoint de un volumen para obtener la mejor imagen disponible. */
 private fun fetchGoogleBooksVolumeImage(volumeId: String): String? {
     return try {
-        val url = "https://www.googleapis.com/books/v1/volumes/${URLEncoder.encode(volumeId, "UTF-8")}"
+        val url = withGbKey("https://www.googleapis.com/books/v1/volumes/${URLEncoder.encode(volumeId, "UTF-8")}")
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn.connectTimeout = 5000; conn.readTimeout = 5000
@@ -549,7 +558,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         for (candidate in isbnCandidates) {
             val query = URLEncoder.encode("isbn:$candidate", "UTF-8")
             val body = httpGetTextWithRetry(
-                "https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=3&printType=books",
+                withGbKey("https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=3&printType=books"),
                 "P1 GB_isbn($candidate)")
             items = body?.let { try { JSONObject(it).optJSONArray("items") } catch (_: Exception) { null } }
             if ((items?.length() ?: 0) > 0) break
@@ -575,7 +584,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         }
         if (volumeId != null) {
             val body = httpGetTextWithRetry(
-                "https://www.googleapis.com/books/v1/volumes/${URLEncoder.encode(volumeId, "UTF-8")}",
+                withGbKey("https://www.googleapis.com/books/v1/volumes/${URLEncoder.encode(volumeId, "UTF-8")}"),
                 "P1b GB_volume")
             val info = body?.let { try { JSONObject(it).optJSONObject("volumeInfo") } catch (_: Exception) { null } }
             if (info != null) absorbGbVolumeInfo(info)
@@ -696,7 +705,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             val t0 = System.currentTimeMillis()
             val q = URLEncoder.encode("intitle:${title} ${author.orEmpty()}".trim(), "UTF-8")
             val body = httpGetTextWithRetry(
-                "https://www.googleapis.com/books/v1/volumes?q=$q&maxResults=5&printType=books",
+                withGbKey("https://www.googleapis.com/books/v1/volumes?q=$q&maxResults=5&printType=books"),
                 "P4 GB_title+author")
             val items = body?.let { try { JSONObject(it).optJSONArray("items") } catch (_: Exception) { null } }
             if (items != null) {
@@ -741,7 +750,7 @@ private fun fetchGoogleBooksMetadata(title: String, author: String, isbn: String
     }.distinct()
     for (query in queries) {
         try {
-            val url = "https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=8&printType=books"
+            val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$query&maxResults=8&printType=books")
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.setRequestProperty("User-Agent", APP_USER_AGENT)
             conn.connectTimeout = 6000; conn.readTimeout = 6000
@@ -1408,7 +1417,7 @@ internal fun isbnToLanguageMeta(isbn: String): Triple<String, String, String> {
 internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withContext(Dispatchers.IO) {
     return@withContext try {
         val clean = cleanIsbn(isbn) ?: return@withContext null
-        val url = "https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books"
+        val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books")
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn.connectTimeout = 6000; conn.readTimeout = 6000
@@ -1550,7 +1559,7 @@ private fun cleanCompositeTitle(title: String): String {
 private suspend fun resolveSpanishTitleByIsbn(isbn: String, fallbackTitle: String): String {
     val clean = cleanIsbn(isbn) ?: return fallbackTitle
     return try {
-        val url = "https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books"
+        val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books")
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn.connectTimeout = 4000; conn.readTimeout = 4000
@@ -2053,7 +2062,7 @@ suspend fun fetchEditionsForBook(
             try {
                 ApiThrottle.gate("www.googleapis.com")
                 val langParam = if (langRestrict.isNotBlank()) "&langRestrict=$langRestrict" else ""
-                val url = "https://www.googleapis.com/books/v1/volumes?q=${URLEncoder.encode(query, "UTF-8")}&maxResults=20&printType=books$langParam"
+                val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=${URLEncoder.encode(query, "UTF-8")}&maxResults=20&printType=books$langParam")
                 val conn = URL(url).openConnection() as HttpURLConnection
                 conn.setRequestProperty("User-Agent", APP_USER_AGENT)
                 conn.connectTimeout = 5000; conn.readTimeout = 5000

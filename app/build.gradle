@@ -14,6 +14,13 @@ android {
         versionCode 10027
         versionName "2.7"
         multiDexEnabled true
+
+        // Fase 7: API key de Google Books desde local.properties (GOOGLE_BOOKS_API_KEY).
+        // Si falta, queda vacía y la búsqueda funciona sin key (con riesgo de 429).
+        def props = new Properties()
+        def lp = rootProject.file('local.properties')
+        if (lp.exists()) lp.withInputStream { props.load(it) }
+        buildConfigField "String", "GOOGLE_BOOKS_API_KEY", "\"${props.getProperty('GOOGLE_BOOKS_API_KEY', '')}\""
     }
 
     buildTypes {
