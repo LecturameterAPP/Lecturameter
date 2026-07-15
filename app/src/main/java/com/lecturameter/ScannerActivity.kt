@@ -106,7 +106,15 @@ class ScannerActivity : ComponentActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            val scanner = BarcodeScanning.getClient()
+            // B-027: sin opciones, ML Kit busca TODOS los formatos (QR, ITF, Code-128,
+            // Aztec…). Los libros solo llevan EAN-13 (el ISBN) y, como mucho, EAN-8; el
+            // resto de códigos de la contraportada son del distribuidor y no deben
+            // competir. Restringirlo además acelera el reconocimiento.
+            val scanner = BarcodeScanning.getClient(
+                com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8)
+                    .build()
+            )
 
             imageAnalysis.setAnalyzer(cameraExecutor, BarcodeAnalyzer(scanner) { isbn ->
                 if (!scanned) {
@@ -139,6 +147,29 @@ class ScannerActivity : ComponentActivity() {
     }
 }
 
+/**
+ * B-027: valida un ISBN de verdad (longitud, prefijo y dígito de control).
+ * Un EAN-13 mal leído casi nunca supera el checksum, así que esto filtra la mayoría
+ * de lecturas parciales y de códigos que no son ISBN.
+ */
+internal fun isValidIsbn(raw: String): Boolean {
+    val s = raw.uppercase()
+    return when {
+        s.length == 13 && s.all { it.isDigit() } && (s.startsWith("978") || s.startsWith("979")) -> {
+            val sum = s.take(12).mapIndexed { i, c -> (c - '0') * if (i % 2 == 0) 1 else 3 }.sum()
+            (10 - sum % 10) % 10 == s[12] - '0'
+        }
+        // Ojo: "0000000000" cuadra el mod 11 (suma 0) pero no es un ISBN — se descarta.
+        s.length == 10 && s.take(9).all { it.isDigit() } && (s[9].isDigit() || s[9] == 'X') &&
+        s.take(9).any { it != '0' } -> {
+            val sum = s.take(9).mapIndexed { i, c -> (c - '0') * (10 - i) }.sum() +
+                      (if (s[9] == 'X') 10 else s[9] - '0')
+            sum % 11 == 0
+        }
+        else -> false
+    }
+}
+
 @androidx.camera.core.ExperimentalGetImage
 private class BarcodeAnalyzer(
     private val scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
@@ -151,13 +182,16 @@ private class BarcodeAnalyzer(
         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         scanner.process(image)
             .addOnSuccessListener { barcodes ->
-                for (barcode in barcodes) {
-                    val raw = barcode.rawValue ?: continue
-                    val clean = raw.replace("-", "").replace(" ", "")
-                    val isIsbn = (clean.length == 13 && (clean.startsWith("978") || clean.startsWith("979"))) ||
-                                 (clean.length == 10)
-                    if (isIsbn) { onIsbn(clean); break }
-                }
+                // B-027: antes se aceptaba el PRIMER código que cuadrase de forma laxa:
+                // cualquier cadena de 10 caracteres (¡incluso con letras!) pasaba por
+                // "ISBN-10", y no se validaba el dígito de control. Con el escáner sin
+                // restringir formatos, un código del distribuidor (ITF/Code-128) podía
+                // colarse como ISBN. Ahora: solo códigos de libro, checksum obligatorio, y
+                // si en la contraportada hay varios se elige el que de verdad es un ISBN.
+                val isbn = barcodes
+                    .mapNotNull { it.rawValue?.replace("-", "")?.replace(" ", "") }
+                    .firstOrNull { isValidIsbn(it) }
+                if (isbn != null) onIsbn(isbn)
             }
             .addOnCompleteListener { imageProxy.close() }
     }

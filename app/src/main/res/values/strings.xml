@@ -818,7 +818,7 @@
     <string name="challenge_dates_note">Sin fechas, el reto cuenta el año natural en curso (incluye lo ya leído este año).</string>
     <string name="challenge_meta_from">desde %1$s</string>
     <string name="challenge_err_name">Escribe un nombre para el reto</string>
-    <string name="challenge_err_target">El objetivo debe ser un número mayor que 0</string>
+    <string name="challenge_err_target">El objetivo debe estar entre 1 y 1.000.000</string>
     <string name="challenge_save">Guardar reto</string>
     <string name="challenge_delete_title">¿Eliminar reto?</string>
     <string name="challenge_delete_text">Se eliminará «%1$s». El progreso se calcula en vivo, no se pierde nada más.</string>

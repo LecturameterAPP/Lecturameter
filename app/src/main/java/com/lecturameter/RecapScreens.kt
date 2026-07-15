@@ -120,7 +120,10 @@ fun HourlyHeatmapCard(sessions: List<ReadingSession>, theme: Theme) {
             } else {
                 val maxCell = hourlyGrid.maxOf { row -> row.max() }.coerceAtLeast(1)
                 Text(stringResource(R.string.adv_hourly_subtitle), color = theme.textMuted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 10.dp))
-                val slotLabels = listOf("0", "3", "6", "9", "12", "15", "18", "21")
+                // Feedback 15-07: el número suelto ("0", "3"…) no decía si la columna era
+                // la hora de inicio o el centro de la franja. Cada columna son 3 horas, así
+                // que se etiqueta con el rango real. La última cierra en 00, no en 24.
+                val slotLabels = listOf("0-3", "3-6", "6-9", "9-12", "12-15", "15-18", "18-21", "21-00")
                 val dayLabels = stringResource(R.string.adv_hourly_days).split(",")
                 // Cabecera de franjas
                 Row(Modifier.fillMaxWidth()) {

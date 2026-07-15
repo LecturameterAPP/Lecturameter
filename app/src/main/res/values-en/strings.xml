@@ -817,7 +817,7 @@
     <string name="challenge_dates_note">Without dates, the challenge counts the current calendar year (including what you already read this year).</string>
     <string name="challenge_meta_from">from %1$s</string>
     <string name="challenge_err_name">Enter a name for the challenge</string>
-    <string name="challenge_err_target">Target must be a number greater than 0</string>
+    <string name="challenge_err_target">The goal must be between 1 and 1,000,000</string>
     <string name="challenge_save">Save challenge</string>
     <string name="challenge_delete_title">Delete challenge?</string>
     <string name="challenge_delete_text">“%1$s” will be deleted. Progress is computed live, nothing else is lost.</string>

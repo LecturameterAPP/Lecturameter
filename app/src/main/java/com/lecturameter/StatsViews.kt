@@ -57,6 +57,10 @@ import com.lecturameter.model.*
 import com.lecturameter.utils.*
 import androidx.navigation.compose.composable
 
+/** B-026: tope del objetivo de un reto. 1.000.000 cubre cualquier meta real
+ *  (páginas, libros, sesiones, minutos o días de racha) sin desbordar el Int. */
+const val MAX_CHALLENGE_TARGET = 1_000_000L
+
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
@@ -131,7 +135,10 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                     }
                     OutlinedTextField(
                         value = targetText,
-                        onValueChange = { targetText = it.filter { c -> c.isDigit() }; createError = "" },
+                        // B-026: el campo aceptaba cifras de cualquier longitud; 17 dígitos
+                        // desbordaban el Int y toIntOrNull() daba null → el error decía
+                        // "debe ser mayor que 0" con un número enorme delante. Se corta en 7.
+                        onValueChange = { targetText = it.filter { c -> c.isDigit() }.take(7); createError = "" },
                         placeholder = { Text(stringResource(R.string.challenge_target_hint), color = theme.textDim, fontSize = 13.sp) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), singleLine = true,
@@ -168,7 +175,9 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val target = targetText.toIntOrNull()
+                    // B-026: toLongOrNull + rango explícito. Antes un objetivo fuera de
+                    // rango se confundía con "no es un número".
+                    val target = targetText.toLongOrNull()?.takeIf { it in 1..MAX_CHALLENGE_TARGET }?.toInt()
                     val startParsed = if (startDateText.isBlank()) null else parseFlexibleDate(startDateText.trim())
                     val endParsed = if (endDateText.isBlank()) null else parseFlexibleDate(endDateText.trim())
                     when {
