@@ -938,7 +938,7 @@
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>
     <string name="quickstart_session_running">Session in progress</string>
-    <string name="finish_prediction_line">🔮 At your current pace (%1$d pages/day) you\'ll finish around %2$s (~%3$d days)</string>
+    <string name="finish_prediction_line">🔮 At %1$s pages per day you read, you have ~%2$d reading days left</string>
     <!-- Fase 6.1 (D-008): one-time contextual tips -->
     <string name="tip_rail_title">Your sections rail</string>
     <string name="tip_rail_body">It hides when you scroll the list or swipe left ← from the line, and comes back by swiping right → from the edge of the screen. Long-press a blue icon to reorder them.</string>

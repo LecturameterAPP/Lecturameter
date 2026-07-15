@@ -1567,15 +1567,14 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         com.lecturameter.utils.predictFinish(bookSessions, predTotal - predPagesRead, today())
                     }
                     if (prediction != null) {
-                        val predLocale = appDisplayLocale
-                        val predDate = remember(prediction, predLocale) {
-                            try {
-                                val d = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(prediction.targetDateIso)
-                                java.text.SimpleDateFormat("d MMM", predLocale).format(d!!)
-                            } catch (_: Exception) { prediction.targetDateIso }
-                        }
+                        // El ritmo se formatea igual que la pill (%.1f) para que se vea
+                        // que es EL MISMO número y la cuenta se pueda hacer a mano.
                         Text(
-                            stringResource(R.string.finish_prediction_line, prediction.pagesPerDay, predDate, prediction.daysLeft),
+                            stringResource(
+                                R.string.finish_prediction_line,
+                                String.format("%.1f", prediction.pagesPerDay),
+                                prediction.readingDaysLeft
+                            ),
                             color = theme.textMuted, fontSize = 12.sp,
                             modifier = Modifier.padding(top = 8.dp)
                         )

@@ -42,16 +42,50 @@ class RecapUtilsTest {
         assertNull(predictFinish(sessions, 100, "2026-07-15"))
     }
 
-    @Test fun predictor_calcula_ritmo_y_fecha() {
-        // 3 sesiones de 30 págs en los días 13/14/15 → span 3 días → 30 págs/día
+    @Test fun predictor_usa_el_ritmo_por_dia_de_lectura() {
+        // 3 sesiones de 30 págs en 3 días distintos → 90/3 = 30 págs por día leído
         val sessions = listOf(
             session("2026-07-13", 30), session("2026-07-14", 30), session("2026-07-15", 30)
         )
         val p = predictFinish(sessions, pagesRemaining = 90, todayIso = "2026-07-15")
         assertNotNull(p)
-        assertEquals(30, p!!.pagesPerDay)
-        assertEquals(3, p.daysLeft)
-        assertEquals("2026-07-18", p.targetDateIso)
+        assertEquals(30.0, p!!.pagesPerDay, 0.05)
+        assertEquals(3, p.readingDaysLeft)
+    }
+
+    /** Dos sesiones el MISMO día cuentan como un solo día de lectura — es lo que
+     *  hace la pill "Págs/día", y ambos números deben coincidir. */
+    @Test fun predictor_cuenta_dias_no_sesiones() {
+        val sessions = listOf(
+            session("2026-07-14", 20), session("2026-07-15", 20), session("2026-07-15", 20)
+        )
+        val p = predictFinish(sessions, pagesRemaining = 60, todayIso = "2026-07-15")
+        assertNotNull(p)
+        assertEquals(30.0, p!!.pagesPerDay, 0.05)   // 60 págs / 2 días, no / 3 sesiones
+        assertEquals(2, p.readingDaysLeft)
+    }
+
+    /** Caso real que destapó la disonancia: El dragón renacido, 172 págs en 9 días
+     *  con sesión. La pill decía 19,1 y el predictor 5 — ahora dicen lo mismo. */
+    @Test fun predictor_reproduce_el_caso_del_dragon_renacido() {
+        val sessions = listOf(
+            session("2026-06-03", 19), session("2026-06-05", 14), session("2026-06-14", 13),
+            session("2026-06-18", 18), session("2026-06-24", 14), session("2026-06-26", 42),
+            session("2026-06-27", 14), session("2026-07-14", 12), session("2026-07-15", 26)
+        )
+        val p = predictFinish(sessions, pagesRemaining = 485, todayIso = "2026-07-15")
+        assertNotNull(p)
+        assertEquals(19.1, p!!.pagesPerDay, 0.05)          // == la pill
+        assertEquals(26, p.readingDaysLeft)                // ceil(485 / 19.111)
+    }
+
+    /** Un libro parado hace medio año no debe seguir prometiendo nada, aunque su
+     *  ritmo histórico fuese bueno. */
+    @Test fun predictor_null_si_no_hay_actividad_reciente() {
+        val sessions = listOf(
+            session("2026-01-10", 30), session("2026-01-11", 30), session("2026-01-12", 30)
+        )
+        assertNull(predictFinish(sessions, 100, "2026-07-15"))
     }
 
     // ── computeWeeklyRecap ────────────────────────────────────────────────────

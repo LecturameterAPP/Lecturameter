@@ -46,37 +46,44 @@ internal fun mondayOf(iso: String): String {
 // ── Predictor de finalización (P-C) ───────────────────────────────────────────
 
 data class FinishPrediction(
-    val pagesPerDay: Int,
-    val daysLeft: Int,
-    val targetDateIso: String
+    /** Págs/día EN DÍAS DE LECTURA — el mismo número que la pill "Págs/día". */
+    val pagesPerDay: Double,
+    /** Días DE LECTURA que faltan (no días naturales). */
+    val readingDaysLeft: Int
 )
 
 /**
- * Predice la fecha de finalización al ritmo actual.
+ * Estima cuánto queda de un libro al ritmo real de lectura.
+ *
+ * Decisión de Víctor (15-07-2026) tras detectar la disonancia: **el predictor usa
+ * el mismo ritmo que la pill "Págs/día"**, es decir páginas ÷ días CON SESIÓN, no
+ * días naturales. Antes usaba las últimas 5 sesiones ÷ su span natural, y salían
+ * dos números irreconciliables en la misma pantalla (19,1 en la pill y 5 en la
+ * predicción) que nadie podía comprobar a mano.
+ *
+ * Consecuencia importante: si el ritmo es "por día que lees", lo que queda son
+ * **días de lectura**, no días de calendario — convertirlos a una fecha exigiría
+ * adivinar cada cuánto lee, que es justo la clase de invento que el proyecto
+ * prohíbe. Por eso ya no se devuelve fecha objetivo: se dice el dato comprobable.
+ *
  * Requisitos (si no se cumplen → null, la línea no aparece):
- *  - ≥3 sesiones con páginas en los últimos 30 días
  *  - quedan páginas por leer
- * Ritmo = páginas de las últimas 5 sesiones (ventana 30 días) ÷ días naturales
- * desde la más antigua de esas sesiones hasta HOY — así una pausa larga degrada
- * la predicción sola, sin heurísticas.
+ *  - ≥3 sesiones con páginas (regla original: no inventar con dos datos)
+ *  - alguna sesión en los últimos 30 días — sin esto, un libro parado hace medio
+ *    año seguiría prometiendo una fecha.
  */
 fun predictFinish(sessions: List<ReadingSession>, pagesRemaining: Int, todayIso: String): FinishPrediction? {
     if (pagesRemaining <= 0) return null
+    val withPages = sessions.filter { it.pages > 0 && it.date <= todayIso }
+    if (withPages.size < 3) return null
     val cutoff = isoPlusDays(todayIso, -30)
-    val window = sessions
-        .filter { it.pages > 0 && it.date >= cutoff && it.date <= todayIso }
-        .sortedByDescending { it.date }
-        .take(5)
-    if (window.size < 3) return null
-    val oldest = window.minOf { it.date }
-    val spanDays = (isoDaysBetween(oldest, todayIso) + 1).coerceAtLeast(1)
-    val rate = window.sumOf { it.pages }.toDouble() / spanDays
+    if (withPages.none { it.date >= cutoff }) return null
+    val readingDays = withPages.map { it.date }.toSet().size.coerceAtLeast(1)
+    val rate = withPages.sumOf { it.pages }.toDouble() / readingDays
     if (rate < 0.5) return null
-    val daysLeft = ceil(pagesRemaining / rate).toInt().coerceAtLeast(1)
     return FinishPrediction(
-        pagesPerDay = Math.round(rate).toInt().coerceAtLeast(1),
-        daysLeft = daysLeft,
-        targetDateIso = isoPlusDays(todayIso, daysLeft)
+        pagesPerDay = rate,
+        readingDaysLeft = ceil(pagesRemaining / rate).toInt().coerceAtLeast(1)
     )
 }
 

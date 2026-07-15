@@ -942,7 +942,7 @@
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
     <string name="quickstart_session_running">Sesión en curso</string>
-    <string name="finish_prediction_line">🔮 Al ritmo actual (%1$d págs/día) lo terminarás hacia el %2$s (~%3$d días)</string>
+    <string name="finish_prediction_line">🔮 A %1$s págs por día que lees, te quedan ~%2$d días de lectura</string>
     <!-- Fase 6.1 (D-008): tips contextuales de una sola vez -->
     <string name="tip_rail_title">Tu rail de secciones</string>
     <string name="tip_rail_body">Se oculta al deslizar la lista y hacia la izquierda ← desde la línea y vuelve deslizando hacia la derecha → desde el borde de la pantalla. Mantén pulsado un icono azul para reordenarlos.</string>
