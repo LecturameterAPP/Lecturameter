@@ -491,22 +491,26 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(18.dp)) {
                                 val maxP = wrapped.pagesPerMonth.max().coerceAtLeast(1)
-                                // v2.6: escala min-max entre meses CON actividad. Antes ratio lineal
-                                // desde 0: 450 vs 415 páginas → barras 100% vs 92%, indistinguibles.
-                                // Feedback 2.6: el ancla del 25% exageraba (415 parecía 1/3 de 450);
-                                // el mínimo ancla ahora en 55% — se distingue sin distorsionar.
-                                val nonZero = wrapped.pagesPerMonth.filter { it > 0 }
-                                val minP = (nonZero.minOrNull() ?: 0)
-                                val range = (maxP - minP).coerceAtLeast(1)
+                                // Feedback 15-07: la escala VUELVE A SER LINEAL DESDE 0.
+                                //
+                                // Historia de esto: era lineal, alguien reportó que 450 y 415 págs
+                                // salían casi iguales (100% vs 92%) y se "arregló" anclando el mínimo
+                                // primero al 25% y luego al 55% del alto. Pero 450 y 415 SON casi
+                                // iguales: el gráfico no estaba roto, lo estaba la expectativa. Con el
+                                // ancla al 55%, un mes de 10 págs y otro de 450 se dibujaban al 55% y al
+                                // 100% — 45x de diferencia real pintada como 2x. Las barras mentían.
+                                //
+                                // Un gráfico de barras compara ÁREAS: si la base no es 0, la comparación
+                                // visual es falsa. Para distinguir meses parecidos ya está el número
+                                // encima de cada barra y el resalte del máximo; eso informa sin engañar.
                                 val months = listOf("E","F","M","A","M","J","J","A","S","O","N","D")
                                 Row(Modifier.fillMaxWidth().height(200.dp), verticalAlignment = Alignment.Bottom,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     wrapped.pagesPerMonth.forEachIndexed { i, p ->
-                                        val ratio = when {
-                                            p <= 0 -> 0f
-                                            nonZero.size <= 1 || maxP == minP -> 1f
-                                            else -> 0.55f + 0.45f * (p - minP).toFloat() / range
-                                        }
+                                        // Mínimo visible del 2% para que un mes con 1-2 págs no
+                                        // desaparezca del todo y parezca un mes sin leer.
+                                        val ratio = if (p <= 0) 0f
+                                                    else (p.toFloat() / maxP).coerceAtLeast(0.02f)
                                         val isMax = p == maxP
                                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Bottom) {
