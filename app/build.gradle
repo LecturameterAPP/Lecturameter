@@ -8,7 +8,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.lm.refrac"
+        applicationId "com.lecturameter.public"
         minSdk 26
         targetSdk 35
         versionCode 10027

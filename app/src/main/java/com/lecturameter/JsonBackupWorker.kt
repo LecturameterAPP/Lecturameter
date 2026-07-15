@@ -47,8 +47,8 @@ class JsonBackupWorker(
         // Fase 0 QA: carpeta y prefijo propios del refrac. CRÍTICO: este worker borra
         // por prefijo los backups antiguos de su carpeta; con el prefijo/carpeta de 2.7
         // podía machacar los backups reales de la app original instalada en el mismo móvil.
-        fun folderName(ctx: Context)   = "Backups Refrac"
-        fun filePrefix(ctx: Context)   = "Backup_Refrac_"
+        fun folderName(ctx: Context)   = "Backups Lecturameter"
+        fun filePrefix(ctx: Context)   = "Backup_Lecturameter_"
         fun relativePath(ctx: Context) = "${Environment.DIRECTORY_DOWNLOADS}/${folderName(ctx)}/"
 
         fun todayFileName(ctx: Context): String {

@@ -47,7 +47,7 @@ object DriveBackupManager {
     private fun filePrefix(context: Context): String {
         // Fase 0 QA: prefijo propio del refrac — el lookup/rename por prefijo en Drive
         // no debe tocar los backups de la app 2.7 original.
-        return "Backup_Refrac_"
+        return "Backup_Lecturameter_"
     }
 
     // DRIVE_FILE: acceso a archivos visibles en el Drive del usuario.

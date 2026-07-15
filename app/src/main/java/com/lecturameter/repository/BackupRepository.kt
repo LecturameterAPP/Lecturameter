@@ -242,7 +242,7 @@ fun exportFullBackup(context: Context, vm: BooksViewModel): Uri? {
         val gson = Gson()
         val json = gson.toJson(backup)
         val sdf = SimpleDateFormat("ddMMyy", Locale.getDefault())
-        val fileName = "Backup_Refrac_${sdf.format(Date())}.json"
+        val fileName = "Backup_Lecturameter_${sdf.format(Date())}.json"
         val file = File(context.cacheDir, fileName)
         FileWriter(file).use { it.write(json) }
         FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
