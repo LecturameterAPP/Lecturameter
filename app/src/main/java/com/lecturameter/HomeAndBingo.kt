@@ -1,0 +1,627 @@
+package com.lecturameter
+
+// BingoScreen, DuplicateBookDialog, RailItem, HomeRail (mini-rail D-002), normalizeSearchText, fuzzyMatch y LanguageSelectionScreen.
+// Extraido de MainActivity.kt el 15-07-2026 (ruptura del monolito, sin cambios funcionales).
+
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.core.content.FileProvider
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+// v21.42: Icons.Outlined.Star eliminado — estrellas usan ★/☆ Text
+import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import org.json.JSONArray
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.Canvas
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.runtime.getValue
+import android.widget.Toast
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import java.util.concurrent.TimeUnit
+import com.lecturameter.model.*
+import com.lecturameter.utils.*
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+
+// ── Bingo (Fase 5, MD5): cartón 3×3 con plantillas rotativas mensuales ─────────
+// Las celdas se marcan solas (ver BingoManager). Al completar el cartón entero
+// antes de fin de mes se ofrece uno nuevo inmediatamente; si no, rota el día 1.
+@Composable
+fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
+    BackHandler { onBack() }
+    val card by vm.bingoCard.collectAsState()
+    val books by vm.books.collectAsState()
+    // Etiquetas del JSON en el idioma de la app (mismo criterio que el resto de la UI)
+    val isEs = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
+    val accent = accentForTheme(theme)
+    Box(modifier = Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding()) {
+        IconButton(
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.TopStart).padding(top = 28.dp, start = 16.dp)
+        ) {
+            Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
+        }
+        val c = card
+        if (c == null) {
+            // Sin cartón (no debería ocurrir: ensureBingoCard corre en load)
+            Text("…", color = theme.textMuted, modifier = Modifier.align(Alignment.Center))
+            return@Box
+        }
+        // Feedback 13-07 (10): cartón 4×4 (lado dinámico según la plantilla)
+        val side = com.lecturameter.utils.BingoManager.sideOf(c.cells.size).coerceAtLeast(3)
+
+        // ── Fase 4 (D-003, 4): flip + glow fusionados, SOLO la primera vez ──────────
+        // La celda completada gira una vez y suelta un destello que se apaga; al cerrar
+        // una línea, el glow la recorre y muere. Un set persistido por cartón recuerda
+        // qué celdas/líneas ya animaron (al volver al Bingo se pintan quietas).
+        // Con "reducir animaciones" del sistema se marca sin animar.
+        val bingoCtx = androidx.compose.ui.platform.LocalContext.current
+        val bingoReduceMotion = remember {
+            android.provider.Settings.Global.getFloat(
+                bingoCtx.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        }
+        var animatedCells by remember { mutableStateOf(prefs.getStringSet("bingo_anim_cells", emptySet())!!.toSet()) }
+        var animatedLines by remember { mutableStateOf(prefs.getStringSet("bingo_anim_lines", emptySet())!!.toSet()) }
+        fun markCellAnimated(k: String) { animatedCells = animatedCells + k; prefs.edit().putStringSet("bingo_anim_cells", animatedCells).apply() }
+        fun markLineAnimated(k: String) { animatedLines = animatedLines + k; prefs.edit().putStringSet("bingo_anim_lines", animatedLines).apply() }
+        val cellAnim = remember(c.monthKey, c.templateId) { List(c.cells.size) { androidx.compose.animation.core.Animatable(0f) } }
+        val sweepAnim = remember(c.monthKey, c.templateId) { List(c.cells.size) { androidx.compose.animation.core.Animatable(0f) } }
+        LaunchedEffect(c.completedLines, c.monthKey) {
+            val pendingLines = c.completedLines.filter { "${c.monthKey}:${c.templateId}:$it" !in animatedLines }
+            for (line in pendingLines) {
+                val key = "${c.monthKey}:${c.templateId}:$line"
+                if (!bingoReduceMotion) {
+                    kotlinx.coroutines.delay(450)
+                    for (i in com.lecturameter.utils.BingoManager.lineIndices(side, line)) {
+                        launch {
+                            sweepAnim[i].snapTo(0f)
+                            sweepAnim[i].animateTo(1f, tween(300))
+                            sweepAnim[i].animateTo(0f, tween(650))
+                        }
+                        kotlinx.coroutines.delay(150)
+                    }
+                }
+                markLineAnimated(key)
+            }
+        }
+        val doneCount = c.cells.count { it.isCompleted }
+        val complete = doneCount == c.cells.size
+        // Tipografías según densidad del cartón (4×4 necesita textos más compactos)
+        val labelSize = if (side >= 4) 8.5.sp else 10.5.sp
+        val labelLineHeight = if (side >= 4) 10.5.sp else 13.sp
+        val checkSize = if (side >= 4) 15.sp else 20.sp
+        // Nombre del mes del cartón a partir de monthKey (yyyy-MM), en el idioma de la app
+        val monthLabel = remember(c.monthKey, isEs) {
+            try {
+                val d = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).parse(c.monthKey)
+                java.text.SimpleDateFormat("LLLL yyyy", if (isEs) java.util.Locale("es") else java.util.Locale.ENGLISH)
+                    .format(d!!).replaceFirstChar { it.uppercase() }
+            } catch (_: Exception) { c.monthKey }
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 76.dp, start = 16.dp, end = 16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(stringResource(R.string.bingo_title), color = theme.textMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.bingo_subtitle, if (isEs) c.templateNameEs else c.templateNameEn, monthLabel),
+                color = accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(R.string.bingo_progress, doneCount, c.cells.size, c.completedLines.size),
+                color = theme.textMuted, fontSize = 12.sp
+            )
+            Spacer(Modifier.height(14.dp))
+            // Cartón side×side
+            for (row in 0 until side) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    for (col in 0 until side) {
+                        val cellIdx = row * side + col
+                        val cell = c.cells[cellIdx]
+                        val bg by androidx.compose.animation.animateColorAsState(
+                            targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else theme.bgMid,
+                            animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
+                        )
+                        // Fase 4 (D-003, 4): dispara el flip+glow SOLO si esta celda nunca animó
+                        val cellKey = "${c.monthKey}:${c.templateId}:$cellIdx"
+                        LaunchedEffect(cell.isCompleted, cellKey) {
+                            if (cell.isCompleted && cellKey !in animatedCells) {
+                                if (!bingoReduceMotion) {
+                                    cellAnim[cellIdx].snapTo(0.001f)
+                                    cellAnim[cellIdx].animateTo(1f, tween(1500))
+                                    cellAnim[cellIdx].snapTo(0f)
+                                }
+                                markCellAnimated(cellKey)
+                            }
+                        }
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 2.dp)
+                                .aspectRatio(1f)
+                                .graphicsLayer {
+                                    val p = cellAnim[cellIdx].value
+                                    if (p > 0f) {
+                                        rotationY = 360f * (p / 0.38f).coerceAtMost(1f)
+                                        cameraDistance = 12f * density
+                                    }
+                                }
+                                .drawBehind {
+                                    val p = cellAnim[cellIdx].value
+                                    val glowA = if (p > 0.2f) (1f - kotlin.math.abs(p - 0.6f) / 0.4f).coerceIn(0f, 1f) else 0f
+                                    val a = maxOf(glowA, sweepAnim[cellIdx].value)
+                                    if (a > 0f) drawRoundRect(
+                                        color = accent.copy(alpha = 0.6f * a),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6.dp.toPx()),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
+                                    )
+                                }
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(bg)
+                                .border(
+                                    width = if (cell.isCompleted) 1.5.dp else 1.dp,
+                                    color = if (cell.isCompleted) accent else theme.border,
+                                    shape = RoundedCornerShape(14.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(6.dp)
+                            ) {
+                                // Animación clave 4 (Fase 4): la celda celebra al completarse
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = cell.isCompleted,
+                                    enter = androidx.compose.animation.scaleIn(
+                                        animationSpec = androidx.compose.animation.core.spring(
+                                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy
+                                        )
+                                    ) + fadeIn()
+                                ) {
+                                    Text("✓", color = accent, fontSize = checkSize, fontWeight = FontWeight.Bold)
+                                }
+                                Text(
+                                    if (isEs) cell.labelEs else cell.labelEn,
+                                    color = if (cell.isCompleted) theme.textMain else theme.textMuted,
+                                    fontSize = labelSize,
+                                    lineHeight = labelLineHeight,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 3
+                                )
+                                // Libro que completó la celda (si aplica)
+                                cell.completedByBookId?.let { bid ->
+                                    books.firstOrNull { it.id == bid }?.let { b ->
+                                        Text(
+                                            b.title, color = accent, fontSize = 7.5.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            if (complete) {
+                Text(stringResource(R.string.bingo_completed), color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { vm.ensureBingoCard(prefs, force = true) },
+                    colors = ButtonDefaults.buttonColors(containerColor = accent),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text(stringResource(R.string.bingo_new_card), fontWeight = FontWeight.Bold) }
+            } else {
+                Text(stringResource(R.string.bingo_hint), color = theme.textMuted, fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(2.dp))
+                Text(stringResource(R.string.bingo_renews), color = theme.textMuted, fontSize = 11.5.sp)
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+        // Fase 6.1 (D-008, T5): primer cartón completado — tip de la rotación mensual
+        var bingoTipVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(complete) {
+            if (complete && !Tips.seen(prefs, Tips.BINGO_DONE) && !Tips.snackShownThisLaunch) {
+                Tips.mark(prefs, Tips.BINGO_DONE)
+                Tips.snackShownThisLaunch = true
+                bingoTipVisible = true
+            }
+        }
+        if (bingoTipVisible) {
+            TipSnackbar(
+                TipSnack(Tips.BINGO_DONE, stringResource(R.string.tip_bingo_title), stringResource(R.string.tip_bingo_body)),
+                theme, onGone = { bingoTipVisible = false },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+            )
+        }
+    }
+}
+
+// v2.5: aviso de libro duplicado (Cancelar rojo / Añadir igualmente Accent)
+@Composable
+fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = theme.bgMid,
+        title = { Text(stringResource(R.string.dup_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+        text = { Text(stringResource(R.string.dup_text, existing.title), color = theme.textMuted, fontSize = 13.sp) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.dup_add_anyway), color = Accent, fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
+    )
+}
+
+// ── ListScreen ────────────────────────────────────────────────────────────────
+//
+// Estilo Goodreads: pestañas por estante + búsqueda + ordenación.
+// Cada pestaña muestra sólo los libros de ese estado → no hay listas infinitas.
+
+// ── D-002 (Fase 4): mini-rail del home ────────────────────────────────────────
+// El rail vive SOLO en la biblioteca: 📜 historial (fijo) + 📚 home (fijo) + destinos
+// reordenables. Destinos = push a pantalla completa (semántica 2.7); el historial se
+// despliega como panel encajado contra el rail. Iconos = emojis del sistema (D-002b).
+// Long-press en un destino → modo edición con arrastre vertical; ✓ guarda en prefs.
+// Feedback 13-07: la lupa sale del rail (la búsqueda online vive en la barra de búsqueda)
+private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped")
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun RailItem(
+    emoji: String?,
+    theme: Theme,
+    highlighted: Boolean = false,
+    enabled: Boolean = true,
+    // Feedback 13-07: los destinos vuelven a los iconos Material azules; solo
+    // historial (📜) y biblioteca (📚) conservan emoji (más el icono del tema en la barra)
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onLongPress: (() -> Unit)? = null,
+    onClick: () -> Unit = {}
+) {
+    Box(
+        Modifier
+            .padding(vertical = 3.dp)
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (highlighted) Accent.copy(alpha = 0.16f) else Color.Transparent)
+            .then(
+                if (enabled) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongPress)
+                else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (icon != null) Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(19.dp))
+        else Text(emoji ?: "", fontSize = 17.sp)
+    }
+}
+
+@Composable
+fun HomeRail(
+    theme: Theme,
+    prefs: android.content.SharedPreferences,
+    onHistory: () -> Unit,
+    onLibrary: () -> Unit,
+    onStats: () -> Unit,
+    onChallenges: () -> Unit,
+    onBingo: () -> Unit,
+    onWrapped: () -> Unit,
+    // Feedback 14-07: swipe → sobre 📜 abre el historial; swipe ← en cualquier punto
+    // del rail (incluida la raya separadora, que forma parte de su borde) lo cierra
+    onHistoryOpen: () -> Unit = {},
+    onRailClose: () -> Unit = {},
+) {
+    var order by remember {
+        mutableStateOf(
+            prefs.getString("rail_order", null)
+                ?.split(",")?.filter { it in RAIL_DEFAULT_ORDER }
+                ?.let { saved -> saved + RAIL_DEFAULT_ORDER.filter { it !in saved } }
+                ?: RAIL_DEFAULT_ORDER
+        )
+    }
+    var editMode by remember { mutableStateOf(false) }
+    val slotPx = with(androidx.compose.ui.platform.LocalDensity.current) { 46.dp.toPx() }
+
+    fun railIcon(dest: String) = when (dest) {
+        "challenges" -> Icons.Default.EmojiEvents
+        "stats"      -> Icons.Default.BarChart
+        "bingo"      -> Icons.Default.GridView
+        else         -> Icons.Default.CardGiftcard
+    }
+
+    // Feedback 14-07: gestos del rail — swipe ← lo cierra (el gesto arranca en el propio
+    // rail o en la raya que lo separa de los libros); swipe → no hace nada aquí (el de
+    // reabrir vive en la franja del borde cuando está cerrado, ver call site)
+    val railAcc = remember { mutableStateOf(0f) }
+    Column(
+        Modifier.width(46.dp).fillMaxHeight().padding(top = 4.dp)
+            // Feedback 14-07 (F10): en landscape no caben los 6 iconos — la columna
+            // scrollea en vertical para que todos sean alcanzables
+            .verticalScroll(rememberScrollState())
+            .draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    railAcc.value += delta
+                    if (railAcc.value < -60f) { onRailClose(); railAcc.value = 0f }
+                },
+                onDragStarted = { railAcc.value = 0f }
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 📜 con gesto propio: swipe → abre el historial (además del tap); swipe ← cierra
+        // el rail (consume el drag del padre, así que replica ese caso)
+        val histAcc = remember { mutableStateOf(0f) }
+        Box(
+            Modifier.draggable(
+                orientation = Orientation.Horizontal,
+                state = rememberDraggableState { delta ->
+                    histAcc.value += delta
+                    if (histAcc.value > 60f) { onHistoryOpen(); histAcc.value = 0f }
+                    else if (histAcc.value < -60f) { onRailClose(); histAcc.value = 0f }
+                },
+                onDragStarted = { histAcc.value = 0f }
+            )
+        ) {
+            RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
+        }
+        RailItem("📚", theme, enabled = !editMode, onClick = onLibrary)
+        HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
+        Box(Modifier.height(46.dp * order.size).fillMaxWidth()) {
+        RAIL_DEFAULT_ORDER.forEach { dest ->
+            val idx = order.indexOf(dest)
+            var dragging by remember(dest) { mutableStateOf(false) }
+            var dragOffset by remember(dest) { mutableStateOf(0f) }
+            val settledY by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = idx * slotPx,
+                animationSpec = tween(durationMillis = 220),
+                label = "rail_slot_$dest"
+            )
+            Box(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(if (dragging) 1f else 0f)
+                    .offset { IntOffset(0, (if (dragging) idx * slotPx + dragOffset else settledY).roundToInt()) }
+                    .then(
+                        if (editMode) Modifier.pointerInput(dest) {
+                            detectDragGestures(
+                                onDragStart = { dragging = true },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    dragOffset += amount.y
+                                    val shift = (dragOffset / slotPx).roundToInt()
+                                    if (shift != 0) {
+                                        val from = order.indexOf(dest)
+                                        val to = (from + shift).coerceIn(0, order.lastIndex)
+                                        if (to != from) {
+                                            order = order.toMutableList().also { it.add(to, it.removeAt(from)) }
+                                            dragOffset -= (to - from) * slotPx
+                                        }
+                                    }
+                                },
+                                onDragEnd = { dragging = false; dragOffset = 0f },
+                                onDragCancel = { dragging = false; dragOffset = 0f }
+                            )
+                        } else Modifier
+                    )
+            ) {
+                RailItem(
+                    null, theme,
+                    icon = railIcon(dest),
+                    highlighted = editMode,
+                    enabled = !editMode,
+                    onLongPress = { editMode = true },
+                    onClick = {
+                        when (dest) {
+                            "challenges" -> onChallenges()
+                            "stats"      -> onStats()
+                            "bingo"      -> onBingo()
+                            else         -> onWrapped()
+                        }
+                    }
+                )
+            }
+        }
+        }
+        if (editMode) {
+            RailItem(null, theme, highlighted = true, icon = Icons.Default.Check, onClick = {
+                prefs.edit().putString("rail_order", order.joinToString(",")).apply()
+                editMode = false
+            })
+        }
+    }
+}
+
+// Orden canónico de estantes (igual al que muestra la barra de pestañas)
+internal val SHELF_ORDER = listOf(
+    BookStatus.READING,
+    BookStatus.FINISHED,
+    BookStatus.REREADING,
+    BookStatus.PENDING,
+    BookStatus.DROPPED
+)
+
+fun normalizeSearchText(text: String): String {
+    val normalized = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+    return normalized.replace(Regex("[\\p{InCombiningDiacriticalMarks}]"), "")
+        .replace(" ", "").lowercase()
+}
+
+fun fuzzyMatch(query: String, target: String): Boolean {
+    val nq = normalizeSearchText(query)
+    val nt = normalizeSearchText(target)
+    return nt.contains(nq)
+}
+
+// ── Selección de idioma inicial ───────────────────────────────────────────────
+
+@Composable
+fun LanguageSelectionScreen(theme: Theme, onLanguageSelected: (String) -> Unit) {
+    Box(
+        Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text("📚", fontSize = 64.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.txt_4d8b0a6f),
+                color = theme.textMain,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(32.dp))
+            Text(
+                stringResource(R.string.txt_18fb3478),
+                color = theme.textMuted,
+                fontSize = 15.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(Modifier.height(40.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Button(
+                    onClick = { onLanguageSelected("es") },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Accent)
+                ) { Text(stringResource(R.string.txt_95b01315), fontSize = 15.sp, color = androidx.compose.ui.graphics.Color.White) }
+                Button(
+                    onClick = { onLanguageSelected("en") },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = theme.bgMid),
+                    border = BorderStroke(1.dp, theme.border)
+                ) { Text(stringResource(R.string.txt_f759fe35), fontSize = 15.sp, color = theme.textMain) }
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                stringResource(R.string.txt_82056f1f),
+                color = theme.textDim,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
