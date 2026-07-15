@@ -359,9 +359,23 @@ fun importFullBackupFromJson(
                 ?: vm.books.value.firstOrNull { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" == key }
             b.id to (matched?.id ?: b.id)
         }
+        // B-032: deduplicar por id NO basta. `ReadingSession.id` es System.currentTimeMillis(),
+        // así que la MISMA sesión registrada en dos instalaciones distintas nunca comparte id
+        // — exactamente el mismo motivo por el que los libros se remapean por isbn/título+autor
+        // en el bloque de arriba, pero a las sesiones no se les aplicó ese razonamiento.
+        // Reproducido restaurando el backup del refac sobre los datos de la 2.7: salían dos
+        // sesiones duplicadas exactas (Dragón 14-07 143-154 y Imperio Final 10-07 13-23),
+        // contando doble en las estadísticas.
+        // Una sesión queda definida por libro + fecha + páginas + rango: si eso coincide, es
+        // la misma lectura aunque venga de otra instalación.
+        fun sessionKey(bookId: Long, s: ReadingSession) =
+            "$bookId|${s.date}|${s.pages}|${s.startPage}|${s.endPage}"
+        val existingSessionKeys = vm.sessions.value.map { sessionKey(it.bookId, it) }.toSet()
         val newSessions = backupSessions2
             .filter { it.id !in existingSessionIds }
             .mapNotNull { s -> bookIdRemap[s.bookId]?.let { resolvedId -> s.copy(bookId = resolvedId) } }
+            .filter { sessionKey(it.bookId, it) !in existingSessionKeys }
+            .distinctBy { sessionKey(it.bookId, it) }   // y que el propio backup no traiga repes
         val backupBookById2 = backupBooks2.associateBy { it.id }
         vm.setBooks(vm.books.value.map { existing ->
             val fromBackup = backupBookById2[existing.id]
