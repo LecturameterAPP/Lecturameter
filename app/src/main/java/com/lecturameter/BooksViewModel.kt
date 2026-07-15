@@ -787,6 +787,21 @@ class BooksViewModel : ViewModel() {
         prefs.edit().putBoolean(flagKey, true).apply()
     }
 
+    // ── B-029: guardado SÍNCRONO a propósito ─────────────────────────────────
+    //
+    // Sí, esto serializa 6,7 MB en el hilo principal y provoca el tirón que Víctor
+    // reportó al cambiar de edición (`apply()` solo hace asíncrona la escritura a
+    // disco; el `gson.toJson(books)` corre aquí). NO se pasa a background:
+    //
+    // el widget lee los libros de estas mismas prefs (BookWidget.kt:92) y por toda
+    // la app el patrón es `vm.loQueSea(...)` seguido de `refreshWidgetForBookIfSelected`.
+    // Si el guardado fuese asíncrono, el widget se refrescaría antes de que la
+    // serialización termine y pintaría datos viejos — que es exactamente B-009.
+    // Lo mismo vale para JsonBackupWorker y DriveBackupWorker, que releen prefs.
+    //
+    // La cura real es B-029 opción B: sacar las portadas base64 (6,6 de los 6,7 MB)
+    // a ficheros. Con eso la serialización baja a ~100 KB, tarda milisegundos y este
+    // save síncrono deja de notarse — sin carreras y sin tocar a los lectores.
     fun save(prefs: android.content.SharedPreferences, triggerBackup: Boolean = true) {
         com.lecturameter.repository.BookRepository.save(prefs, booksInternal)
         if (triggerBackup) triggerDriveBackup(prefs)

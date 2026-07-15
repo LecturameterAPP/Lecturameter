@@ -1,6 +1,6 @@
 package com.lecturameter
 
-// Tips contextuales (D-008) y tutorial de 5 slides: Tips, TipCard, TipSnackbar, visuales y TutorialSlideshow.
+// Tips contextuales (D-008) y tutorial de 6 slides: Tips, TipCard, TipSnackbar, visuales y TutorialSlideshow.
 // Extraido de MainActivity.kt el 15-07-2026 (ruptura del monolito, sin cambios funcionales).
 
 
@@ -412,6 +412,7 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
         // que el mock de la sesión desplegada no se corte: el historial pasa a ser el
         // visual de la izquierda y las pills acompañan al texto a la derecha.
         // Fase 4 (D-009, 14-07): rework 10 → 5 slides FILOSÓFICAS (mockup r2 aprobado).
+        // 15-07: +1 slide de Goodreads (excepción acordada) → 6.
         // El tutorial ya no explica features (eso son los tips contextuales de Fase 6):
         // valor → básico → promesa → privacidad → batería. Textos estilo Augur, 1-2 frases.
         // La slide 2 llevará captura real POR IDIOMA al cerrar F4; hasta entonces usa el

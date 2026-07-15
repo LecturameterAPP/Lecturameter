@@ -913,16 +913,6 @@
     <string name="edition_scan_not_found">No edition found for ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edition not yet indexed in the databases. Offered with ISBN %1$s and this book\'s data; you can edit it later.</string>
     <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
-    <string name="tut10_library_title">Your library</string>
-    <string name="tut10_library_desc">Add books by hand or from search and sort them into shelves. Each book can hold several editions from its detail view. On the left rail, 📜 opens your history and 📚 brings you back here. Swipe the rail left to collapse it and gain space.</string>
-    <string name="tut10_backup_title">Import and backup</string>
-    <string name="tut10_backup_desc">Bring your Goodreads library in one tap. Local or Drive backups, automated if you want.</string>
-    <string name="tut10_sessions_title">Reading sessions</string>
-    <string name="tut10_sessions_desc">Start the timer when you sit down to read to track how long your session lasts. When you finish, the time is filled in automatically in the session form; you can also log sessions by hand.</string>
-    <string name="tut10_stats_title">Your stats</string>
-    <string name="tut10_stats_desc">Charts, a reading heatmap, per-session history and your year-end Wrapped.</string>
-    <string name="tut10_challenges_title">Reading challenges</string>
-    <string name="tut10_challenges_desc">Set book, page or streak goals and follow your progress, pressure-free.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->
     <string name="search_online_cta">Search "%1$s" in the online catalog</string>
