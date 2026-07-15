@@ -90,6 +90,9 @@ dependencies {
     // ── WorkManager (backups automáticos cada 2h) ─────────────────────────────
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 
+    // ── Tests unitarios (F8) — ejecutar con run_tests.ps1 (gradle/gradle#12660) ──
+    testImplementation 'junit:junit:4.13.2'
+
     // ── ISBN Scanner — ML Kit Barcode + CameraX ───────────────────────────────
     implementation 'com.google.mlkit:barcode-scanning:17.3.0'
     implementation 'androidx.camera:camera-core:1.3.2'
