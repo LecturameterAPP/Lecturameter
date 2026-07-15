@@ -88,6 +88,9 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    // B-019: sesión huérfana detectada al arrancar el crono de este libro.
+    var orphanSecondsPending by remember { mutableStateOf(0L) }
+    var pendingResumeStart   by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showStatusMenu by remember { mutableStateOf(false) }
     // v20.0 (G5): confirmación abandono
     var showAbandonDialog by remember { mutableStateOf(false) }
@@ -145,7 +148,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             }
         )
     }
-    fun startTimerWithPermCheck(action: () -> Unit) {
+    fun requestNotifPermThenStart(action: () -> Unit) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
             != android.content.pm.PackageManager.PERMISSION_GRANTED &&
@@ -155,6 +158,28 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             showNotifPermDialog = true
         } else {
             action()
+        }
+    }
+
+    // B-019: si el proceso murió con el crono en marcha (crash, force-stop, matanza
+    // del sistema), los segundos siguen en prefs y el servicio los restauraba SIN
+    // avisar — al arrancar "una sesión nueva" del mismo libro aparecía el tiempo
+    // viejo. Ahora se pregunta y se enseña cuánto es.
+    fun orphanTimerSeconds(): Long {
+        if (TimerStateHolder.seconds != 0L) return 0L   // el crono ya vive en memoria
+        val tp = context.getSharedPreferences(com.lecturameter.TimerService.TIMER_PREFS, android.content.Context.MODE_PRIVATE)
+        val savedSecs = tp.getLong("running_seconds", 0L)
+        val savedBook = tp.getLong("running_book_id", -1L)
+        return if (savedSecs > 0L && savedBook == id) savedSecs else 0L
+    }
+
+    fun startTimerWithPermCheck(action: () -> Unit) {
+        val orphan = orphanTimerSeconds()
+        if (orphan > 0L) {
+            orphanSecondsPending = orphan
+            pendingResumeStart = action
+        } else {
+            requestNotifPermThenStart(action)
         }
     }
     // D-002/T1: llegada desde el selector rápido del home (⏱️) — arrancar el crono
@@ -179,6 +204,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
     // Advertencia al cambiar edición activa (sin timer): informa que cambian sesiones/comentarios visibles
     var showActiveEditionWarning by remember { mutableStateOf(false) }
+    // B-024: borrar una edición no pedía confirmación (la ✕ actuaba a la primera).
+    var pendingRemoveEditionId by remember { mutableStateOf<Long?>(null) }
     var pendingActiveEditionId by remember { mutableStateOf<Long?>(null) }
 
     // Advertencia cuando hay sesión en curso y se intenta cambiar edición: pausa + advierte
@@ -196,6 +223,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     var editionsLoading        by remember { mutableStateOf(false) }
     var editionsNetworkError   by remember { mutableStateOf(false) }
     var selectedEditionResult  by remember { mutableStateOf<EditionResult?>(null) }
+    // B-023: edición escaneada cuyo autor no casa con el del libro — a confirmar.
+    var pendingScannedMismatch by remember { mutableStateOf<EditionResult?>(null) }
     val bookEditions = vm.editionsForBook(id)
     // v20.0 (G2): states obsoletos eliminados (search/order ahora son locales por sección).
     var selectedRating by remember(book.rating) { mutableStateOf(book.rating) }    // Sincronizar solo si el valor guardado cambia externamente (ej. otro dispositivo)
@@ -401,7 +430,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         val meta = withContext(Dispatchers.IO) { fetchIsbnFullMetadata(scanned) }
                         if (!meta.title.isNullOrBlank()) {
                             val (lId, lLabel, lFlag) = isbnToLanguageMeta(scanned)
-                            ed = EditionResult(lId, lLabel, lFlag, meta.title, meta.pages ?: 0, meta.coverUrl, scanned, "", "")
+                            ed = EditionResult(lId, lLabel, lFlag, meta.title, meta.pages ?: 0, meta.coverUrl, scanned, "", "", meta.author.orEmpty())
                         }
                     }
                     // Feedback 2.6 (caso Gollancz 9781399630467): las ediciones tan nuevas que
@@ -415,8 +444,14 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         EditionResult(lId, lLabel, lFlag, book.title, 0, null, scanned, "", "")
                     }
                     editionsLoading = false
-                    availableEditions = listOf(resolved) + availableEditions.filter { it.isbn != resolved.isbn }
-                    selectedEditionResult = resolved
+                    // B-023: si el ISBN pertenece claramente a otra obra (autor distinto),
+                    // preguntar antes de colarla como edición de este libro.
+                    if (editionAuthorMismatch(book.author, resolved.author)) {
+                        pendingScannedMismatch = resolved
+                    } else {
+                        availableEditions = listOf(resolved) + availableEditions.filter { it.isbn != resolved.isbn }
+                        selectedEditionResult = resolved
+                    }
                 }
             }
         }
@@ -424,6 +459,40 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             ActivityResultContracts.RequestPermission()
         ) { granted ->
             if (granted) editionScanLauncher.launch(android.content.Intent(context, ScannerActivity::class.java))
+        }
+
+        // B-023: el ISBN escaneado parece de otra obra. No lo bloqueamos (puede ser un
+        // recopilatorio, un seudónimo o un dato malo de la API), pero que sea decisión
+        // explícita y no un añadido silencioso.
+        pendingScannedMismatch?.let { scannedEd ->
+            AlertDialog(
+                onDismissRequest = { pendingScannedMismatch = null },
+                containerColor = theme.bgMid,
+                title = { Text(stringResource(R.string.edition_scan_mismatch_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(
+                        stringResource(
+                            R.string.edition_scan_mismatch_msg,
+                            scannedEd.title, scannedEd.author, book.title, book.author
+                        ),
+                        color = theme.textMuted, fontSize = 13.sp
+                    )
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingScannedMismatch = null }) {
+                        Text(stringResource(R.string.txt_847607d7), color = Accent)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        availableEditions = listOf(scannedEd) + availableEditions.filter { it.isbn != scannedEd.isbn }
+                        selectedEditionResult = scannedEd
+                        pendingScannedMismatch = null
+                    }) {
+                        Text(stringResource(R.string.edition_scan_mismatch_add), color = Red)
+                    }
+                }
+            )
         }
         AlertDialog(
             onDismissRequest = { showChangeEditionSheet = false; showAddEditionSheet = false },
@@ -619,6 +688,37 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
         )
     }
 
+    // B-019: elegir entre retomar el tiempo huérfano o empezar de cero. Retomar =
+    // dejar las prefs como están (el servicio las restaura); empezar de cero =
+    // limpiarlas antes de arrancar.
+    if (orphanSecondsPending > 0L && pendingResumeStart != null) {
+        val secs = orphanSecondsPending
+        val h = secs / 3600; val m = (secs % 3600) / 60; val s = secs % 60
+        val pretty = if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%d:%02d", m, s)
+        val startAction = pendingResumeStart
+        AlertDialog(
+            onDismissRequest = { orphanSecondsPending = 0L; pendingResumeStart = null },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.timer_resume_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.timer_resume_msg, pretty), color = theme.textMuted, fontSize = 13.sp) },
+            dismissButton = {
+                TextButton(onClick = {
+                    context.getSharedPreferences(com.lecturameter.TimerService.TIMER_PREFS, android.content.Context.MODE_PRIVATE)
+                        .edit().clear().apply()
+                    TimerStateHolder.reset()
+                    orphanSecondsPending = 0L; pendingResumeStart = null
+                    startAction?.let { requestNotifPermThenStart(it) }
+                }) { Text(stringResource(R.string.timer_resume_fresh), color = Red) }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    orphanSecondsPending = 0L; pendingResumeStart = null
+                    startAction?.let { requestNotifPermThenStart(it) }
+                }) { Text(stringResource(R.string.timer_resume_confirm, pretty), color = Accent, fontWeight = FontWeight.Bold) }
+            }
+        )
+    }
+
     if (showDeleteDialog) {
         AlertDialog(onDismissRequest = { showDeleteDialog = false }, title = { Text(stringResource(R.string.txt_b375487f), color = theme.textMain) }, text = { Text(stringResource(R.string.txt_2750cc8c, book.title), color = theme.textMuted) },
             confirmButton = { TextButton(onClick = { vm.deleteBook(id, prefs); clearWidgetBookIfSelected(context, id); onBack() }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red) } },
@@ -644,6 +744,33 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     }
 
     // ── Diálogo: cambio de edición activa (sin timer) ─────────────────────────
+    // B-024: confirmación al borrar una edición. Las sesiones NO se borran (siguen
+    // en el libro), solo dejan de estar asociadas a esa edición — el texto lo dice.
+    pendingRemoveEditionId?.let { edId ->
+        val edTitle = bookEditions.firstOrNull { it.id == edId }?.title?.ifBlank { book.title } ?: book.title
+        AlertDialog(
+            onDismissRequest = { pendingRemoveEditionId = null },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.edition_delete_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.edition_delete_msg, edTitle), color = theme.textMuted, fontSize = 13.sp) },
+            dismissButton = {
+                TextButton(onClick = { pendingRemoveEditionId = null }) {
+                    Text(stringResource(R.string.txt_847607d7), color = Accent)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (vm.removeEdition(id, edId, prefs)) {
+                        refreshWidgetForBookIfSelected(context, id, clearCoverCache = true)
+                    }
+                    pendingRemoveEditionId = null
+                }) {
+                    Text(stringResource(R.string.edition_delete_confirm), color = Red)
+                }
+            }
+        )
+    }
+
     if (showActiveEditionWarning) {
         AlertDialog(
             onDismissRequest = { showActiveEditionWarning = false; pendingActiveEditionId = null },
@@ -1088,11 +1215,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             }
                         }
                     },
-                    onRemove     = { edId ->
-                        if (vm.removeEdition(id, edId, prefs)) {
-                            refreshWidgetForBookIfSelected(context, id, clearCoverCache = true)
-                        }
-                    },
+                    onRemove     = { edId -> pendingRemoveEditionId = edId },   // B-024: confirmar antes de borrar
                     onUpdatePages = { edId, pages ->
                         vm.upsertEdition(id, bookEditions.first { it.id == edId }.copy(pages = pages), prefs)
                         if (bookEditions.firstOrNull { it.id == edId }?.isActive == true) vm.updatePages(id, pages, prefs)
@@ -1587,8 +1710,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val label = when {
                                 book.firstFunctionalPage != null && book.lastFunctionalPage != null ->
                                     "${book.firstFunctionalPage}–${book.lastFunctionalPage}  ›  ${book.lastFunctionalPage - book.firstFunctionalPage + 1}p"
-                                book.firstFunctionalPage != null -> "desde ${book.firstFunctionalPage}"
-                                book.lastFunctionalPage != null  -> "hasta ${book.lastFunctionalPage}"
+                                book.firstFunctionalPage != null -> context.getString(R.string.func_pages_from, book.firstFunctionalPage)
+                                book.lastFunctionalPage != null  -> context.getString(R.string.func_pages_to, book.lastFunctionalPage)
                                 else -> "—"
                             }
                             Text(label, color = theme.textMain, fontSize = 13.sp)

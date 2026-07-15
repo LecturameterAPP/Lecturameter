@@ -142,6 +142,21 @@ fun completedRereads(events: List<DateEvent>): Int =
 fun startedRereads(events: List<DateEvent>): Int =
     events.count { it.type == "reread" }
 
+/**
+ * B-025: fecha en la que arrancó el tramo de lectura EN CURSO.
+ *
+ * Un libro releído conserva su `startDate` original (la primera lectura, que puede
+ * ser de hace años), así que contar días desde ahí da cifras absurdas — el caso real
+ * fue El imperio final: leído en 2022, releído desde el 01-07-2026, mostraba
+ * "1359 días". El tramo actual empieza en el último evento que ABRE lectura.
+ * Sin eventos (libros previos a v19.8) se cae al `startDate` legacy.
+ */
+fun currentReadStart(book: Book): String? {
+    val openers = setOf("start", "resume", "reread")
+    return sortedDateEvents(book.dateEvents).lastOrNull { it.type in openers }?.date
+        ?: book.startDate
+}
+
 /** Genera dateEvents a partir de los campos legacy (startDate/endDate/dropDate/resumedDate).
  *  Solo se usa si el libro no tiene dateEvents (migración perezosa).
  *  v20.0 (G6): renumera occurrences para evitar huecos en libros guardados con bugs previos. */

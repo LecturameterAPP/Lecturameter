@@ -1142,7 +1142,12 @@ data class EditionResult(
     val coverUrl: String?,
     val isbn: String?,
     val publisher: String,
-    val publishYear: String
+    val publishYear: String,
+    // B-023: autor que declara la API para este ISBN. Se usa solo para detectar que
+    // un ISBN escaneado pertenece a OTRA obra (caso real: escanear "Hábito y Mortaja"
+    // dentro de "El dragón renacido" lo añadía como edición suya). Por defecto vacío:
+    // las fuentes que no lo aportan no disparan el aviso.
+    val author: String = ""
 )
 
 private val LANGUAGE_META = mapOf(
@@ -1448,8 +1453,32 @@ internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withCont
             isbnToLanguageMeta(clean)
         }
 
-        EditionResult(langId, langLabel, flag, title, pages, coverUrl, clean, publisher, publishYear)
+        // B-023: autor declarado por GB, para detectar ISBNs de otra obra
+        val author = info.optJSONArray("authors")?.optString(0, "").orEmpty()
+
+        EditionResult(langId, langLabel, flag, title, pages, coverUrl, clean, publisher, publishYear, author)
     } catch (_: Exception) { null }
+}
+
+// ── B-023: ¿el ISBN escaneado es de otra obra? ────────────────────────────────
+// Comparamos por AUTOR, no por título: las ediciones de un mismo libro cambian de
+// título entre idiomas ("El dragón renacido" / "The Dragon Reborn"), pero el autor
+// se mantiene. Si la API no da autor, no avisamos (mejor callar que dar un falso
+// positivo). La comparación es por tokens del nombre para tolerar "J.R.R. Tolkien"
+// vs "Tolkien, J. R. R.".
+private fun authorTokens(name: String): Set<String> =
+    java.text.Normalizer.normalize(name.lowercase(), java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .split(Regex("[^a-z0-9]+"))
+        .filter { it.length > 2 }
+        .toSet()
+
+/** true solo si hay autor en AMBOS lados y no comparten ningún token relevante. */
+fun editionAuthorMismatch(bookAuthor: String, editionAuthor: String): Boolean {
+    val a = authorTokens(bookAuthor)
+    val b = authorTokens(editionAuthor)
+    if (a.isEmpty() || b.isEmpty()) return false
+    return a.intersect(b).isEmpty()
 }
 
 // ── OpenLibrary Work resolver ──────────────────────────────────────────────────

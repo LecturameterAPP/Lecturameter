@@ -132,7 +132,6 @@
     <string name="tutorial_mock_days">⏳ 9 days</string>
     <string name="tutorial_mock_book_title">The Eye of the World</string>
     <string name="tutorial_mock_book_author">Robert Jordan</string>
-    <string name="tutorial_mock_cover_url">https://covers.openlibrary.org/b/isbn/9781250832368-L.jpg</string>
     <string name="tutorial_mock_days_pill">27 days</string>
     <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
     <string name="tutorial_mock_pages_chip">📄 25 Pags</string>
@@ -1051,4 +1050,31 @@
     <string name="survey_o_yes">Yes</string>
     <string name="survey_o_no">No</string>
     <string name="survey_o_not_yet">Not yet</string>
+
+    <!-- B-021 -->
+    <string name="editions_summary">%1$d editions · each one counts as a separate book in statistics · %2$d pages in total</string>
+    <string name="func_pages_from">from %1$d</string>
+    <string name="func_pages_to">to %1$d</string>
+    <string name="share_library_subject">My Lecturameter library</string>
+    <string name="share_library_text">Here is my library exported from Lecturameter (%1$d books).</string>
+    <string name="share_library_chooser">Share library</string>
+    <string name="share_backup_subject">Lecturameter backup</string>
+    <string name="share_backup_text">Full Lecturameter backup (%1$d books, %2$d sessions).</string>
+    <string name="share_backup_chooser">Save backup</string>
+
+    <!-- B-024 -->
+    <string name="edition_delete_title">Delete this edition?</string>
+    <string name="edition_delete_msg">“%1$s” will be removed from the book. Sessions you logged with it are not deleted, but they will no longer be tied to this edition.</string>
+    <string name="edition_delete_confirm">Delete</string>
+
+    <!-- B-023 -->
+    <string name="edition_scan_mismatch_title">Is this the same book?</string>
+    <string name="edition_scan_mismatch_msg">That ISBN is “%1$s”, by %2$s. This book is “%3$s”, by %4$s.\n\nIf you add it, it will be saved as another edition of this book and will count towards its statistics.</string>
+    <string name="edition_scan_mismatch_add">Add anyway</string>
+
+    <!-- B-019 -->
+    <string name="timer_resume_title">Resume the timer?</string>
+    <string name="timer_resume_msg">This book has %1$s from an earlier session that was never saved. You can carry on from there or start over.</string>
+    <string name="timer_resume_confirm">Resume (%1$s)</string>
+    <string name="timer_resume_fresh">Start over</string>
 </resources>

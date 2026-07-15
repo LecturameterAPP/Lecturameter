@@ -1014,7 +1014,7 @@ fun EditionsSection(
                 Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("📊", fontSize = 12.sp)
                     Text(
-                        "${editions.size} ediciones · cada una cuenta como un libro independiente en estadísticas · ${editions.sumOf { it.pages }} págs en total",
+                        stringResource(R.string.editions_summary, editions.size, editions.sumOf { it.pages }),
                         color = theme.textDim,
                         fontSize = 11.sp,
                         lineHeight = 16.sp

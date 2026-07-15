@@ -270,11 +270,11 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/csv"
                                     putExtra(Intent.EXTRA_STREAM, uri)
-                                    putExtra(Intent.EXTRA_SUBJECT, "Mi biblioteca Lecturameter")
-                                    putExtra(Intent.EXTRA_TEXT, "Aquí tienes mi biblioteca exportada desde Lecturameter (${books.size} libros).")
+                                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_library_subject))
+                                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_library_text, books.size))
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Compartir biblioteca"))
+                                context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_library_chooser)))
                                 exportMsg = context.getString(R.string.msg_export_ready)
                             } else {
                                 exportMsg = context.getString(R.string.msg_export_error_gen)
@@ -338,11 +338,11 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "application/json"
                                     putExtra(Intent.EXTRA_STREAM, uri)
-                                    putExtra(Intent.EXTRA_SUBJECT, "Backup Lecturameter")
-                                    putExtra(Intent.EXTRA_TEXT, "Copia de seguridad completa de Lecturameter (${books.size} libros, ${sessions.size} sesiones).")
+                                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.share_backup_subject))
+                                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_backup_text, books.size, sessions.size))
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                context.startActivity(Intent.createChooser(intent, "Guardar backup"))
+                                context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_backup_chooser)))
                                 backupMsg = context.getString(R.string.msg_backup_ready_share)
                             } else {
                                 backupMsg = context.getString(R.string.msg_backup_error_gen)

@@ -132,7 +132,6 @@
     <string name="tutorial_mock_days">⏳ 9 días</string>
     <string name="tutorial_mock_book_title">El Ojo del Mundo</string>
     <string name="tutorial_mock_book_author">Robert Jordan</string>
-    <string name="tutorial_mock_cover_url">https://covers.openlibrary.org/b/id/14286609-L.jpg</string>
     <string name="tutorial_mock_days_pill">27 días</string>
     <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
     <string name="tutorial_mock_pages_chip">📄 25 Págs</string>
@@ -1055,4 +1054,32 @@
     <string name="survey_o_yes">Sí</string>
     <string name="survey_o_no">No</string>
     <string name="survey_o_not_yet">Aún no</string>
+
+    <!-- B-021: literales que estaban hardcodeados en el código y salían en español
+         con la app en inglés (mismo patrón que el worker de recaps). -->
+    <string name="editions_summary">%1$d ediciones · cada una cuenta como un libro independiente en estadísticas · %2$d págs en total</string>
+    <string name="func_pages_from">desde %1$d</string>
+    <string name="func_pages_to">hasta %1$d</string>
+    <string name="share_library_subject">Mi biblioteca Lecturameter</string>
+    <string name="share_library_text">Aquí tienes mi biblioteca exportada desde Lecturameter (%1$d libros).</string>
+    <string name="share_library_chooser">Compartir biblioteca</string>
+    <string name="share_backup_subject">Backup Lecturameter</string>
+    <string name="share_backup_text">Copia de seguridad completa de Lecturameter (%1$d libros, %2$d sesiones).</string>
+    <string name="share_backup_chooser">Guardar backup</string>
+
+    <!-- B-024: confirmación al borrar una edición -->
+    <string name="edition_delete_title">¿Borrar esta edición?</string>
+    <string name="edition_delete_msg">Se quitará «%1$s» del libro. Las sesiones que registraste con ella no se borran, pero dejarán de estar asociadas a esta edición.</string>
+    <string name="edition_delete_confirm">Borrar</string>
+
+    <!-- B-023: el ISBN escaneado parece de otra obra -->
+    <string name="edition_scan_mismatch_title">¿Es el mismo libro?</string>
+    <string name="edition_scan_mismatch_msg">Ese ISBN es «%1$s», de %2$s. Este libro es «%3$s», de %4$s.\n\nSi lo añades, se guardará como una edición más de este libro y contará en sus estadísticas.</string>
+    <string name="edition_scan_mismatch_add">Añadir igualmente</string>
+
+    <!-- B-019: sesión huérfana al arrancar el cronómetro -->
+    <string name="timer_resume_title">¿Retomar el cronómetro?</string>
+    <string name="timer_resume_msg">Este libro tiene %1$s de una sesión anterior que se quedó sin guardar. Puedes seguir desde ahí o empezar de cero.</string>
+    <string name="timer_resume_confirm">Retomar (%1$s)</string>
+    <string name="timer_resume_fresh">Empezar de cero</string>
 </resources>

@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
@@ -141,7 +142,16 @@ fun TutorialBookCardVisual(theme: Theme) {
     ) {
         Row(Modifier.padding(12.dp)) {
             Box(modifier = Modifier.size(70.dp, (70 * 1.42f).dp)) {
-                BookCover(stringResource(R.string.tutorial_mock_cover_url), stringResource(R.string.tutorial_mock_book_title), size = 70)
+                // B-022: la portada del tutorial va empaquetada, no se descarga. Antes
+                // salía de OpenLibrary y en la primera ejecución (sin red, o con la API
+                // lenta) la slide se veía vacía. La variante inglesa vive en drawable-en,
+                // así que la elige el propio idioma de la app (attachBaseContext).
+                Image(
+                    painter = painterResource(R.drawable.tutorial_cover_eye),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(70.dp, (70 * 1.42f).dp).clip(RoundedCornerShape(8.dp))
+                )
                 Box(
                     Modifier.size(22.dp).offset(x = (-5).dp, y = 5.dp).clip(CircleShape)
                         .background(Sky).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomStart),
@@ -169,8 +179,6 @@ fun TutorialBookCardVisual(theme: Theme) {
                     Text(stringResource(R.string.tutorial_mock_pages), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.weight(1f, fill = false))
                     Text(stringResource(R.string.tutorial_mock_days), color = theme.textMuted, fontSize = 12.sp, maxLines = 1)
                 }
-                Spacer(Modifier.height(4.dp))
-                Text("💬 ??", color = theme.textDim, fontSize = 11.sp)
             }
         }
     }

@@ -97,8 +97,13 @@ fun getStats(book: Book): BookStats? = when {
         } else null
         BookStats(d, ppd)
     }
-    (book.status == BookStatus.READING || book.status == BookStatus.REREADING) && book.startDate != null ->
-        BookStats(daysBetween(book.startDate, today()).coerceAtLeast(1), null)
+    // B-025: los días se cuentan desde el arranque del tramo ACTUAL (último
+    // start/resume/reread), no desde el startDate original — si no, un libro
+    // releído acumula los años de la primera lectura.
+    book.status == BookStatus.READING || book.status == BookStatus.REREADING -> {
+        val start = currentReadStart(book)
+        if (start != null) BookStats(daysBetween(start, today()).coerceAtLeast(1), null) else null
+    }
     else -> null
 }
 

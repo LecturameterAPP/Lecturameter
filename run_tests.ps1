@@ -32,5 +32,6 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson"
     com.lecturameter.WidgetStatsTest `
     com.lecturameter.RecapUtilsTest `
     com.lecturameter.BingoManagerTest `
-    com.lecturameter.ModelsTest
+    com.lecturameter.ModelsTest `
+    com.lecturameter.EditionGuardTest
 exit $LASTEXITCODE
