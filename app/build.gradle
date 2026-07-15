@@ -23,8 +23,31 @@ android {
         buildConfigField "String", "GOOGLE_BOOKS_API_KEY", "\"${props.getProperty('GOOGLE_BOOKS_API_KEY', '')}\""
     }
 
+    // Firma de release. Las credenciales salen de local.properties (fuera de git,
+    // mismo patrón que GOOGLE_BOOKS_API_KEY): RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD,
+    // RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD. Si no están, `release` se queda sin firmar
+    // y hay que usar el APK debug — así el build nunca depende de un secreto en el repo.
+    signingConfigs {
+        release {
+            def props = new Properties()
+            def lp = rootProject.file('local.properties')
+            if (lp.exists()) lp.withInputStream { props.load(it) }
+            def store = props.getProperty('RELEASE_STORE_FILE')
+            if (store) {
+                storeFile file(store)
+                storePassword props.getProperty('RELEASE_STORE_PASSWORD')
+                keyAlias props.getProperty('RELEASE_KEY_ALIAS')
+                keyPassword props.getProperty('RELEASE_KEY_PASSWORD')
+            }
+        }
+    }
+
     buildTypes {
         release {
+            def lpr = rootProject.file('local.properties')
+            def pr = new Properties()
+            if (lpr.exists()) lpr.withInputStream { pr.load(it) }
+            if (pr.getProperty('RELEASE_STORE_FILE')) signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

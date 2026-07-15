@@ -81,7 +81,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
     var authorUserSelected by remember { mutableStateOf(false) }
     var showGenreMenu by remember { mutableStateOf(false) }
     var showAuthorMenu by remember { mutableStateOf(false) }
-    var statsView by remember { mutableStateOf(_prefs.getString("stats_view_mode", "charts") ?: "charts") }
+    // Feedback 15-07: el heatmap pasa a ser la vista por defecto (antes "charts").
+    var statsView by remember { mutableStateOf(_prefs.getString("stats_view_mode", "heatmap") ?: "heatmap") }
     fun setStatsView(v: String) { statsView = v; _prefs.edit().putString("stats_view_mode", v).apply() }
     val showCharts = statsView == "charts"
 
@@ -146,7 +147,9 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                 Text(stringResource(R.string.stats_finished_books, filtered.size), color = theme.textMuted, fontSize = 13.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf("charts" to "📈", "table" to "📋", "heatmap" to "🔥").forEach { (mode, icon) ->
+                // Feedback 15-07: el heatmap va primero — es la vista por defecto y no
+                // tenía sentido que su botón fuese el último de la fila.
+                listOf("heatmap" to "🔥", "charts" to "📈", "table" to "📋").forEach { (mode, icon) ->
                     val active = statsView == mode
                     Surface(
                         onClick = { setStatsView(mode) },

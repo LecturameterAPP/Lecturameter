@@ -423,7 +423,49 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
             // 2 — Lo mínimo para empezar (captura real por idioma pendiente de F4)
             TutorialPage("＋", stringResource(R.string.tut5_basics_title), stringResource(R.string.tut5_basics_desc),
                 visual = { TutorialBookCardVisual(theme) }),
-            // 3 — La promesa (emoji provisional 🧭)
+            // 3 — Goodreads (15-07): título de A + pasos de B. Excepción consciente a
+            // D-009 — traerse la biblioteca es lo PRIMERO que necesita quien viene de
+            // otra app, no una feature que descubrir luego. Sin CTA a propósito: la
+            // exportación solo existe en la web de Goodreads, así que aquí no hay nada
+            // que resolver todavía; la slide solo deja el poso.
+            TutorialPage("📥", stringResource(R.string.tut5_goodreads_title), "",
+                descriptionComposable = { th ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.tut5_goodreads_desc),
+                            color = th.textMuted, fontSize = 15.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = th.surface,
+                            border = BorderStroke(1.dp, th.border)
+                        ) {
+                            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                listOf(
+                                    R.string.tut5_goodreads_s1,
+                                    R.string.tut5_goodreads_s2,
+                                    R.string.tut5_goodreads_s3
+                                ).forEachIndexed { i, res ->
+                                    Row(Modifier.padding(vertical = 3.dp)) {
+                                        Text("${i + 1}", color = Accent2, fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold, modifier = Modifier.width(16.dp))
+                                        Text(stringResource(res), color = th.textMuted,
+                                            fontSize = 12.sp, lineHeight = 18.sp)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            stringResource(R.string.tut5_goodreads_note),
+                            color = th.textDim, fontSize = 11.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }),
+            // 4 — La promesa (emoji provisional 🧭)
             TutorialPage("🧭", stringResource(R.string.tut5_promise_title), stringResource(R.string.tut5_promise_desc)),
             // 4 — Privacidad como identidad
             TutorialPage("🔒", stringResource(R.string.tut5_privacy_title), stringResource(R.string.tut5_privacy_desc)),

@@ -969,6 +969,13 @@
     <string name="tut5_value_desc">Lecturameter measures how you read: your books, your sessions and your pace.</string>
     <string name="tut5_basics_title">Start with the basics</string>
     <string name="tut5_basics_desc">Add a book and log your first session. That\'s all you need.</string>
+    <!-- Slide de Goodreads (15-07) -->
+    <string name="tut5_goodreads_title">Coming from Goodreads?</string>
+    <string name="tut5_goodreads_desc">If you were already using Goodreads, you don\'t start from scratch.</string>
+    <string name="tut5_goodreads_s1">On goodreads.com: My profile → My books</string>
+    <string name="tut5_goodreads_s2">Import and export → Export library</string>
+    <string name="tut5_goodreads_s3">Here: Import/Export (↑↓) → Goodreads CSV</string>
+    <string name="tut5_goodreads_note">(Exporting from Lecturameter to Goodreads is also possible)</string>
     <string name="tut5_promise_title">The rest comes on its own</string>
     <string name="tut5_promise_desc">Over time you\'ll discover stats, challenges and recaps of your reading year.</string>
     <string name="tut5_privacy_title">Your data is yours</string>
