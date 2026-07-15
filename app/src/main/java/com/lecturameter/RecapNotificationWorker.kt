@@ -64,7 +64,7 @@ class RecapNotificationWorker(
                 )
                 if (recap != null && prefs.getString("recap_notified_week", null) != recap.weekStartIso) {
                     notify(
-                        NOTIF_ID_WEEKLY, "weekly",
+                        NOTIF_ID_WEEKLY, "weekly", "📅",
                         locCtx.getString(R.string.recap_notif_weekly_title),
                         locCtx.getString(R.string.recap_notif_weekly_body, recap.pages, recap.sessionsCount)
                     )
@@ -77,7 +77,7 @@ class RecapNotificationWorker(
                 val recap = computeMonthlyRecap(books, sessions, todayIso)
                 if (recap != null && prefs.getString("recap_notified_month", null) != recap.monthKey) {
                     notify(
-                        NOTIF_ID_MONTHLY, "monthly",
+                        NOTIF_ID_MONTHLY, "monthly", "📆",
                         locCtx.getString(R.string.recap_notif_monthly_title),
                         locCtx.getString(R.string.recap_notif_monthly_body, recap.pages)
                     )
@@ -92,7 +92,7 @@ class RecapNotificationWorker(
                 sessions.any { it.date.startsWith("$wrapYear-") }
             ) {
                 notify(
-                    NOTIF_ID_WRAPPED, "wrapped/$wrapYear",
+                    NOTIF_ID_WRAPPED, "wrapped/$wrapYear", "🎁",
                     locCtx.getString(R.string.recap_notif_wrapped_title, wrapYear),
                     locCtx.getString(R.string.recap_notif_wrapped_body)
                 )
@@ -104,7 +104,22 @@ class RecapNotificationWorker(
         return Result.success()
     }
 
-    private fun notify(id: Int, deepLinkPath: String, title: String, body: String) {
+    /** Pinta el emoji como bitmap para usarlo de icono grande de la notificación —
+     *  así queda a la altura del icono de Lecturameter en vez de solo en el texto. */
+    private fun emojiLargeIcon(emoji: String): android.graphics.Bitmap {
+        val size = 128
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bmp)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = size * 0.76f
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val y = size / 2f - (paint.descent() + paint.ascent()) / 2f
+        canvas.drawText(emoji, size / 2f, y, paint)
+        return bmp
+    }
+
+    private fun notify(id: Int, deepLinkPath: String, emoji: String, title: String, body: String) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
@@ -121,6 +136,7 @@ class RecapNotificationWorker(
         )
         val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(emojiLargeIcon(emoji))
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
