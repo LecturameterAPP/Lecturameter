@@ -949,9 +949,9 @@
     <string name="tip_rail_body">Se oculta al deslizar la lista y hacia la izquierda ← desde la línea y vuelve deslizando hacia la derecha → desde el borde de la pantalla. Mantén pulsado un icono azul para reordenarlos.</string>
     <!-- Notificaciones de resúmenes (semanal/mensual/wrapped) -->
     <string name="recap_notif_channel">Resúmenes de lectura</string>
-    <string name="recap_notif_weekly_title">📖 Tu resumen semanal está listo</string>
+    <string name="recap_notif_weekly_title">📅 Tu resumen semanal está listo</string>
     <string name="recap_notif_weekly_body">%1$d páginas en %2$d sesiones esta semana. Toca para ver tu resumen.</string>
-    <string name="recap_notif_monthly_title">📚 Tu resumen mensual está listo</string>
+    <string name="recap_notif_monthly_title">📆 Tu resumen mensual está listo</string>
     <string name="recap_notif_monthly_body">%1$d páginas el mes pasado. Toca para ver tu resumen.</string>
     <string name="recap_notif_wrapped_title">🎁 Tu Wrapped %1$d ya está aquí</string>
     <string name="recap_notif_wrapped_body">Tu año en lectura, resumido. Toca para descubrirlo.</string>

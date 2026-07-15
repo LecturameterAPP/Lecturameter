@@ -1,4 +1,4 @@
-package com.lecturameter
+﻿package com.lecturameter
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -34,6 +34,16 @@ class RecapNotificationWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(ctx, workerParams) {
 
+    // Los textos siguen el idioma elegido EN LA APP (pref app_language), no el del
+    // sistema — mismo patrón que TimerService/WidgetConfigActivity/BookWidget.
+    private val locCtx: Context by lazy {
+        val lang = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+            .getString("app_language", "es") ?: "es"
+        val config = android.content.res.Configuration(ctx.resources.configuration)
+        config.setLocale(java.util.Locale(lang))
+        ctx.createConfigurationContext(config)
+    }
+
     override suspend fun doWork(): Result {
         try {
             if (!NotificationManagerCompat.from(ctx).areNotificationsEnabled()) return Result.success()
@@ -55,8 +65,8 @@ class RecapNotificationWorker(
                 if (recap != null && prefs.getString("recap_notified_week", null) != recap.weekStartIso) {
                     notify(
                         NOTIF_ID_WEEKLY, "weekly",
-                        ctx.getString(R.string.recap_notif_weekly_title),
-                        ctx.getString(R.string.recap_notif_weekly_body, recap.pages, recap.sessionsCount)
+                        locCtx.getString(R.string.recap_notif_weekly_title),
+                        locCtx.getString(R.string.recap_notif_weekly_body, recap.pages, recap.sessionsCount)
                     )
                     prefs.edit().putString("recap_notified_week", recap.weekStartIso).apply()
                 }
@@ -68,8 +78,8 @@ class RecapNotificationWorker(
                 if (recap != null && prefs.getString("recap_notified_month", null) != recap.monthKey) {
                     notify(
                         NOTIF_ID_MONTHLY, "monthly",
-                        ctx.getString(R.string.recap_notif_monthly_title),
-                        ctx.getString(R.string.recap_notif_monthly_body, recap.pages)
+                        locCtx.getString(R.string.recap_notif_monthly_title),
+                        locCtx.getString(R.string.recap_notif_monthly_body, recap.pages)
                     )
                     prefs.edit().putString("recap_notified_month", recap.monthKey).apply()
                 }
@@ -83,8 +93,8 @@ class RecapNotificationWorker(
             ) {
                 notify(
                     NOTIF_ID_WRAPPED, "wrapped/$wrapYear",
-                    ctx.getString(R.string.recap_notif_wrapped_title, wrapYear),
-                    ctx.getString(R.string.recap_notif_wrapped_body)
+                    locCtx.getString(R.string.recap_notif_wrapped_title, wrapYear),
+                    locCtx.getString(R.string.recap_notif_wrapped_body)
                 )
                 prefs.edit().putInt("recap_notified_wrapped", wrapYear).apply()
             }
@@ -98,7 +108,7 @@ class RecapNotificationWorker(
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, ctx.getString(R.string.recap_notif_channel), NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(CHANNEL_ID, locCtx.getString(R.string.recap_notif_channel), NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("lecturameter://recap/$deepLinkPath")).apply {
