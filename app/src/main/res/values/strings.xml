@@ -123,13 +123,16 @@
     <string name="shelf_books_count_plural">%1$d libros</string>
     <string name="local_backup_last">Última copia local: %1$s</string>
     <string name="drive_backup_auto_hint">Copia automática cada %1$dh + persiste tras reinstalar</string>
-    <string name="drive_backup_last">Última copia automática: %1$s</string>
+    <string name="drive_backup_last">Última copia en la nube: %1$s</string>
     <string name="search_pages_count">%1$d páginas</string>
     <string name="search_results_summary">%1$d resultados · con portada primero</string>
     <string name="app_version_label">Versión %1$s</string>
-    <string name="tutorial_mock_genres">Arte · Desarrollo personal</string>
-    <string name="tutorial_mock_pages">📄 350 págs (325p)</string>
-    <string name="tutorial_mock_days">⏳ 1 día</string>
+    <string name="tutorial_mock_genres">Fantasía</string>
+    <string name="tutorial_mock_pages">📄 782 págs (210p)</string>
+    <string name="tutorial_mock_days">⏳ 9 días</string>
+    <string name="tutorial_mock_book_title">El Ojo del Mundo</string>
+    <string name="tutorial_mock_book_author">Robert Jordan</string>
+    <string name="tutorial_mock_cover_url">https://covers.openlibrary.org/b/id/14286609-L.jpg</string>
     <string name="tutorial_mock_days_pill">27 días</string>
     <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
     <string name="tutorial_mock_pages_chip">📄 25 Págs</string>
@@ -300,7 +303,7 @@
     <string name="txt_dcd9cd29">Copia de seguridad de Drive desactivada</string>
     <string name="txt_def36a08">📤 Exportar estadísticas</string>
     <string name="txt_df94c6d3">p\u00e1gs</string>
-    <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes invitarme a un café</string>
+    <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes invitarme a un café. :)</string>
     <string name="txt_e33e3006">Sin comentario. Toca ✏️ para añadir uno.</string>
     <string name="txt_e346618a">IMPORTAR</string>
     <string name="txt_e38ba5d3">EDICIONES</string>
@@ -943,7 +946,15 @@
     <string name="finish_prediction_line">🔮 Al ritmo actual (%1$d págs/día) lo terminarás hacia el %2$s (~%3$d días)</string>
     <!-- Fase 6.1 (D-008): tips contextuales de una sola vez -->
     <string name="tip_rail_title">Tu rail de secciones</string>
-    <string name="tip_rail_body">Se oculta al deslizar la lista y con ←; vuelve deslizando → desde el borde. Mantén pulsado para reordenar.</string>
+    <string name="tip_rail_body">Se oculta al deslizar la lista y hacia la izquierda ← desde la línea y vuelve deslizando hacia la derecha → desde el borde de la pantalla. Mantén pulsado un icono azul para reordenarlos.</string>
+    <!-- Notificaciones de resúmenes (semanal/mensual/wrapped) -->
+    <string name="recap_notif_channel">Resúmenes de lectura</string>
+    <string name="recap_notif_weekly_title">📖 Tu resumen semanal está listo</string>
+    <string name="recap_notif_weekly_body">%1$d páginas en %2$d sesiones esta semana. Toca para ver tu resumen.</string>
+    <string name="recap_notif_monthly_title">📚 Tu resumen mensual está listo</string>
+    <string name="recap_notif_monthly_body">%1$d páginas el mes pasado. Toca para ver tu resumen.</string>
+    <string name="recap_notif_wrapped_title">🎁 Tu Wrapped %1$d ya está aquí</string>
+    <string name="recap_notif_wrapped_body">Tu año en lectura, resumido. Toca para descubrirlo.</string>
     <string name="tip_history_title">Para cerrar</string>
     <string name="tip_history_body">Desliza a la izquierda, o toca la franja del borde.</string>
     <string name="tip_first_book_title">Primer libro terminado</string>

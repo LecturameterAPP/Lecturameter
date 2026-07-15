@@ -123,13 +123,16 @@
     <string name="shelf_books_count_plural">%1$d books</string>
     <string name="local_backup_last">Last local backup: %1$s</string>
     <string name="drive_backup_auto_hint">Auto backup every %1$dh · survives reinstalls</string>
-    <string name="drive_backup_last">Last auto backup: %1$s</string>
+    <string name="drive_backup_last">Last cloud backup: %1$s</string>
     <string name="search_pages_count">%1$d pages</string>
     <string name="search_results_summary">%1$d results · with cover first</string>
     <string name="app_version_label">Version %1$s</string>
-    <string name="tutorial_mock_genres">Art · Personal development</string>
-    <string name="tutorial_mock_pages">📄 350 pags (325p)</string>
-    <string name="tutorial_mock_days">⏳ 1 day</string>
+    <string name="tutorial_mock_genres">Fantasy</string>
+    <string name="tutorial_mock_pages">📄 782 pags (210p)</string>
+    <string name="tutorial_mock_days">⏳ 9 days</string>
+    <string name="tutorial_mock_book_title">The Eye of the World</string>
+    <string name="tutorial_mock_book_author">Robert Jordan</string>
+    <string name="tutorial_mock_cover_url">https://covers.openlibrary.org/b/isbn/9781250832368-L.jpg</string>
     <string name="tutorial_mock_days_pill">27 days</string>
     <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
     <string name="tutorial_mock_pages_chip">📄 25 Pags</string>
@@ -300,7 +303,7 @@
     <string name="txt_dcd9cd29">Backup Drive disabled</string>
     <string name="txt_def36a08">📤 Export statistics</string>
     <string name="txt_df94c6d3">Pags</string>
-    <string name="txt_e30acdbb">If you like Lecturameter, you can buy me a coffee</string>
+    <string name="txt_e30acdbb">If you like Lecturameter, you can buy me a coffee. :)</string>
     <string name="txt_e33e3006">No comment. Tap ✏️ to add one.</string>
     <string name="txt_e346618a">IMPORT</string>
     <string name="txt_e38ba5d3">EDITIONS</string>
@@ -939,7 +942,15 @@
     <string name="finish_prediction_line">🔮 At your current pace (%1$d pages/day) you\'ll finish around %2$s (~%3$d days)</string>
     <!-- Fase 6.1 (D-008): one-time contextual tips -->
     <string name="tip_rail_title">Your sections rail</string>
-    <string name="tip_rail_body">It hides when you scroll and with ←; swipe → from the edge to bring it back. Long-press to reorder.</string>
+    <string name="tip_rail_body">It hides when you scroll the list or swipe left ← from the line, and comes back by swiping right → from the edge of the screen. Long-press a blue icon to reorder them.</string>
+    <!-- Recap notifications (weekly/monthly/wrapped) -->
+    <string name="recap_notif_channel">Reading recaps</string>
+    <string name="recap_notif_weekly_title">📖 Your weekly recap is ready</string>
+    <string name="recap_notif_weekly_body">%1$d pages across %2$d sessions this week. Tap to see your recap.</string>
+    <string name="recap_notif_monthly_title">📚 Your monthly recap is ready</string>
+    <string name="recap_notif_monthly_body">%1$d pages last month. Tap to see your recap.</string>
+    <string name="recap_notif_wrapped_title">🎁 Your %1$d Wrapped is here</string>
+    <string name="recap_notif_wrapped_body">Your reading year, wrapped up. Tap to discover it.</string>
     <string name="tip_history_title">To close</string>
     <string name="tip_history_body">Swipe left, or tap the edge strip.</string>
     <string name="tip_first_book_title">First book finished</string>

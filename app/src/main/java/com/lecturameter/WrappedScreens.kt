@@ -1,0 +1,1356 @@
+package com.lecturameter
+
+// Wrapped: pantalla anual, tarjetas e historial.
+// Extraido de MainActivity.kt el 15-07-2026 (ruptura del monolito, sin cambios funcionales).
+
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.core.content.FileProvider
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+// v21.42: Icons.Outlined.Star eliminado — estrellas usan ★/☆ Text
+import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileWriter
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import org.json.JSONArray
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.Canvas
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.runtime.getValue
+import android.widget.Toast
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
+import java.util.concurrent.TimeUnit
+import com.lecturameter.model.*
+import com.lecturameter.utils.*
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+
+// ── WrappedScreen ─────────────────────────────────────────────────────────────
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, year: Int, onBack: () -> Unit) {
+    // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
+    val books by vm.books.collectAsState()
+    val sessions by vm.sessions.collectAsState()
+    // v2.6 (Wrapped r1): años cerrados con snapshot guardado → usar el snapshot
+    // (formato/datos exactos de esa edición). Año en curso O año dentro de su
+    // ventana wrapped (1–26 ene el año anterior sigue "vivo") → cálculo fresco,
+    // para que el auto-guardado de la ventana siga refrescando datos.
+    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
+    // D-004: wrappedHistory es StateFlow; se colecciona en la raíz de la pantalla
+    val wrappedHistory by vm.wrappedHistory.collectAsState()
+    val wrapped = remember(year, books, wrappedHistory) {
+        val inOwnWindow = isInWrappedWindow() && wrappedWindowYear() == year
+        if (year < currentYear && !inOwnWindow) vm.wrappedForYear(year) ?: vm.computeWrapped(year)
+        else vm.computeWrapped(year)
+    }
+    // v2.6: favoritos CONGELADOS del año (permanentes; ver favoritesForWrapped)
+    val favBooks = remember(wrapped, books) {
+        if (wrapped != null) vm.favoritesForWrapped(year, prefs) else emptyList()
+    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+    // Fase 6.3: tarjeta anual del Bingo — solo si el año tiene casillas registradas
+    // en el historial mensual (se acumula desde esta versión; regla: no inventar)
+    val bingoYear = remember(year) {
+        com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).filter { it.monthKey.startsWith("$year-") && it.cellsDone > 0 }
+    }
+    val hasBingoSlide = bingoYear.isNotEmpty()
+    // 0..9 clásicas + Bingo anual (condicional, 6.3) + cierre-comparativa (P-015)
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState { if (wrapped != null) 11 + (if (hasBingoSlide) 1 else 0) else 1 }
+    // v2.5: coordenadas del pager para recortar screenshot (excluir barra superior)
+    var pagerBounds by remember { mutableStateOf<android.graphics.Rect?>(null) }
+
+    // Auto-guardar al abrir durante la ventana
+    LaunchedEffect(wrapped) {
+        if (wrapped != null && isInWrappedWindow() && wrappedWindowYear() == year) {
+            vm.saveWrappedForYear(wrapped, prefs)
+        }
+    }
+
+    // v2.5: share captura real de pantalla (PixelCopy) — sin menús
+    fun shareScreenshot() {
+        if (sharing) return
+        sharing = true
+        scope.launch {
+            try {
+                val activity = context as? android.app.Activity ?: throw Exception("No Activity")
+                val window = activity.window
+                val rootView = window.decorView
+                val fullBitmap = android.graphics.Bitmap.createBitmap(rootView.width, rootView.height, android.graphics.Bitmap.Config.ARGB_8888)
+                val captured = kotlinx.coroutines.suspendCancellableCoroutine<android.graphics.Bitmap> { cont ->
+                    android.view.PixelCopy.request(window, fullBitmap, { result ->
+                        if (result == android.view.PixelCopy.SUCCESS) cont.resume(fullBitmap) {}
+                        else cont.resumeWithException(Exception("PixelCopy error $result"))
+                    }, android.os.Handler(android.os.Looper.getMainLooper()))
+                }
+                val file = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val cropped = pagerBounds?.let { b ->
+                        val x = b.left.coerceIn(0, captured.width - 1)
+                        val y = b.top.coerceIn(0, captured.height - 1)
+                        val w = b.width().coerceAtMost(captured.width - x)
+                        val h = b.height().coerceAtMost(captured.height - y)
+                        if (w > 0 && h > 0) android.graphics.Bitmap.createBitmap(captured, x, y, w, h) else captured
+                    } ?: captured
+                    val f = java.io.File(context.cacheDir, "wrapped_${year}_s${pagerState.currentPage}.png")
+                    java.io.FileOutputStream(f).use { out -> cropped.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out) }
+                    if (cropped !== captured) cropped.recycle()
+                    captured.recycle()
+                    f
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.wrapped_share_text, year))
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.wcard_dialog_title)))
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, context.getString(R.string.msg_share_error, e.message), android.widget.Toast.LENGTH_SHORT).show()
+            } finally { sharing = false }
+        }
+    }
+
+    // v2.4: fondo con glow degradado (funciona sobre tema claro y oscuro)
+    Box(Modifier.fillMaxSize().background(
+        Brush.verticalGradient(listOf(Accent.copy(alpha = 0.16f), Color.Transparent, Accent2.copy(alpha = 0.12f)))
+    )) {
+        // ── TOP BAR ────────────────────────────────────────────────────────
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp).align(Alignment.TopCenter),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.wrapped_year_header, year), color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                if (wrapped != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        repeat(10) { i ->
+                            Box(Modifier.size(if (i == pagerState.currentPage) 8.dp else 5.dp)
+                                .clip(CircleShape)
+                                .background(if (i == pagerState.currentPage) Accent else theme.border))
+                        }
+                    }
+                }
+            }
+            if (wrapped != null) {
+                // v2.6: guardar simulación en historial (solo si este año aún no está guardado)
+                if (vm.wrappedForYear(year) == null) {
+                    IconButton(onClick = {
+                        vm.saveWrappedForYear(wrapped, prefs)
+                        android.widget.Toast.makeText(context,
+                            context.getString(R.string.wrapped_sim_saved, year),
+                            android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Default.BookmarkAdd, contentDescription = stringResource(R.string.wrapped_sim_save), tint = Amber)
+                    }
+                }
+                // v2.4 rework: el slide de favoritos no tiene tarjeta share (renderer 0-6)
+                IconButton(onClick = { shareScreenshot() }, enabled = !sharing) {
+                    Icon(if (sharing) Icons.Default.Refresh else Icons.Default.Share, null,
+                        tint = if (sharing) theme.textDim else Accent)
+                }
+            } else {
+                Spacer(Modifier.size(48.dp))
+            }
+        }
+
+        if (wrapped == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📚", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.wrapped_no_finished, year.toString()), color = theme.textMain, fontSize = 17.sp)
+                    Text(stringResource(R.string.wrapped_empty_hint, year), color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp))
+                }
+            }
+            return@Box
+        }
+
+        // ── PAGER ──────────────────────────────────────────────────────────
+        androidx.compose.foundation.pager.HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(top = 60.dp)
+                .onGloballyPositioned { coords ->
+                    val pos = coords.positionInWindow()
+                    pagerBounds = android.graphics.Rect(
+                        pos.x.toInt(), pos.y.toInt(),
+                        (pos.x + coords.size.width).toInt(),
+                        (pos.y + coords.size.height).toInt()
+                    )
+                }
+        ) { page ->
+            val sm = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp)
+
+            when (page) {
+
+                // ── SLIDE 0: RESUMEN ──────────────────────────────────────────
+                0 -> Column(sm) {
+                    // Fondo temático del slide (superpuesto al glow global)
+                    Spacer(Modifier.height(8.dp))
+                    // Año protagonista con gradiente
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF1E1B4B)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
+                            Text("${wrapped.year}", fontSize = 80.sp, fontWeight = FontWeight.Black,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                                ))
+                            Text(stringResource(R.string.wcard_subtitle), color = Color(0xFFC7D2FE), fontSize = 14.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    // 2 stats enormes
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        WrappedBigCard(wrapped.totalPages.toLocaleString(), stringResource(R.string.wcard_pages), Accent,
+                            Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF1E1B4B))), Modifier.weight(1f))
+                        WrappedBigCard("${wrapped.totalBooks}", stringResource(R.string.wcard_books), Accent2,
+                            Brush.linearGradient(listOf(Color(0xFF2D1B69), Color(0xFF1E1B4B))), Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    // 3 mini stats
+                    val hTot = wrapped.totalMinutes / 60; val mTot = wrapped.totalMinutes % 60
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        WrappedMiniCard(if (hTot > 0) "${hTot}h" else "${wrapped.totalMinutes}m", stringResource(R.string.wcard_hours), Amber, Modifier.weight(1f))
+                        WrappedMiniCard("${wrapped.longestStreakDays}d", stringResource(R.string.wcard_streak), Green, Modifier.weight(1f))
+                        WrappedMiniCard("${wrapped.totalSessions}", stringResource(R.string.wcard_sessions), Sky, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    // Autor + género
+                    if (wrapped.favoriteAuthor.isNotBlank()) {
+                        WrappedFavRow("", stringResource(R.string.wcard_author_year), wrapped.favoriteAuthor,
+                            "${wrapped.favoriteAuthorBooks} libros", Accent2, theme)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (wrapped.favoriteGenre.isNotBlank()) {
+                        WrappedFavRow("", stringResource(R.string.wcard_genre_year), displayGenre(wrapped.favoriteGenre),
+                            "${wrapped.favoriteGenreBooks} libros", Accent, theme)
+                    }
+                    if (wrapped.longestStreakDays > 0) {
+                        Spacer(Modifier.height(12.dp))
+                        Surface(shape = RoundedCornerShape(16.dp), color = Red.copy(0.12f),
+                            border = BorderStroke(1.dp, Red.copy(0.3f)), modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("🔥", fontSize = 28.sp); Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(stringResource(R.string.txt_362b636c), color = Red.copy(0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                    Text("${wrapped.longestStreakDays} ${stringResource(R.string.word_day)}s ${stringResource(R.string.wrapped_streak_suffix)}", color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 1: TIEMPO ───────────────────────────────────────────
+                1 -> Column(sm) {
+                    // Feedback WhatsApp 10-07: header violeta profundo (antes marrón/ámbar v2.6,
+                    // "cambiar el marrón naranja ese por un color más bonito") — on-brand con
+                    // Accent2 y distinto del Sky de las tarjetas inferiores.
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Color(0xFF150B33)))),
+                        contentAlignment = Alignment.Center) {
+                        Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            // v2.4 rework: eliminado emoji decorativo de cabecera
+                            val hW = wrapped.totalMinutes / 60; val mW = wrapped.totalMinutes % 60
+                            Text(if (hW > 0) "${hW}h ${mW}m" else "${mW}m",
+                                fontSize = 64.sp, fontWeight = FontWeight.Black,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.horizontalGradient(listOf(Color(0xFFA78BFA), Color(0xFFDDD6FE)))
+                                ))
+                            Text(stringResource(R.string.wcard_hours), color = Color(0xFFC4B5FD), fontSize = 14.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        WrappedBigCard("${wrapped.totalSessions}", stringResource(R.string.wcard_sessions), Sky,
+                            Brush.linearGradient(listOf(Color(0xFF0C4A6E), Color(0xFF0F172A))), Modifier.weight(1f))
+                        if (wrapped.maxSessionPages > 0)
+                            WrappedBigCard("${wrapped.maxSessionPages}", stringResource(R.string.wrapped_record_session), Sky,
+                                Brush.linearGradient(listOf(Color(0xFF0C4A6E), Color(0xFF0F172A))), Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    // Top libros por tiempo
+                    if (wrapped.longestBooksTop3.isNotEmpty()) {
+                        Text(stringResource(R.string.txt_1db69449), color = Sky, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                        Spacer(Modifier.height(8.dp))
+                        val maxM = wrapped.longestBooksTop3.maxOf { it.second }
+                        wrapped.longestBooksTop3.forEachIndexed { i, (title, mins) ->
+                            val hB = mins / 60; val mB = mins % 60
+                            Surface(shape = RoundedCornerShape(14.dp), color = Sky.copy(0.08f),
+                                border = BorderStroke(1.dp, Sky.copy(0.2f)), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(wrappedMedal(i), fontSize = 20.sp)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                        Text(if (hB > 0) "${hB}h ${mB}m" else "${mB}m", color = Sky, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Spacer(Modifier.height(6.dp))
+                                    LinearProgressBar(mins.toFloat() / maxM, Sky)
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                    if (wrapped.mostReadDay.isNotBlank() && wrapped.mostReadDayPages > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Surface(shape = RoundedCornerShape(14.dp), color = Accent.copy(0.08f),
+                            border = BorderStroke(1.dp, Accent.copy(0.2f)), modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("📅", fontSize = 24.sp); Spacer(Modifier.width(10.dp))
+                                Column {
+                                    Text(stringResource(R.string.wrapped_most_read_day, fmtDate(wrapped.mostReadDay), wrapped.mostReadDayPages),
+                                        color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 2: TOPS ─────────────────────────────────────────────
+                2 -> Column(sm) {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Color(0xFF1E1B4B)))),
+                        contentAlignment = Alignment.Center) {
+                        Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            // v2.4 rework: eliminado emoji decorativo de cabecera
+                            Text(stringResource(R.string.txt_a6f46d56), color = Color(0xFFC4B5FD),
+                                fontSize = 32.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (wrapped.favoriteAuthor.isNotBlank())
+                            WrappedBigCard(wrapped.favoriteAuthor, "${wrapped.favoriteAuthorBooks} libros", Accent2,
+                                Brush.linearGradient(listOf(Color(0xFF2D1B69), Color(0xFF1E1B4B))), Modifier.weight(1f), maxLines = 2)
+                        if (wrapped.favoriteGenre.isNotBlank())
+                            WrappedBigCard(displayGenre(wrapped.favoriteGenre), "${wrapped.favoriteGenreBooks} libros", Accent,
+                                Brush.linearGradient(listOf(Color(0xFF1E1B4B), Color(0xFF312E81))), Modifier.weight(1f), maxLines = 2)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    val medals = listOf("🥇","🥈","🥉")
+                    if (wrapped.topAuthorsTop3.isNotEmpty()) {
+                        Text(stringResource(R.string.wcard_authors), color = Accent2, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                        Spacer(Modifier.height(6.dp))
+                        wrapped.topAuthorsTop3.forEachIndexed { i, (name, n) ->
+                            WrappedTop3Row(medals[i], name, "$n libros", i == 0, Accent2, theme)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    if (wrapped.topGenresTop3.isNotEmpty()) {
+                        Text(stringResource(R.string.wcard_genres), color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                        Spacer(Modifier.height(6.dp))
+                        wrapped.topGenresTop3.forEachIndexed { i, (name, n) ->
+                            WrappedTop3Row(medals[i], displayGenre(name), "$n libros", i == 0, Accent, theme)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 3: MEJOR Y MÁS RÁPIDO ──────────────────────────────
+                3 -> Column(sm) {
+                    val top3 = wrapped.bestRatedTop3.ifEmpty {
+                        if (wrapped.bestRatedTitle.isNotBlank()) listOf(Triple(wrapped.bestRatedTitle, wrapped.bestRatedScore, "")) else emptyList()
+                    }
+                    if (top3.isNotEmpty()) {
+                        // Hero: libro nº1 — v2.6: card compacta (padding/portada/número reducidos)
+                        // + degradado dorado visible, simétrico al verde de Fastest Book
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF92400E), Color(0xFF1A1200)))),
+                            contentAlignment = Alignment.Center) {
+                            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                val bestBook = books.firstOrNull { it.title == top3[0].first }
+                                if (bestBook != null) {
+                                    BookCover(bestBook.coverUrl, bestBook.title, size = 64, isbnFallback = bestBook.isbn)
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                                Text("${top3[0].second}/10", fontSize = 30.sp, fontWeight = FontWeight.Black,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(listOf(Gold, Color(0xFFFDE68A)))
+                                    ))
+                                Text(top3[0].first, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+                                Text(stringResource(R.string.wrapped_mejor_puntuado), color = Gold.copy(0.7f), fontSize = 11.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        top3.drop(1).forEachIndexed { i, (title, score, _) ->
+                            val medal = if (i == 0) "🥈" else "🥉"
+                            Surface(shape = RoundedCornerShape(14.dp), color = Gold.copy(0.08f),
+                                border = BorderStroke(1.dp, Gold.copy(0.25f)), modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(medal, fontSize = 24.sp); Spacer(Modifier.width(10.dp))
+                                    Text(title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("$score/10", color = Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                    // v2.5: top 3 libros más rápidos (antes solo 1)
+                    val fastTop3 = wrapped.fastestBooksTop3.ifEmpty {
+                        if (wrapped.fastestBookTitle.isNotBlank()) listOf(Triple(wrapped.fastestBookTitle, wrapped.fastestBookPpd, wrapped.fastestBookPages)) else emptyList()
+                    }
+                    if (fastTop3.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        // Hero: libro más rápido — v2.6: card compacta (simétrica a Best Rated)
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF064E3B), Color(0xFF0A2818)))),
+                            contentAlignment = Alignment.Center) {
+                            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                val fastBook = books.firstOrNull { it.title == fastTop3[0].first }
+                                if (fastBook != null) {
+                                    BookCover(fastBook.coverUrl, fastBook.title, size = 60, isbnFallback = fastBook.isbn)
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                                Text("${String.format("%.1f", fastTop3[0].second)} p/d", fontSize = 28.sp, fontWeight = FontWeight.Black,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(listOf(Green, Color(0xFF22D3EE)))
+                                    ))
+                                Text(fastTop3[0].first, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.wrapped_libro_mas_rapido), color = Green.copy(0.7f), fontSize = 11.sp)
+                            }
+                        }
+                        // 2º y 3º más rápidos
+                        if (fastTop3.size > 1) {
+                            Spacer(Modifier.height(10.dp))
+                            fastTop3.drop(1).forEachIndexed { i, (title, ppd, _) ->
+                                val medal = if (i == 0) "🥈" else "🥉"
+                                Surface(shape = RoundedCornerShape(14.dp), color = Green.copy(0.08f),
+                                    border = BorderStroke(1.dp, Green.copy(0.25f)), modifier = Modifier.fillMaxWidth()) {
+                                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(medal, fontSize = 24.sp); Spacer(Modifier.width(10.dp))
+                                        Text(title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text("${String.format("%.1f", ppd)} p/d", color = Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                            }
+                        }
+                    }
+                    // Feedback 2.6: la card de libros abandonados se movió a la slide de
+                    // cierre — esta slide es la de mejores/más rápidos.
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 4: GRÁFICA ──────────────────────────────────────────
+                4 -> Column(sm) {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF0F2027), Color(0xFF203A43)))),
+                        contentAlignment = Alignment.Center) {
+                        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            // v2.4 rework: eliminado emoji decorativo de cabecera
+                            Text(stringResource(R.string.txt_bd81d36d), color = Color(0xFF94A3B8), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    // Barras mensuales rediseñadas
+                    if (wrapped.pagesPerMonth.sum() > 0) {
+                        Surface(shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFF0F2027), border = BorderStroke(1.dp, Color(0x226366F1)),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(18.dp)) {
+                                val maxP = wrapped.pagesPerMonth.max().coerceAtLeast(1)
+                                // v2.6: escala min-max entre meses CON actividad. Antes ratio lineal
+                                // desde 0: 450 vs 415 páginas → barras 100% vs 92%, indistinguibles.
+                                // Feedback 2.6: el ancla del 25% exageraba (415 parecía 1/3 de 450);
+                                // el mínimo ancla ahora en 55% — se distingue sin distorsionar.
+                                val nonZero = wrapped.pagesPerMonth.filter { it > 0 }
+                                val minP = (nonZero.minOrNull() ?: 0)
+                                val range = (maxP - minP).coerceAtLeast(1)
+                                val months = listOf("E","F","M","A","M","J","J","A","S","O","N","D")
+                                Row(Modifier.fillMaxWidth().height(200.dp), verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    wrapped.pagesPerMonth.forEachIndexed { i, p ->
+                                        val ratio = when {
+                                            p <= 0 -> 0f
+                                            nonZero.size <= 1 || maxP == minP -> 1f
+                                            else -> 0.55f + 0.45f * (p - minP).toFloat() / range
+                                        }
+                                        val isMax = p == maxP
+                                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Bottom) {
+                                            if (p > 0)
+                                                Text(if (p >= 1000) "${p/1000}k" else "$p", color = if (isMax) Color(0xFF22D3EE) else Accent2, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                                            Spacer(Modifier.height(2.dp))
+                                            Box(Modifier.fillMaxWidth()
+                                                .height((200.dp * ratio.coerceAtLeast(if (p > 0) 0.03f else 0f)))
+                                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                                .background(if (isMax)
+                                                    Brush.verticalGradient(listOf(Color(0xFF22D3EE), Color(0xFF0EA5E9)))
+                                                else Brush.verticalGradient(listOf(Accent2, Accent2.copy(0.5f)))))
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    months.forEach { m -> Text(m, color = Color(0xFF94A3B8), fontSize = 9.sp,
+                                        modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
+                                }
+                                val bestIdx = wrapped.pagesPerMonth.indexOf(maxP)
+                                val monthNames = LocalContext.current.resources.getStringArray(R.array.month_names_full).toList()
+                                if (bestIdx >= 0) {
+                                    Spacer(Modifier.height(10.dp))
+                                    Text(stringResource(R.string.wrapped_best_month, monthNames.getOrElse(bestIdx) { "" }, maxP),
+                                        color = Color(0xFF22D3EE), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    // Donut géneros
+                    if (wrapped.genreCountsTop6.isNotEmpty()) {
+                        val gColors = listOf(Accent, Green, Sky, Amber, Red, Color(0xFF8B5CF6))
+                        val totalG = wrapped.genreCountsTop6.sumOf { it.second }
+                        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFF1E1B4B),
+                            border = BorderStroke(1.dp, Color(0x336366F1)), modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                DonutChart(wrapped.genreCountsTop6.map { it.second }, gColors, Modifier.size(100.dp))
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    wrapped.genreCountsTop6.forEachIndexed { i, (g, n) ->
+                                        Row(verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(gColors[i % gColors.size]))
+                                            Text("${displayGenre(g).take(16)} · $n (${if (totalG > 0) n * 100 / totalG else 0}%)",
+                                                color = theme.textMuted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 5: TU MEJOR DÍA DE CADA MES (v2.6) ─────────────────
+                5 -> Column(sm) {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF0F172A)))),
+                        contentAlignment = Alignment.Center) {
+                        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(stringResource(R.string.wrapped_bestday_title), color = Color(0xFFA5B4FC),
+                                fontSize = 18.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    if (wrapped.bestDayPerMonth.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("📅", fontSize = 44.sp); Spacer(Modifier.height(10.dp))
+                                Text(stringResource(R.string.wrapped_bestday_empty), color = theme.textDim,
+                                    fontSize = 13.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                    } else {
+                        val monthNames = LocalContext.current.resources.getStringArray(R.array.month_names_full).toList()
+                        // Feedback 2.6: todos los días son clicables — el desglose de abajo
+                        // muestra el día seleccionado (por defecto, el mejor del año).
+                        var selectedDay by remember(wrapped) { mutableStateOf(wrapped.mostReadDay) }
+                        wrapped.bestDayPerMonth.forEach { (m, date, pages) ->
+                            val isBest = date == wrapped.mostReadDay
+                            val isSelected = date == selectedDay
+                            // Feedback 2.7: el mes seleccionado destaca más (fondo/borde más
+                            // intensos y texto en cian, tamaño +1sp); el resto de filas queda
+                            // igual de compacto para que los 12 meses sigan siendo legibles.
+                            Surface(
+                                onClick = { selectedDay = date },
+                                shape = RoundedCornerShape(14.dp),
+                                color = when {
+                                    isSelected -> Color(0xFF22D3EE).copy(0.22f)
+                                    isBest     -> Color(0xFF22D3EE).copy(0.08f)
+                                    else       -> Accent.copy(0.06f)
+                                },
+                                border = BorderStroke(if (isSelected) 2.dp else 1.dp, when {
+                                    isSelected -> Color(0xFF22D3EE).copy(0.9f)
+                                    isBest     -> Color(0xFF22D3EE).copy(0.35f)
+                                    else       -> Accent.copy(0.18f)
+                                }),
+                                modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(monthNames.getOrElse(m) { "" },
+                                        color = if (isSelected) Color(0xFF22D3EE) else theme.textMain,
+                                        fontSize = if (isSelected) 14.sp else 13.sp,
+                                        fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(fmtDate(date), color = if (isSelected) theme.textMain else theme.textMuted, fontSize = 12.sp)
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(stringResource(R.string.wrapped_fav_pages, pages),
+                                        color = if (isBest || isSelected) Color(0xFF22D3EE) else Accent2,
+                                        fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        // Desglose del día seleccionado (sesiones en vivo; si el año es un
+                        // snapshot sin sesiones, cae a los valores guardados del mejor día)
+                        if (selectedDay.isNotBlank()) {
+                            val daySessions = sessions.filter { it.date == selectedDay }
+                            val rowPages = wrapped.bestDayPerMonth.firstOrNull { it.second == selectedDay }?.third ?: 0
+                            val isGlobalBest = selectedDay == wrapped.mostReadDay
+                            val pagesSel = when {
+                                daySessions.isNotEmpty() -> daySessions.sumOf { it.pages }
+                                isGlobalBest             -> wrapped.mostReadDayPages
+                                else                     -> rowPages
+                            }
+                            val sessionsSel = if (daySessions.isNotEmpty()) daySessions.size
+                                else if (isGlobalBest) wrapped.bestDaySessions else 0
+                            val booksSel = if (daySessions.isNotEmpty()) daySessions.map { it.bookId }.distinct().size
+                                else if (isGlobalBest) wrapped.bestDayBooks else 0
+                            val ppmSel = if (daySessions.isNotEmpty()) {
+                                val mins = daySessions.mapNotNull { it.minutes }.sum()
+                                if (mins > 0) pagesSel.toDouble() / mins else 0.0
+                            } else if (isGlobalBest) wrapped.bestDayPagesPerMin else 0.0
+                            Spacer(Modifier.height(8.dp))
+                            // Feedback 2.7: dorado (antes cian, idéntico a la pill de págs —
+                            // combina con la paleta Wrapped pero ya no se confunde con ella)
+                            Text(stringResource(R.string.wrapped_bestday_breakdown, fmtDate(selectedDay)),
+                                color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                WrappedMiniCard("$pagesSel", stringResource(R.string.wcard_pages), Color(0xFF22D3EE), Modifier.weight(1f))
+                                WrappedMiniCard(if (sessionsSel > 0) "$sessionsSel" else "—", stringResource(R.string.wcard_sessions), Sky, Modifier.weight(1f))
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                WrappedMiniCard(if (booksSel > 0) "$booksSel" else "—", stringResource(R.string.wcard_books), Accent2, Modifier.weight(1f))
+                                WrappedMiniCard(
+                                    if (ppmSel > 0) String.format("%.2f", ppmSel) else "—",
+                                    stringResource(R.string.wrapped_ppm_label), Green, Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 6: FRANJA HORARIA FAVORITA (v2.6) ──────────────────
+                6 -> Column(sm) {
+                    val slots = wrapped.pagesPerTimeSlot
+                    val slotLabels = listOf("00–03h","03–06h","06–09h","09–12h","12–15h","15–18h","18–21h","21–24h")
+                    val totalSlot = slots.sum()
+                    if (totalSlot <= 0) {
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF1E1B4B), Color(0xFF0F172A)))),
+                            contentAlignment = Alignment.Center) {
+                            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(stringResource(R.string.wrapped_timeslot_title), color = Color(0xFFA5B4FC),
+                                    fontSize = 18.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                            }
+                        }
+                        Spacer(Modifier.height(40.dp))
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🕐", fontSize = 44.sp); Spacer(Modifier.height(10.dp))
+                                Text(stringResource(R.string.wrapped_timeslot_empty), color = theme.textDim,
+                                    fontSize = 13.sp, textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 20.dp))
+                            }
+                        }
+                    } else {
+                        val favIdx = slots.indices.maxByOrNull { slots[it] } ?: 0
+                        val maxSlot = slots.max().coerceAtLeast(1)
+                        // Hero: franja estrella
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF1E1B4B), Color(0xFF0C4A6E)))),
+                            contentAlignment = Alignment.Center) {
+                            Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(slotLabels[favIdx], fontSize = 44.sp, fontWeight = FontWeight.Black,
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                                    ))
+                                Text(stringResource(R.string.wrapped_timeslot_title), color = Color(0xFF7DD3FC), fontSize = 13.sp)
+                                Text(stringResource(R.string.wrapped_fav_pages, slots[favIdx]),
+                                    color = Color(0xFF22D3EE), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 2.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        // Distribución por franjas
+                        Text(stringResource(R.string.wrapped_timeslot_dist), color = Sky, fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFF0F172A),
+                            border = BorderStroke(1.dp, Color(0x226366F1)), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                slots.forEachIndexed { i, p ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(slotLabels[i], color = if (i == favIdx) Color(0xFF22D3EE) else Color(0xFF94A3B8),
+                                            fontSize = 11.sp, fontWeight = if (i == favIdx) FontWeight.Bold else FontWeight.Normal,
+                                            modifier = Modifier.width(56.dp))
+                                        Box(Modifier.weight(1f).height(14.dp)
+                                            .clip(RoundedCornerShape(7.dp)).background(Color(0x1AFFFFFF))) {
+                                            if (p > 0) Box(Modifier.fillMaxHeight()
+                                                .fillMaxWidth(p.toFloat() / maxSlot)
+                                                .clip(RoundedCornerShape(7.dp))
+                                                .background(if (i == favIdx)
+                                                    Brush.horizontalGradient(listOf(Color(0xFF22D3EE), Color(0xFF0EA5E9)))
+                                                else Brush.horizontalGradient(listOf(Accent2, Accent2.copy(0.5f)))))
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("$p", color = if (i == favIdx) Color(0xFF22D3EE) else theme.textMuted,
+                                            fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.width(36.dp), textAlign = TextAlign.End)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.wrapped_timeslot_note), color = theme.textDim, fontSize = 10.sp)
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 7: VS AÑO ANTERIOR ──────────────────────────────────
+                7 -> Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (wrapped.previousYearBooks > 0 || wrapped.previousYearPages > 0) {
+                        val dBooks = wrapped.totalBooks - wrapped.previousYearBooks
+                        val dPages = wrapped.totalPages - wrapped.previousYearPages
+                        // Header VS
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(20.dp))
+                                .background(Brush.linearGradient(listOf(Green.copy(0.25f), Green.copy(0.08f)))),
+                                contentAlignment = Alignment.Center) {
+                                Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("${wrapped.year}", color = Green, fontSize = 32.sp, fontWeight = FontWeight.Black)
+                                    Text("${wrapped.totalBooks}", color = Color.White, fontSize = 40.sp, fontWeight = FontWeight.Black)
+                                    Text(stringResource(R.string.txt_76aee4f9), color = Green.copy(0.7f), fontSize = 12.sp)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(wrapped.totalPages.toLocaleString(), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.txt_47bcdf9a), color = Green.copy(0.7f), fontSize = 11.sp)
+                                }
+                            }
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(20.dp))
+                                .background(Brush.linearGradient(listOf(Color(0x33F87171), Color(0x10F87171)))),
+                                contentAlignment = Alignment.Center) {
+                                Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("${wrapped.year - 1}", color = Red.copy(0.7f), fontSize = 32.sp, fontWeight = FontWeight.Black)
+                                    Text("${wrapped.previousYearBooks}", color = Color.White.copy(0.5f), fontSize = 40.sp, fontWeight = FontWeight.Black)
+                                    Text(stringResource(R.string.txt_76aee4f9), color = Red.copy(0.5f), fontSize = 12.sp)
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(wrapped.previousYearPages.toLocaleString(), color = Color.White.copy(0.5f), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.txt_47bcdf9a), color = Red.copy(0.5f), fontSize = 11.sp)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        // Delta libros
+                        val bookSign = if (dBooks > 0) "+" else ""
+                        Surface(shape = RoundedCornerShape(18.dp),
+                            color = (if (dBooks >= 0) Green else Red).copy(0.12f),
+                            border = BorderStroke(1.dp, (if (dBooks >= 0) Green else Red).copy(0.3f)),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(if (dBooks == 0) R.string.wrapped_same_books else if (dBooks > 0) R.string.wrapped_more_books else R.string.wrapped_less_books),
+                                    color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text("$bookSign$dBooks", color = if (dBooks >= 0) Green else Red,
+                                    fontSize = 24.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        val pageSign = if (dPages > 0) "+" else ""
+                        Surface(shape = RoundedCornerShape(18.dp),
+                            color = (if (dPages >= 0) Accent else Red).copy(0.12f),
+                            border = BorderStroke(1.dp, (if (dPages >= 0) Accent else Red).copy(0.3f)),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(if (dPages == 0) R.string.wrapped_same_pages else if (dPages > 0) R.string.wrapped_more_pages else R.string.wrapped_less_pages),
+                                    color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text("$pageSign${dPages.toLocaleString()}", color = if (dPages >= 0) Accent else Red,
+                                    fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                        if (wrapped.longestStreakDays > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Surface(shape = RoundedCornerShape(16.dp), color = Red.copy(0.1f),
+                                border = BorderStroke(1.dp, Red.copy(0.3f)), modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🔥", fontSize = 24.sp); Spacer(Modifier.width(10.dp))
+                                    Text(stringResource(R.string.wrapped_streak_days, wrapped.longestStreakDays), color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("📊", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
+                                Text(stringResource(R.string.wrapped_no_prev_year), color = theme.textDim, fontSize = 15.sp)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 8: CIERRE ───────────────────────────────────────────
+                8 -> Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(Modifier.height(12.dp))
+                    // Número enorme: páginas protagonista
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF4C1D95), Color(0xFF0F0D2E))))) {
+                        // v2.4 rework: eliminada marca de agua decorativa
+                        Column(Modifier.fillMaxWidth().padding(36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(wrapped.totalPages.toLocaleString(), fontSize = 80.sp, fontWeight = FontWeight.Black,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.verticalGradient(listOf(Color.White, Color(0xFFA78BFA)))
+                                ))
+                            Text(stringResource(R.string.wcard_pages_read), color = Color(0xFFE9D5FF), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    // Logros — Feedback 2.6: de vuelta los emojis (el hero de páginas leídas
+                    // se queda sin emoji, a petición)
+                    val items = buildList {
+                        add("📚 " + stringResource(R.string.wcard_books_done, wrapped.totalBooks) to Accent)
+                        if (wrapped.longestStreakDays > 0) add("🔥 " + stringResource(R.string.wrapped_streak_days, wrapped.longestStreakDays) to Red)
+                        if (wrapped.maxSessionPages > 0) add("⚡ " + stringResource(R.string.wrapped_record_line, wrapped.maxSessionPages) to Amber)
+                        if (wrapped.favoriteAuthor.isNotBlank()) add("✍️ " + wrapped.favoriteAuthor to Accent2)
+                    }
+                    items.forEach { (txt, col) ->
+                        Surface(shape = RoundedCornerShape(14.dp), color = col.copy(0.1f),
+                            border = BorderStroke(1.dp, col.copy(0.25f)),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Text(txt, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(16.dp))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    // Feedback 2.6: libros abandonados — movidos aquí desde la slide 4
+                    // (mejores/más rápidos); en el cierre encajan como parte del balance.
+                    if (wrapped.droppedBooks > 0) {
+                        Spacer(Modifier.height(2.dp))
+                        Surface(shape = RoundedCornerShape(16.dp), color = Red.copy(0.1f),
+                            border = BorderStroke(1.dp, Red.copy(0.3f)), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("❌", fontSize = 22.sp); Spacer(Modifier.width(10.dp))
+                                    Text(stringResource(R.string.wrapped_dropped_text, wrapped.droppedBooks, if (wrapped.droppedBooks != 1) "s" else ""),
+                                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                }
+                                if (wrapped.droppedBookTitles.isNotEmpty()) {
+                                    Spacer(Modifier.height(6.dp))
+                                    wrapped.droppedBookTitles.forEach { title ->
+                                        Text("· $title", color = theme.textDim, fontSize = 12.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(start = 32.dp))
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Surface(shape = RoundedCornerShape(16.dp), color = theme.surface,
+                        border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(stringResource(R.string.txt_b7e522e3), color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CardGiftcard, null, tint = Accent, modifier = Modifier.size(14.dp))
+                                Text(" Lecturameter", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDE 9: TUS 3 FAVORITOS DEL AÑO (v2.4 rework, congelados v2.6) ──
+                9 -> Column(sm) {
+                    // Cabecera
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF3B0D0D), Color(0xFF1A0808)))),
+                        contentAlignment = Alignment.Center) {
+                        Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(stringResource(R.string.wrapped_favorites_section), color = FavoriteRed,
+                                fontSize = 24.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+                            // v2.6: eliminado subtítulo "Aleatorios entre tus favoritos…" — los
+                            // favoritos ahora son fijos por Wrapped (favoritesForWrapped)
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+
+                    if (favBooks.isEmpty()) {
+                        Surface(shape = RoundedCornerShape(16.dp), color = theme.surface,
+                            border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("❤️", fontSize = 40.sp)
+                                Spacer(Modifier.height(10.dp))
+                                Text(stringResource(R.string.wrapped_favorites_empty),
+                                    color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                    } else {
+                        val favMedals = listOf("\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49")
+                        favBooks.forEachIndexed { i, book ->
+                            val bookSessions = vm.sessionsForBook(book.id)
+                            val favMinutes = bookSessions.sumOf { it.minutes ?: 0 }
+                            Surface(shape = RoundedCornerShape(18.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, FavoriteRed.copy(alpha = 0.25f)),
+                                modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(14.dp)) {
+                                    // Portada real + medalla funcional de ranking
+                                    Box {
+                                        BookCover(book.coverUrl, book.title, size = 84, isbnFallback = book.isbn)
+                                        Text(favMedals.getOrElse(i) { "" }, fontSize = 18.sp,
+                                            modifier = Modifier.align(Alignment.TopStart).offset(x = (-6).dp, y = (-6).dp))
+                                    }
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(book.title, color = theme.textMain, fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        if (book.author.isNotBlank())
+                                            Text(book.author, color = theme.textMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (book.genres.isNotEmpty()) {
+                                            // precomputar fuera de joinToString (displayGenre es @Composable)
+                                            val genreLabel = book.genres.map { displayGenre(it) }.joinToString(" · ")
+                                            Text(genreLabel,
+                                                color = Sky, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            Text(stringResource(R.string.wrapped_fav_pages, book.pages), color = theme.textMuted, fontSize = 12.sp)
+                                            if (favMinutes > 0) {
+                                                val fh = favMinutes / 60; val fm = favMinutes % 60
+                                                Text(if (fh > 0) "${fh}h ${fm}m" else "${fm}m", color = theme.textMuted, fontSize = 12.sp)
+                                            }
+                                        }
+                                        if (book.rating > 0) {
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                val favStars = kotlin.math.ceil(book.rating / 2.0).toInt().coerceIn(0, 5)
+                                                Text("★".repeat(favStars) + "☆".repeat(5 - favStars),
+                                                    color = Gold, fontSize = 13.sp, letterSpacing = 1.sp)
+                                                Spacer(Modifier.width(6.dp))
+                                                Text("${book.rating}/10", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        if (book.comment.isNotBlank()) {
+                                            Spacer(Modifier.height(6.dp))
+                                            Surface(shape = RoundedCornerShape(10.dp), color = Accent.copy(alpha = 0.08f)) {
+                                                Text("\u201C${book.comment}\u201D", color = theme.textMuted, fontSize = 12.sp,
+                                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                    maxLines = 3, overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        // v2.6: eliminada nota "se renuevan cada vez que abres el Wrapped" —
+                        // ya no aplica (favoritos congelados)
+                    }
+                    Spacer(Modifier.height(40.dp))
+                }
+
+                // ── SLIDES DINÁMICAS: Bingo anual (6.3, condicional) + cierre (P-015) ──
+                else -> {
+                    val isBingoPage = hasBingoSlide && page == 10
+                    if (isBingoPage) Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                        val best = bingoYear.maxByOrNull { it.cellsDone }!!
+                        val isEsW = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.wbingo_title), fontSize = 30.sp, fontWeight = FontWeight.Black,
+                            style = androidx.compose.ui.text.TextStyle(
+                                brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                            ), textAlign = TextAlign.Center)
+                        Text(stringResource(R.string.wbingo_best_month, fmtMonthName(best.monthKey)).replaceFirstChar { it.uppercase(appDisplayLocale) },
+                            color = Color(0xFFC7D2FE), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
+                        // Cartón visual del mejor mes (patrón 1/0)
+                        val bSide = com.lecturameter.utils.BingoManager.sideOf(best.pattern.length).coerceAtLeast(3)
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            for (r in 0 until bSide) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    for (cIdx in 0 until bSide) {
+                                        val on = best.pattern.getOrNull(r * bSide + cIdx) == '1'
+                                        Box(
+                                            Modifier.size(46.dp).clip(RoundedCornerShape(9.dp))
+                                                .background(if (on) Accent.copy(alpha = 0.30f) else Color(0x10FFFFFF))
+                                                .border(1.dp, if (on) Accent else theme.border, RoundedCornerShape(9.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) { if (on) Text("✓", color = Color(0xFFC7D2FE), fontSize = 15.sp, fontWeight = FontWeight.Bold) }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            WrappedMiniCard("${bingoYear.sumOf { it.cellsDone }}", stringResource(R.string.wbingo_cells), Accent, Modifier.weight(1f))
+                            WrappedMiniCard("${bingoYear.sumOf { it.lines }}", stringResource(R.string.wbingo_lines), Accent2, Modifier.weight(1f))
+                            WrappedMiniCard("${bingoYear.count { it.complete }}", stringResource(R.string.wbingo_full_cards), Amber, Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        bingoYear.filter { it.lines > 0 }.minByOrNull { it.monthKey }?.let { first ->
+                            WrappedFavRow("", stringResource(R.string.wbingo_first_line), fmtMonthName(first.monthKey), "", Accent, theme)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        // Casilla más difícil: la etiqueta que más veces quedó sin completar
+                        val hardest = bingoYear.flatMap { if (isEsW) it.uncompletedEs else it.uncompletedEn }
+                            .groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+                        if (hardest != null) {
+                            WrappedFavRow("", stringResource(R.string.wbingo_hardest), "«$hardest»", "", Accent2, theme)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        bingoYear.filter { it.complete }.minByOrNull { it.monthKey }?.let { full ->
+                            Surface(shape = RoundedCornerShape(999.dp), color = Gold.copy(alpha = 0.14f),
+                                border = BorderStroke(1.dp, Gold.copy(alpha = 0.5f))) {
+                                Text(stringResource(R.string.wbingo_completed_ribbon, fmtMonthName(full.monthKey)),
+                                    color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(40.dp))
+                    } else Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                        // ── P-015: cierre con comparativa vs año anterior ────────
+                        Spacer(Modifier.height(12.dp))
+                        Text(stringResource(R.string.wclose_title), fontSize = 26.sp, fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.Center, lineHeight = 32.sp,
+                            style = androidx.compose.ui.text.TextStyle(
+                                brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
+                            ))
+                        val hasPrev = wrapped.previousYearBooks > 0 || wrapped.previousYearPages > 0
+                        Text(
+                            if (hasPrev) stringResource(R.string.wclose_vs, wrapped.year, wrapped.year - 1)
+                            else stringResource(R.string.wclose_totals),
+                            color = Color(0xFFC7D2FE), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                        )
+                        @Composable
+                        fun cmpRow(label: String, value: String, delta: Int?) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(label, color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                                    Text(value, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    if (delta != null && delta != 0) {
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            if (delta > 0) "▲ +${delta.toLocaleString()}" else "▼ ${delta.toLocaleString()}",
+                                            color = if (delta > 0) Green else Red, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(7.dp))
+                        }
+                        cmpRow(stringResource(R.string.wclose_books), "${wrapped.totalBooks}",
+                            if (hasPrev) wrapped.totalBooks - wrapped.previousYearBooks else null)
+                        cmpRow(stringResource(R.string.wclose_pages), wrapped.totalPages.toLocaleString(),
+                            if (hasPrev) wrapped.totalPages - wrapped.previousYearPages else null)
+                        if (wrapped.totalMinutes > 0) {
+                            val prevMinutes = vm.wrappedForYear(year - 1)?.totalMinutes ?: 0
+                            cmpRow(stringResource(R.string.wclose_time), fmtMinutes(wrapped.totalMinutes),
+                                if (prevMinutes > 0) wrapped.totalMinutes - prevMinutes else null)
+                        }
+                        if (wrapped.favoriteGenre.isNotBlank()) {
+                            cmpRow(stringResource(R.string.wcard_genre_year), displayGenre(wrapped.favoriteGenre), null)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(stringResource(R.string.wclose_quote), color = Color(0xFFA5F3E8), fontSize = 14.sp,
+                            fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 22.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp))
+                        Spacer(Modifier.height(40.dp))
+                    }
+                }
+            }
+        }
+
+        // Flechas de navegación: eliminadas — el pager ya soporta swipe nativo
+        // y las flechas superpuestas solapaban el texto de los slides.
+    }
+}
+
+@Composable
+fun WrappedBigCard(value: String, label: String, color: Color, bg: Brush, modifier: Modifier = Modifier, maxLines: Int = 1) {
+    Box(modifier.clip(RoundedCornerShape(20.dp)).background(bg), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, color = color, fontSize = 30.sp, fontWeight = FontWeight.Black,
+                maxLines = maxLines, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, lineHeight = 34.sp)
+            Text(label.uppercase(), color = color.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+        }
+    }
+}
+
+@Composable
+fun WrappedMiniCard(value: String, label: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(shape = RoundedCornerShape(14.dp), color = color.copy(0.1f),
+        border = BorderStroke(1.dp, color.copy(0.25f)), modifier = modifier) {
+        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, color = color, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text(label.uppercase(), color = color.copy(0.7f), fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        }
+    }
+}
+
+@Composable
+fun WrappedFavRow(emoji: String, label: String, value: String, sub: String, color: Color, theme: Theme) {
+    Surface(shape = RoundedCornerShape(14.dp), color = color.copy(0.08f),
+        border = BorderStroke(1.dp, color.copy(0.2f)), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (emoji.isNotBlank()) { Text(emoji, fontSize = 26.sp); Spacer(Modifier.width(10.dp)) }
+            Column(Modifier.weight(1f)) {
+                Text(label.uppercase(), color = color.copy(0.7f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                Text(value, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, color = color.copy(0.7f), fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun WrappedTop3Row(medal: String, name: String, count: String, isGold: Boolean, color: Color, theme: Theme) {
+    val bg = if (isGold) color.copy(0.15f) else color.copy(0.07f)
+    val border = if (isGold) color.copy(0.4f) else color.copy(0.18f)
+    Surface(shape = RoundedCornerShape(12.dp), color = bg,
+        border = BorderStroke(1.dp, border), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(medal, fontSize = 22.sp); Spacer(Modifier.width(8.dp))
+            Text(name, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(count, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun LinearProgressBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(color.copy(0.15f))) {
+        Box(Modifier.fillMaxWidth(progress.coerceIn(0f,1f)).fillMaxHeight()
+            .clip(RoundedCornerShape(3.dp)).background(color))
+    }
+}
+
+fun wrappedMedal(i: Int): String = when (i) { 0 -> "🥇"; 1 -> "🥈"; 2 -> "🥉"; else -> "${i + 1}." }
+
+@Composable
+fun WrappedBigStat(value: String, label: String, modifier: Modifier, color: Color) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = color, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = color.copy(alpha = 0.7f), fontSize = 10.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun WrappedHighlightCard(emoji: String, label: String, value: String, sub: String, color: Color, modifier: Modifier) {
+    Surface(shape = RoundedCornerShape(16.dp), color = color.copy(alpha = 0.1f), border = BorderStroke(1.dp, color.copy(alpha = 0.3f)), modifier = modifier) {
+        Column(Modifier.padding(16.dp)) {
+            Text(emoji, fontSize = 24.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(label, color = color.copy(alpha = 0.8f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(value, color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(sub, color = color.copy(alpha = 0.7f), fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+fun WrappedBookCard(emoji: String, label: String, title: String, detail: String, color: Color, theme: Theme) {
+    Surface(shape = RoundedCornerShape(16.dp), color = color.copy(alpha = 0.08f), border = BorderStroke(1.dp, color.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(emoji, fontSize = 28.sp)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(label, color = color.copy(alpha = 0.8f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                Spacer(Modifier.height(3.dp))
+                Text(title, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(detail, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+// ── WrappedHistoryScreen ──────────────────────────────────────────────────────
+
+@Composable
+fun WrappedHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onOpen: (Int) -> Unit) {
+    // D-004: wrappedHistory es StateFlow; se colecciona en la raíz de la pantalla
+    val wrappedHistory by vm.wrappedHistory.collectAsState()
+    val history = wrappedHistory.sortedByDescending { it.year }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 24.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.txt_2d903c83), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(if (history.size == 1) stringResource(R.string.wrapped_history_count_one, history.size) else stringResource(R.string.wrapped_history_count_other, history.size), color = theme.textMuted, fontSize = 13.sp)
+                Text(nextWrappedSubtitle(), color = Gold, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+        }
+        if (history.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🎁", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.txt_5718979a), color = theme.textMain, fontSize = 16.sp)
+                    Text(stringResource(R.string.txt_80b7fc7c), color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(history) { w ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = theme.surface,
+                        border = BorderStroke(1.dp, theme.border),
+                        modifier = Modifier.fillMaxWidth().clickable { onOpen(w.year) }
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            // Year badge
+                            Box(
+                                Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(Brush.verticalGradient(listOf(Accent, Accent2))),
+                                contentAlignment = Alignment.Center
+                            ) { Text("${w.year}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.wrapped_history_year_label, w.year), color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                val booksLabel = if (w.rereadBooks > 0)
+                                    stringResource(R.string.wrapped_history_summary_reread, w.totalBooks, w.rereadBooks, w.totalPages.toLocaleString())
+                                else
+                                    stringResource(R.string.wrapped_history_summary, w.totalBooks, w.totalPages.toLocaleString())
+                                Text(booksLabel, color = theme.textMuted, fontSize = 13.sp)
+                                if (w.favoriteAuthor.isNotBlank())
+                                    Text("✍️ ${w.favoriteAuthor}", color = theme.textDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(String.format("%.1f p/d", w.avgPagesPerDay), color = Green, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                if (w.bestRatedTitle.isNotBlank())
+                                    Text("⭐ ${w.bestRatedScore}/10", color = Gold, fontSize = 11.sp)
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.ChevronRight, null, tint = theme.textDim, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(28.dp)) }
+            }
+        }
+    }
+}
+
