@@ -945,11 +945,11 @@
     <string name="tip_rail_body">It hides when you scroll the list or swipe left ← from the line, and comes back by swiping right → from the edge of the screen. Long-press a blue icon to reorder them.</string>
     <!-- Recap notifications (weekly/monthly/wrapped) -->
     <string name="recap_notif_channel">Reading recaps</string>
-    <string name="recap_notif_weekly_title">📅 Your weekly recap is ready</string>
+    <string name="recap_notif_weekly_title">Your weekly recap is ready</string>
     <string name="recap_notif_weekly_body">%1$d pages across %2$d sessions this week. Tap to see your recap.</string>
-    <string name="recap_notif_monthly_title">📆 Your monthly recap is ready</string>
+    <string name="recap_notif_monthly_title">Your monthly recap is ready</string>
     <string name="recap_notif_monthly_body">%1$d pages last month. Tap to see your recap.</string>
-    <string name="recap_notif_wrapped_title">🎁 Your %1$d Wrapped is here</string>
+    <string name="recap_notif_wrapped_title">Your %1$d Wrapped is here</string>
     <string name="recap_notif_wrapped_body">Your reading year, wrapped up. Tap to discover it.</string>
     <string name="tip_history_title">To close</string>
     <string name="tip_history_body">Swipe left, or tap the edge strip.</string>
