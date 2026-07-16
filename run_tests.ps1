@@ -37,5 +37,6 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson"
     com.lecturameter.BackupV3Test `
     com.lecturameter.ChallengeHistoryTest `
     com.lecturameter.IsbnScanTest `
-    com.lecturameter.RestoreDedupeTest
+    com.lecturameter.RestoreDedupeTest `
+    com.lecturameter.CoverStoreTest
 exit $LASTEXITCODE

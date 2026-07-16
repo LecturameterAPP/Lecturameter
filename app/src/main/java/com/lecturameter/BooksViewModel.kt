@@ -594,6 +594,8 @@ class BooksViewModel : ViewModel() {
         ensureBingoCard(prefs)
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
         booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
+        // B-029 opción B: portadas base64 legacy → ficheros (autocurativa, no bloquea el arranque)
+        migrateEmbeddedCoversIfNeeded(prefs)
         // D-013: grandfathering ONE-SHOT antes de leer el tema — quien venía usando
         // Aurora o AMOLED (gratis hasta la 2.7) conserva ESE tema para siempre
         com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
@@ -934,6 +936,39 @@ class BooksViewModel : ViewModel() {
 
         if (changed) save(prefs)
         prefs.edit().putBoolean(flagKey, true).apply()
+    }
+
+    // ── B-029 opción B: migración de portadas base64 a ficheros ──────────────
+    //
+    // Las portadas legacy de la 2.7 viajan como data URIs dentro de coverUrl y son
+    // el 98% del peso de la clave "books" (6,6 de 6,7 MB medidos). Esta migración
+    // las extrae a filesDir/covers y deja la ruta absoluta, que UI, widget y backup
+    // ya entienden (el export re-embebe base64: el formato del backup NO cambia).
+    // La extracción corre en IO; el intercambio de URLs se aplica después sobre la
+    // lista VIVA (no sobre el snapshot) para no pisar cambios del usuario. Es
+    // autocurativa: si algo queda sin migrar, reintenta en el siguiente arranque.
+    private fun migrateEmbeddedCoversIfNeeded(prefs: android.content.SharedPreferences) {
+        val ctx = appContext ?: return
+        val snapshot = booksInternal
+        if (snapshot.none { com.lecturameter.utils.CoverStore.hasEmbeddedCover(it) }) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val coversDir = java.io.File(ctx.filesDir, "covers")
+            val extracted = try {
+                com.lecturameter.utils.CoverStore.extractEmbeddedCovers(coversDir, snapshot)
+            } catch (_: Exception) { emptyMap() }
+            if (extracted.isEmpty()) return@launch
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                val (migrated, changed) =
+                    com.lecturameter.utils.CoverStore.applyExtractedPaths(booksInternal, extracted)
+                if (!changed) return@withContext
+                booksInternal = migrated
+                save(prefs, triggerBackup = false)
+                com.lecturameter.utils.AppLogger.log("B-029b: ${extracted.size} portadas base64 migradas a ficheros")
+                // El widget no sabía pintar data URIs (loadCoverBitmap → null); con la
+                // ruta de fichero ya puede, así que se le avisa.
+                com.lecturameter.widget.updateBookWidgets(ctx)
+            }
+        }
     }
 
     // ── B-029: guardado SÍNCRONO a propósito ─────────────────────────────────
