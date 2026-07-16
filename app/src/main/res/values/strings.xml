@@ -599,6 +599,25 @@
     <string name="settings_help_subtitle">Soporte al desarrollador</string>
     <string name="settings_feedback_title">Enviar feedback</string>
     <string name="settings_feedback_subtitle">Sugerencias, errores o comentarios al desarrollador.</string>
+    <string name="settings_privacy_policy_title">Política de privacidad</string>
+    <string name="settings_privacy_policy_subtitle">Qué se guarda y qué sale de tu dispositivo</string>
+
+    <!-- Política de privacidad (pantalla dedicada, TAREA 1 lanzamiento) -->
+    <string name="privacy_policy_title">Política de privacidad</string>
+    <string name="privacy_policy_updated">Última actualización: 16 de julio de 2026</string>
+    <string name="privacy_policy_intro">Aquí te explicamos, en lenguaje sencillo, qué datos guarda Lecturameter y qué sale de tu dispositivo. No hay nada oculto ni configurable a tus espaldas: esto es exactamente lo que hace la app, ni más ni menos.</string>
+    <string name="privacy_policy_section_storage_title">Dónde viven tus datos</string>
+    <string name="privacy_policy_storage_body">Tus libros, sesiones de lectura, retos y bingo se guardan solo en tu dispositivo. Si activas las copias de seguridad, también se guardan donde tú elijas: un archivo en tu propio dispositivo, o tu Google Drive. En el caso de Drive, la app solo puede ver y tocar los archivos que ella misma ha creado ahí, nada más de tu cuenta.</string>
+    <string name="privacy_policy_section_analytics_title">Sin analíticas ni publicidad</string>
+    <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla.</string>
+    <string name="privacy_policy_section_search_title">Búsqueda y escaneo de libros</string>
+    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
+    <string name="privacy_policy_section_feedback_title">Feedback y encuestas</string>
+    <string name="privacy_policy_feedback_body">Enviar feedback o responder a una encuesta dentro de la app es totalmente opcional. Si lo haces, se envía el texto que has escrito junto con información técnica del dispositivo (modelo, versión de Android, versión de la app) a un servidor propio de Lecturameter para que el desarrollador pueda leerlo.</string>
+    <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>
+    <string name="privacy_policy_pro_body">Los pagos de Lecturameter Pro los procesa Google Play: la app nunca ve ni guarda tus datos de pago. Si canjeas un código de promoción, ese código y un identificador de tu dispositivo se envían al servidor de canje de Lecturameter, solo para validar el código y controlar cuántos dispositivos pueden usarlo.</string>
+    <string name="privacy_policy_section_contact_title">Contacto</string>
+    <string name="privacy_policy_contact_body">Si tienes dudas sobre privacidad, escribe a lecturameter.app@gmail.com.</string>
 
     <!-- Bulk refresh -->
     <string name="bulk_refresh_title_genres">Recarga masiva de Géneros</string>

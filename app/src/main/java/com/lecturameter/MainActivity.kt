@@ -1436,6 +1436,8 @@ sealed class Screen {
     object List : Screen(); object Add : Screen(); object BookSearch : Screen(); object Stats : Screen()
     object ImportExport : Screen(); object WrappedHistory : Screen()
     object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
+    // TAREA 1 (lanzamiento): política de privacidad in-app
+    object PrivacyPolicy : Screen()
     // D-016 (P-011): historial de retos archivados
     object ChallengeHistory : Screen()
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
@@ -1461,6 +1463,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.WrappedHistory -> "wrapped_history"
     is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
+    is Screen.PrivacyPolicy -> "privacy_policy"
     is Screen.Challenges -> "challenges"
     is Screen.ChallengeHistory -> "challenge_history"
     is Screen.WeeklyRecap -> "weekly_recap"
@@ -1982,7 +1985,9 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("monthly_recap") { WideScreenCenter { MonthlyRecapScreen(vm, prefs, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
-                composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
+                composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }, onPrivacyPolicy = { navigateTo(Screen.PrivacyPolicy) }) } }
+                // TAREA 1 (lanzamiento): política de privacidad in-app
+                composable("privacy_policy") { WideScreenCenter { PrivacyPolicyScreen(theme, onBack = { goBack() }) } }
                 composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }, onHistory = { navigateTo(Screen.ChallengeHistory) }) } }
                 // D-016 (P-011): historial de retos archivados
                 composable("challenge_history") { WideScreenCenter { ChallengeHistoryScreen(vm, prefs, theme, onBack = { goBack() }) } }

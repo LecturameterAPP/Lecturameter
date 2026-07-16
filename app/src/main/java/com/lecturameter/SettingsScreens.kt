@@ -702,7 +702,7 @@ object FeedbackSender {
 }
 
 @Composable
-fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onBulkReload: (String) -> Unit = {}, onResetTutorial: () -> Unit = {}, onImportExport: () -> Unit = {}) {
+fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onBulkReload: (String) -> Unit = {}, onResetTutorial: () -> Unit = {}, onImportExport: () -> Unit = {}, onPrivacyPolicy: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val context = LocalContext.current
@@ -1389,6 +1389,16 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 running = false,
                 theme = theme,
                 onClick = { showFeedback = true }
+            )
+            Spacer(Modifier.height(8.dp))
+            // TAREA 1 (lanzamiento): acceso a la política de privacidad in-app
+            SettingsToolRow(
+                icon = "🔒",
+                title = stringResource(R.string.settings_privacy_policy_title),
+                subtitle = stringResource(R.string.settings_privacy_policy_subtitle),
+                running = false,
+                theme = theme,
+                onClick = onPrivacyPolicy
             )
         }
 
