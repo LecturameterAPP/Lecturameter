@@ -225,6 +225,9 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     var selectedEditionResult  by remember { mutableStateOf<EditionResult?>(null) }
     // B-023: edición escaneada cuyo autor no casa con el del libro — a confirmar.
     var pendingScannedMismatch by remember { mutableStateOf<EditionResult?>(null) }
+    // P-028: la última edición escaneada tiene un idioma asignado por suposición, no por
+    // detección real (ni la API ni el prefijo del ISBN lo confirman). Avisar al usuario.
+    var scannedEditionLanguageUncertain by remember { mutableStateOf(false) }
     val bookEditions = vm.editionsForBook(id)
     // v20.0 (G2): states obsoletos eliminados (search/order ahora son locales por sección).
     var selectedRating by remember(book.rating) { mutableStateOf(book.rating) }    // Sincronizar solo si el valor guardado cambia externamente (ej. otro dispositivo)
@@ -444,6 +447,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         EditionResult(lId, lLabel, lFlag, book.title, 0, null, scanned, "", "")
                     }
                     editionsLoading = false
+                    // P-028: si el idioma asignado viene solo de un prefijo ISBN no reconocido
+                    // (isbnToLanguageMeta cayó en su valor por defecto), no es una detección de
+                    // fiar. Avisamos para que el usuario revise el idioma antes de guardar.
+                    scannedEditionLanguageUncertain = !isbnLanguageIsConfident(scanned)
                     // B-023: si el ISBN pertenece claramente a otra obra (autor distinto),
                     // preguntar antes de colarla como edición de este libro.
                     if (editionAuthorMismatch(book.author, resolved.author)) {
@@ -495,7 +502,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             )
         }
         AlertDialog(
-            onDismissRequest = { showChangeEditionSheet = false; showAddEditionSheet = false },
+            onDismissRequest = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false },
             containerColor = theme.bgMid,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -547,6 +554,22 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             stringResource(R.string.txt_c1404abf),
                         color = theme.textMuted, fontSize = 13.sp
                     )
+                    // P-028: el idioma de la última edición escaneada es solo una suposición
+                    // (ningún prefijo ISBN reconocido ni metadato de API lo confirma).
+                    if (scannedEditionLanguageUncertain) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            color = Accent.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Accent.copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                stringResource(R.string.edition_scan_language_uncertain),
+                                modifier = Modifier.padding(10.dp),
+                                color = theme.textMain, fontSize = 12.sp
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(14.dp))
                     when {
                         editionsLoading -> {
@@ -633,7 +656,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                                 shape = RoundedCornerShape(12.dp),
                                                 color = if (isSelected) Color(0x207B6EF6) else theme.bgSurf,
                                                 border = BorderStroke(1.dp, if (isSelected) Accent else theme.border),
-                                                modifier = Modifier.fillMaxWidth().clickable { selectedEditionResult = ed }
+                                                modifier = Modifier.fillMaxWidth().clickable { selectedEditionResult = ed; scannedEditionLanguageUncertain = false }
                                             ) {
                                                 Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     Text(ed.flag, fontSize = 22.sp)
@@ -675,13 +698,13 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             vm.upsertEdition(id, newEdition, prefs)
                             refreshWidgetForBookIfSelected(context, id, clearCoverCache = true)
                         }
-                        showChangeEditionSheet = false; showAddEditionSheet = false
+                        showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false
                     },
                     enabled = selectedEditionResult != null
                 ) { Text(if (isAdding) stringResource(R.string.txt_d20f652b) else stringResource(R.string.txt_d1bdc329), color = if (selectedEditionResult != null) Accent else theme.textDim) }
             },
             confirmButton = {
-                TextButton(onClick = { showChangeEditionSheet = false; showAddEditionSheet = false }) {
+                TextButton(onClick = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false }) {
                     Text(stringResource(R.string.txt_847607d7), color = Red)
                 }
             }

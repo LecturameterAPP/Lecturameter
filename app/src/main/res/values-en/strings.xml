@@ -989,6 +989,8 @@
     <string name="dup_add_anyway">Add anyway</string>
     <string name="edition_scan_not_found">No edition found for ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edition not yet indexed in the databases. Offered with ISBN %1$s and this book\'s data; you can edit it later.</string>
+    <!-- P-028: the language assigned to the scanned edition is a guess, not a confirmed detection -->
+    <string name="edition_scan_language_uncertain">We couldn\'t confirm this edition\'s language with certainty. Please check the language shown is correct before saving.</string>
     <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->

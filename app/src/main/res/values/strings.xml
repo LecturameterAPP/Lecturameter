@@ -991,6 +991,8 @@
     <string name="dup_add_anyway">Añadir igualmente</string>
     <string name="edition_scan_not_found">No se encontró ninguna edición con ISBN %1$s</string>
     <string name="edition_scan_unindexed">Edición aún sin indexar en las bases de datos. Se ofrece con el ISBN %1$s y los datos del libro; puedes editarla después.</string>
+    <!-- P-028: el idioma asignado a la edición escaneada es una suposición, no una detección segura -->
+    <string name="edition_scan_language_uncertain">No hemos podido confirmar el idioma de esta edición con seguridad. Revisa que el idioma marcado sea correcto antes de guardar.</string>
     <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
     <!-- Feedback 13-07 (9): la slide 1 menciona también el asa del rail colapsable -->
     <!-- QA 12-07 r2: espacio no separable antes del emoji — el 🎉 saltaba de línea en el toast -->
