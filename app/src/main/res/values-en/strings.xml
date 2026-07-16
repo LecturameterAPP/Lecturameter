@@ -177,6 +177,8 @@
     <string name="txt_62da2239">Goodreads CSV</string>
     <string name="txt_632543a9">Do you want to activate local backup?</string>
     <string name="txt_632bfb20">Delete all current sessions?</string>
+    <string name="dialog_delete_cycle_msg">This will delete the %1$d sessions of “%2$s”. Other editions and cycles are not affected.</string>
+    <string name="dialog_delete_cycle_one">This will delete 1 session of “%1$s”. Other editions and cycles are not affected.</string>
     <string name="txt_64b46771">Continue</string>
     <string name="txt_65dc881f">Searching OpenLibrary and Google Books…</string>
     <string name="txt_66308bc7">Your library is empty</string>
@@ -202,7 +204,7 @@
     <string name="txt_7d6c2883">Period:</string>
     <string name="txt_7ddf5345">📤 Import/Export</string>
     <string name="txt_80b7fc7c">Between December 26 and January 26, visit Wrapped to generate and save the year\'s wrapped.</string>
-    <string name="txt_82056f1f">You can change it later in Settings</string>
+    <string name="txt_82056f1f">Puedes cambiarlo después en Ajustes / You can change it later in Settings</string>
     <string name="txt_847607d7">Cancel</string>
     <string name="txt_8487931b">Confirm</string>
     <string name="txt_84a8f3ea">Select genres…</string>

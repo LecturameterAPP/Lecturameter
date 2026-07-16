@@ -187,49 +187,53 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
             }
         }
 
-        // ── Fase 5 (P-023, acceso A): tarjeta compacta del recap semanal ─────────
-        // Solo aparece si la semana en curso tiene alguna sesión (regla: no inventar)
+        // ── Fase 5 (P-023, acceso A) + Fase 6.4 (M-2): tarjetas de recap ─────────
+        // B-035 (reincidencia, WhatsApp 15-07 18:57): estas tarjetas vivían FUERA del
+        // área con scroll (el scroll está dentro de cada vista), así que se quedaban
+        // pegadas arriba mientras las gráficas/tabla scrolleaban. Ahora son el primer
+        // item del contenido scrolleable; en el heatmap (sin scroll) van fijas como antes.
         val weeklyRecap = remember(books, sessions) {
             com.lecturameter.utils.computeWeeklyRecap(books, sessions, vm.bingoCard.value, vm.challenges.value, today())
         }
-        if (weeklyRecap != null) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = theme.surface,
-                border = BorderStroke(1.dp, theme.border),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
-            ) {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
-                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
-                }
-            }
-        }
-
-        // ── Fase 6.4 (M-2): tarjeta del recap MENSUAL — solo los primeros 7 días ─
-        // del mes nuevo, y solo si el mes cerrado tuvo sesiones
         val monthlyRecap = remember(books, sessions) {
             val dayOfMonth = today().takeLast(2).toIntOrNull() ?: 99
             if (dayOfMonth <= 7) com.lecturameter.utils.computeMonthlyRecap(books, sessions, today()) else null
         }
-        if (monthlyRecap != null) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = theme.surface,
-                border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.45f)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onMonthlyRecap() }
-            ) {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.recapm_card_line, fmtMonthName(monthlyRecap.monthKey)),
-                        color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
+        val recapCards: @Composable () -> Unit = {
+            Column {
+                if (weeklyRecap != null) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = theme.surface,
+                        border = BorderStroke(1.dp, theme.border),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
+                    ) {
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
+                                color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
+                        }
+                    }
+                }
+                if (monthlyRecap != null) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = theme.surface,
+                        border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.45f)),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onMonthlyRecap() }
+                    ) {
+                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.recapm_card_line, fmtMonthName(monthlyRecap.monthKey)),
+                                color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
+                        }
+                    }
                 }
             }
         }
@@ -237,14 +241,17 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
         // (Los filtros de Género y Autor se muestran ahora dentro de la tarjeta "Filtros" de las gráficas)
 
         if (statsView == "heatmap") {
+            recapCards()
             HeatmapView(vm = vm, theme = theme, onNavigateToSession = { bookId, date -> onDetailWithDate(bookId, date) }, onNavigateToDailySessions = onDailySessions)
         } else if (showCharts) {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
+                item { recapCards() }
                 item { StatsChartsView(vm, theme, filterGenre, { filterGenre = it; genreUserSelected = true }, allGenres, filterAuthor, { filterAuthor = it; authorUserSelected = true }, allAuthors) }
                 // v2.4 rework: secciones avanzadas al final de la pantalla
                 item { AdvancedStatsSections(vm, theme) }
             }
         } else if (filtered.isEmpty()) {
+            recapCards()
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📈", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
@@ -254,6 +261,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                item { recapCards() }
                 // Global summary card
                 item {
                     Surface(shape = RoundedCornerShape(16.dp), color = Color(0x1A6366F1), border = BorderStroke(1.dp, Color(0x336366F1))) {

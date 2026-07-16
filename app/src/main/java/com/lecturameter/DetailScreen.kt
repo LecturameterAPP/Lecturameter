@@ -2035,7 +2035,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // ── Estadísticas por ciclo (v20.0 G3: pills por ciclo, solo con relecturas) ─
                 run {
-                    val cycles = computeCycleStats(book, sessions)
+                    // B-032: bookSessions (edición ACTIVA), no sessions. Con `sessions` estas
+                    // pills sumaban las sesiones de TODAS las ediciones mientras el historial
+                    // de abajo filtra por la activa: El imperio final anunciaba "11p leídas"
+                    // (sesión de la edición inglesa) y luego no mostraba ni una sesión.
+                    val cycles = computeCycleStats(book, bookSessions)
                     if (cycles.size > 1) {
                         // Nivel 1: título principal
                         Text(stringResource(R.string.txt_aa1b8e40), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
@@ -2088,7 +2092,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // ── Historial de sesiones (v20.0 G2: una sección por ciclo) ──
                 // v20.3: precalculamos cycles para poder usar pagesPerDay en las pills de sesiones
-                val sessionCycles = computeCycleStats(book, sessions)
+                // B-032: bookSessions, no sessions (mismo motivo que en Estadísticas por ciclo)
+                val sessionCycles = computeCycleStats(book, bookSessions)
                 if (bookSessions.isNotEmpty()) {
                     // Agrupar sesiones por readingIndex, ordenado ascendente
                     val cycleSessionsByIndex = bookSessions.groupBy { it.readingIndex ?: 0 }
@@ -2274,12 +2279,18 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             Spacer(Modifier.height(12.dp))
 
                             // Confirm dialog eliminar todas las sesiones del ciclo
+                            // B-033: el diálogo dice la verdad — cuántas sesiones y de qué ciclo
+                            // (con el buscador activo se VEN menos de las que se borran).
                             if (showDeleteAll) {
                                 AlertDialog(
                                     onDismissRequest = { showDeleteAll = false },
                                     containerColor = theme.bgMid,
                                     title = { Text(stringResource(R.string.txt_995fe186), color = theme.textMain, fontWeight = FontWeight.Bold) },
-                                    text = { Text(stringResource(R.string.txt_632bfb20), color = theme.textMuted) },
+                                    text = { Text(
+                                        if (cycleSessions.size == 1) stringResource(R.string.dialog_delete_cycle_one, sectionLabel)
+                                        else stringResource(R.string.dialog_delete_cycle_msg, cycleSessions.size, sectionLabel),
+                                        color = theme.textMuted
+                                    ) },
                                     confirmButton = {
                                         TextButton(onClick = {
                                             vm.deleteSessions(cycleSessions.map { it.id }, prefs)

@@ -338,6 +338,11 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     }
                     val bookTotalPages = bookSessions.sumOf { it.pages }
                     val bookTotalMins = bookSessions.mapNotNull { it.minutes }.sum()
+                    // B-033 (regla 16-07): el borrado masivo va por edición Y POR CICLO. Si esta
+                    // edición mezcla ciclos, la papelera de cabecera desaparece y cada sub-ciclo
+                    // lleva la suya; con un solo ciclo, cabecera == ciclo y se queda.
+                    val bookCycleKeys = bookSessions.map { it.readingIndex ?: 0 }.toSet()
+                    val singleCycle = bookCycleKeys.size <= 1
                     val isExpanded = expanded[expandKey] == true
                     // Obtener la edición del idioma correspondiente para mostrar el flag
                     val editionForLang = book.editions.firstOrNull { it.language == lang }
@@ -347,11 +352,21 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     item(key = "header_$expandKey") {
                         var showDeleteAllHistory by remember { mutableStateOf(false) }
                         if (showDeleteAllHistory) {
+                            // B-033: solo existe con un ciclo único (cabecera == ciclo) y el
+                            // texto dice cuántas sesiones y de qué ciclo se van.
+                            val singleCycleLabel = when {
+                                bookCycleKeys.firstOrNull() == 0 || bookCycleKeys.isEmpty() -> stringResource(R.string.sessions_reading)
+                                else -> stringResource(R.string.sessions_rereading)
+                            }
                             AlertDialog(
                                 onDismissRequest = { showDeleteAllHistory = false },
                                 containerColor = theme.bgMid,
                                 title = { Text(stringResource(R.string.txt_995fe186), color = theme.textMain, fontWeight = FontWeight.Bold) },
-                                text = { Text(stringResource(R.string.txt_632bfb20), color = theme.textMuted) },
+                                text = { Text(
+                                    if (bookSessions.size == 1) stringResource(R.string.dialog_delete_cycle_one, singleCycleLabel)
+                                    else stringResource(R.string.dialog_delete_cycle_msg, bookSessions.size, singleCycleLabel),
+                                    color = theme.textMuted
+                                ) },
                                 confirmButton = {
                                     TextButton(onClick = {
                                         vm.deleteSessions(bookSessions.map { it.id }, prefs)
@@ -409,7 +424,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                         }
                                     }
                                     // v20.4 (C1): misma posición/estilo que BookCard shelf
-                                    Box(
+                                    // B-033: con ciclos mezclados la papelera baja a cada sub-ciclo
+                                    if (singleCycle) Box(
                                         Modifier
                                             .size(18.dp)
                                             .clip(CircleShape)
@@ -468,6 +484,28 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                         multipleCycles -> stringResource(R.string.sessions_rereading_n, cycleIdx)
                                         else -> stringResource(R.string.sessions_rereading)
                                     }
+                                    // B-033: papelera POR CICLO (la de cabecera desaparece al mezclar
+                                    // ciclos) con diálogo que dice cuántas sesiones y de qué ciclo.
+                                    var showDeleteCycle by remember(cycleKey) { mutableStateOf(false) }
+                                    if (showDeleteCycle) {
+                                        AlertDialog(
+                                            onDismissRequest = { showDeleteCycle = false },
+                                            containerColor = theme.bgMid,
+                                            title = { Text(stringResource(R.string.txt_995fe186), color = theme.textMain, fontWeight = FontWeight.Bold) },
+                                            text = { Text(
+                                                if (cycleSess.size == 1) stringResource(R.string.dialog_delete_cycle_one, cycleLabelStr)
+                                                else stringResource(R.string.dialog_delete_cycle_msg, cycleSess.size, cycleLabelStr),
+                                                color = theme.textMuted
+                                            ) },
+                                            confirmButton = {
+                                                TextButton(onClick = {
+                                                    vm.deleteSessions(cycleSess.map { it.id }, prefs)
+                                                    showDeleteCycle = false
+                                                }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold) }
+                                            },
+                                            dismissButton = { TextButton(onClick = { showDeleteCycle = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+                                        )
+                                    }
                                     Spacer(Modifier.height(6.dp))
                                     Surface(
                                         onClick = { cycleExpanded[cycleKey] = !isCycleExpanded },
@@ -489,6 +527,22 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                                 tint = cycleAccent,
                                                 modifier = Modifier.size(16.dp)
                                             )
+                                            Spacer(Modifier.width(8.dp))
+                                            Box(
+                                                Modifier
+                                                    .size(18.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Red.copy(alpha = 0.12f))
+                                                    .clickable { showDeleteCycle = true },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = stringResource(R.string.txt_995fe186),
+                                                    tint = Red.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
