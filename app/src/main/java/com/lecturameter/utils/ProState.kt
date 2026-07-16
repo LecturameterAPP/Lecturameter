@@ -23,6 +23,7 @@ object Pro {
     const val PREF_KEY = "pro_unlocked"                 // entitlement permanente (código o Play)
     const val SRC_KEY = "pro_source"                    // "code" | "play"
     const val TRIAL_EXPIRES_KEY = "pro_trial_expires"
+    const val TRIAL_STARTED_KEY = "pro_trial_started"   // guarda contra retrasar el reloj
     const val TRIAL_USED_KEY = "pro_trial_used"
     const val GRANDFATHER_KEY = "pro_grandfathered_theme"
     private const val GRANDFATHER_DONE_KEY = "pro_grandfather_done"
@@ -52,23 +53,33 @@ object Pro {
     /** Temas de pago (D-013). El resto son gratis siempre. */
     val PAID_THEMES = setOf(ThemeMode.CUERO, ThemeMode.AURORA, ThemeMode.AMOLED)
 
-    fun isPro(prefs: SharedPreferences): Boolean =
-        prefs.getBoolean(PREF_KEY, false) || trialActive(prefs)
+    fun isPro(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
+        prefs.getBoolean(PREF_KEY, false) || trialActive(prefs, now)
 
-    fun trialActive(prefs: SharedPreferences): Boolean =
-        System.currentTimeMillis() < prefs.getLong(TRIAL_EXPIRES_KEY, 0L)
+    /** La prueba está activa entre su inicio y su caducidad. La ventana [inicio, fin) hace
+     *  que retrasar el reloj del sistema más allá del inicio NO estire la prueba (edge case
+     *  clásico de los trials locales). Instalaciones que activaron la prueba antes de existir
+     *  TRIAL_STARTED_KEY: se deriva el inicio como caducidad menos 7 días. */
+    fun trialActive(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean {
+        val expires = prefs.getLong(TRIAL_EXPIRES_KEY, 0L)
+        if (expires <= 0L) return false
+        val started = prefs.getLong(TRIAL_STARTED_KEY, 0L).takeIf { it > 0L } ?: (expires - TRIAL_MS)
+        return now in started until expires
+    }
 
-    fun trialAvailable(prefs: SharedPreferences): Boolean =
-        !prefs.getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs)
+    fun trialAvailable(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
+        !prefs.getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs, now)
 
-    fun trialDaysLeft(prefs: SharedPreferences): Int {
-        val left = prefs.getLong(TRIAL_EXPIRES_KEY, 0L) - System.currentTimeMillis()
+    fun trialDaysLeft(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Int {
+        if (!trialActive(prefs, now)) return 0
+        val left = prefs.getLong(TRIAL_EXPIRES_KEY, 0L) - now
         return if (left <= 0) 0 else ((left + 86_399_999) / 86_400_000).toInt()
     }
 
-    fun activateTrial(prefs: SharedPreferences) {
+    fun activateTrial(prefs: SharedPreferences, now: Long = System.currentTimeMillis()) {
         prefs.edit()
-            .putLong(TRIAL_EXPIRES_KEY, System.currentTimeMillis() + TRIAL_MS)
+            .putLong(TRIAL_STARTED_KEY, now)
+            .putLong(TRIAL_EXPIRES_KEY, now + TRIAL_MS)
             .putBoolean(TRIAL_USED_KEY, true)
             .apply()
     }
@@ -96,10 +107,9 @@ object Pro {
     fun grandfatherCurrentThemeIfNeeded(prefs: SharedPreferences) {
         if (prefs.getBoolean(GRANDFATHER_DONE_KEY, false)) return
         val current = prefs.getString("theme_mode", null)
-        if (current == "aurora" || current == "amoled") {
-            prefs.edit().putString(GRANDFATHER_KEY, current).apply()
-        }
-        prefs.edit().putBoolean(GRANDFATHER_DONE_KEY, true).apply()
+        val edit = prefs.edit().putBoolean(GRANDFATHER_DONE_KEY, true)
+        if (current == "aurora" || current == "amoled") edit.putString(GRANDFATHER_KEY, current)
+        edit.apply()
     }
 
     // ── Canje de código (red: llamar SIEMPRE desde Dispatchers.IO) ──────────────
