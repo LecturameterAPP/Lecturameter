@@ -135,8 +135,11 @@ fun ChallengeContributionSheet(
                                             color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold
                                         )
                                         Spacer(Modifier.width(6.dp))
+                                        // A10: si el valor real es mayor que 0 pero redondea a 0%,
+                                        // mostrar "menor que 1%" en vez de un "0%" engañoso.
+                                        val pct = Math.round(frac * 100)
                                         Text(
-                                            "${(frac * 100).toInt()}%",
+                                            if (pct == 0 && frac > 0f) stringResource(R.string.pct_less_than_one) else "$pct%",
                                             color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold
                                         )
                                     }
@@ -675,10 +678,14 @@ fun ChallengeHistoryScreen(vm: BooksViewModel, prefs: android.content.SharedPref
                                     }
                                     Spacer(Modifier.height(10.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // A3: la barra sigue capada al 100% (ratio), pero el texto
+                                        // muestra el porcentaje REAL sin capar (p. ej. 62/12 = 516%),
+                                        // porque capar el texto a 100% era engañoso.
+                                        val realPct = snap.finalProgress * 100 / snap.target.coerceAtLeast(1)
                                         LinearProgressBar(ratio, barColor, Modifier.weight(1f))
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            "${snap.finalProgress}/${snap.target} · ${(ratio * 100).toInt()}%",
+                                            "${snap.finalProgress}/${snap.target} · ${realPct}%",
                                             color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold
                                         )
                                     }

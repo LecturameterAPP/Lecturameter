@@ -403,12 +403,25 @@ class BooksViewModel : ViewModel() {
         _challengeHistory.value = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs)
     }
 
-    private fun archiveSnapshot(s: com.lecturameter.model.ChallengeSnapshot, prefs: android.content.SharedPreferences) {
-        // Dedupe por contenido: los defaults se resiembran con id nuevo en cada instalación
-        fun key(x: com.lecturameter.model.ChallengeSnapshot) = "${x.name.trim().lowercase()}|${x.type}|${x.target}|${x.year}"
-        if (_challengeHistory.value.any { key(it) == key(s) }) return
+    /**
+     * Guarda un snapshot en el historial si no es un duplicado real. Devuelve true si se
+     * guardó, false si ya existía.
+     *
+     * A1: la clave de dedupe del archivado EN VIVO incluye startDate|endDate ademas de
+     * nombre|tipo|objetivo|año. Sin las fechas, dos retos GENUINAMENTE distintos con el
+     * mismo nombre/tipo/objetivo (p. ej. dos retos temporales con distintas fechas) que se
+     * archivan en el mismo barrido colisionaban: el segundo se descartaba como "duplicado"
+     * y se borraba de Retos sin haberse guardado (perdida de datos). El flujo de restore
+     * en BackupRepository usa a propósito la clave SIN fechas (4 partes) para fusionar
+     * backups; esa clave NO se toca aquí.
+     */
+    private fun archiveSnapshot(s: com.lecturameter.model.ChallengeSnapshot, prefs: android.content.SharedPreferences): Boolean {
+        fun key(x: com.lecturameter.model.ChallengeSnapshot) =
+            "${x.name.trim().lowercase()}|${x.type}|${x.target}|${x.year}|${x.startDate}|${x.endDate}"
+        if (_challengeHistory.value.any { key(it) == key(s) }) return false
         _challengeHistory.value = _challengeHistory.value + s
         com.lecturameter.repository.ChallengeHistoryRepository.save(prefs, _challengeHistory.value)
+        return true
     }
 
     /**
@@ -479,10 +492,15 @@ class BooksViewModel : ViewModel() {
             )
         }
         if (toArchive.isNotEmpty()) {
-            toArchive.forEach { (_, snap) -> archiveSnapshot(snap, prefs) }
-            val ids = toArchive.map { it.first.id }.toSet()
-            _challenges.value = _challenges.value.filter { it.id !in ids }
-            saveChallenges(prefs)
+            // A1: solo se elimina de Retos el reto cuyo snapshot SE GUARDÓ de verdad. Si
+            // archiveSnapshot lo descartó por ser un duplicado real (mismas fechas incluidas),
+            // el reto se conserva activo para no perderlo.
+            val savedIds = toArchive.filter { (_, snap) -> archiveSnapshot(snap, prefs) }
+                .map { it.first.id }.toSet()
+            if (savedIds.isNotEmpty()) {
+                _challenges.value = _challenges.value.filter { it.id !in savedIds }
+                saveChallenges(prefs)
+            }
         }
     }
 

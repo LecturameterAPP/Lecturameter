@@ -884,6 +884,7 @@
     <string name="challenge_contrib_none">Todavía no hay aportes en este reto.</string>
     <string name="challenge_contrib_streak">Este reto va por días de racha, no por libros.</string>
     <string name="challenge_contrib_deleted">Libro eliminado</string>
+    <string name="pct_less_than_one">menor que 1%</string>
     <string name="challenge_unit_pages">págs</string>
     <string name="challenge_unit_minutes">min</string>
     <string name="challenge_unit_sessions">sesiones</string>

@@ -546,7 +546,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 }
             },
             text = {
-                Column {
+                // A11: con fuentes de accesibilidad grandes el contenido del diálogo se
+                // cortaba (no tenía scroll). La lista interna ya está acotada en altura, así
+                // que envolver el Column en verticalScroll no anida scrolls sin límite.
+                Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                     Text(
                         if (isAdding)
                             stringResource(R.string.add_edition_info)

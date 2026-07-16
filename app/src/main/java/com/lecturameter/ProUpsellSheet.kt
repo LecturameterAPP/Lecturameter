@@ -85,7 +85,7 @@ fun ProUpsellSheet(
                 if (Pro.trialAvailable(prefs)) {
                     Button(
                         onClick = { Pro.activateTrial(prefs); refresh++; onProChanged() },
-                        colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = if (isCueroTheme(theme)) androidx.compose.ui.graphics.Color(0xFF241608) else androidx.compose.ui.graphics.Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth().height(46.dp)
                     ) { Text(stringResource(R.string.pro_trial_button), fontWeight = FontWeight.Bold) }
@@ -195,11 +195,11 @@ private fun CodeEntry(
                 }
             },
             enabled = code.length == 17 && !loading,
-            colors = ButtonDefaults.buttonColors(containerColor = acc),
+            colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.weight(1f)
         ) {
-            if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = theme.textMain)
+            if (loading) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = onAccentColor(theme))
             else Text(stringResource(R.string.pro_redeem_button), fontWeight = FontWeight.Bold)
         }
     }

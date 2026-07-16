@@ -883,6 +883,7 @@
     <string name="challenge_contrib_none">No contributions to this challenge yet.</string>
     <string name="challenge_contrib_streak">This challenge counts streak days, not books.</string>
     <string name="challenge_contrib_deleted">Deleted book</string>
+    <string name="pct_less_than_one">less than 1%</string>
     <string name="challenge_unit_pages">pgs</string>
     <string name="challenge_unit_minutes">min</string>
     <string name="challenge_unit_sessions">sessions</string>

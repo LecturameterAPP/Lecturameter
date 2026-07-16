@@ -1,5 +1,6 @@
 package com.lecturameter.utils
 
+import android.content.Context
 import android.content.SharedPreferences
 import com.lecturameter.ThemeMode
 import java.net.HttpURLConnection
@@ -33,6 +34,56 @@ object Pro {
     private const val LOCKOUT_MS = 24L * 60 * 60 * 1000
     private const val TRIAL_MS = 7L * 24 * 60 * 60 * 1000
 
+    // A6 (seguridad): el trial y el lockout del canje NO deben viajar en el Auto Backup de
+    // Android. Si lo hacen, reinstalar restaura un backup viejo de Google y permite reiniciar
+    // (o reactivar) la prueba gratis. Por eso viven en un fichero de prefs SEPARADO,
+    // "lecturameter_pro_local.xml", excluido de backup_rules.xml y data_extraction_rules.xml.
+    // pro_unlocked y pro_source SÍ se quedan en "lecturameter.xml" (deseable respaldarlos:
+    // quien compró Pro no debe perderlo al reinstalar).
+    private const val PREFS_MAIN = "lecturameter"
+    private const val PREFS_LOCAL = "lecturameter_pro_local"
+    private const val MIGRATED_KEY = "pro_local_migrated"
+
+    // Formato de código LM canjeable. Validado aquí ademas de en la UI (defensa en profundidad).
+    private val CODE_FORMAT = Regex("^LM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
+
+    // Contexto de aplicación y prefs local, fijados una sola vez en el arranque (init).
+    // En tests unitarios no se llama a init: appContext queda null y localFor() cae al prefs
+    // que se pasa por parámetro (FakePrefs en memoria), asi los tests no necesitan Context.
+    @Volatile private var localPrefsRef: SharedPreferences? = null
+
+    /** Se llama una vez desde LecturameterApplication.onCreate (en cada proceso). Fija el
+     *  fichero local y ejecuta la migración de claves de trial/lockout desde el fichero viejo. */
+    fun init(context: Context) {
+        val app = context.applicationContext
+        val local = app.getSharedPreferences(PREFS_LOCAL, Context.MODE_PRIVATE)
+        migrateIfNeeded(app, local)
+        localPrefsRef = local
+    }
+
+    /** Prefs donde viven trial+lockout: la local si init corrió (producción), o el prefs
+     *  pasado si no (tests). */
+    private fun localFor(prefs: SharedPreferences): SharedPreferences = localPrefsRef ?: prefs
+
+    /** Migración one-shot: la primera vez, copia las claves de trial/lockout del fichero
+     *  principal al local y las borra del principal, para no perder el estado de usuarios
+     *  ya instalados. A partir de ahí el principal deja de arrastrarlas en sus backups. */
+    private fun migrateIfNeeded(ctx: Context, local: SharedPreferences) {
+        if (local.getBoolean(MIGRATED_KEY, false)) return
+        val main = ctx.getSharedPreferences(PREFS_MAIN, Context.MODE_PRIVATE)
+        val le = local.edit()
+        if (main.contains(TRIAL_STARTED_KEY)) le.putLong(TRIAL_STARTED_KEY, main.getLong(TRIAL_STARTED_KEY, 0L))
+        if (main.contains(TRIAL_EXPIRES_KEY)) le.putLong(TRIAL_EXPIRES_KEY, main.getLong(TRIAL_EXPIRES_KEY, 0L))
+        if (main.contains(TRIAL_USED_KEY)) le.putBoolean(TRIAL_USED_KEY, main.getBoolean(TRIAL_USED_KEY, false))
+        if (main.contains(ATTEMPTS_KEY)) le.putInt(ATTEMPTS_KEY, main.getInt(ATTEMPTS_KEY, 0))
+        if (main.contains(LOCKOUT_KEY)) le.putLong(LOCKOUT_KEY, main.getLong(LOCKOUT_KEY, 0L))
+        le.putBoolean(MIGRATED_KEY, true).apply()
+        main.edit()
+            .remove(TRIAL_STARTED_KEY).remove(TRIAL_EXPIRES_KEY).remove(TRIAL_USED_KEY)
+            .remove(ATTEMPTS_KEY).remove(LOCKOUT_KEY)
+            .apply()
+    }
+
     // Worker de códigos propio de Lecturameter (prefijo LM-). El código del worker vive en
     // C:\Refrac\backend; hasta que se despliegue con wrangler, el canje devuelve error de red.
     const val BACKEND_URL = "https://lm-codes.appaugur.workers.dev/redeem"
@@ -61,23 +112,24 @@ object Pro {
      *  clásico de los trials locales). Instalaciones que activaron la prueba antes de existir
      *  TRIAL_STARTED_KEY: se deriva el inicio como caducidad menos 7 días. */
     fun trialActive(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean {
-        val expires = prefs.getLong(TRIAL_EXPIRES_KEY, 0L)
+        val lp = localFor(prefs)
+        val expires = lp.getLong(TRIAL_EXPIRES_KEY, 0L)
         if (expires <= 0L) return false
-        val started = prefs.getLong(TRIAL_STARTED_KEY, 0L).takeIf { it > 0L } ?: (expires - TRIAL_MS)
+        val started = lp.getLong(TRIAL_STARTED_KEY, 0L).takeIf { it > 0L } ?: (expires - TRIAL_MS)
         return now in started until expires
     }
 
     fun trialAvailable(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
-        !prefs.getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs, now)
+        !localFor(prefs).getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs, now)
 
     fun trialDaysLeft(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Int {
         if (!trialActive(prefs, now)) return 0
-        val left = prefs.getLong(TRIAL_EXPIRES_KEY, 0L) - now
+        val left = localFor(prefs).getLong(TRIAL_EXPIRES_KEY, 0L) - now
         return if (left <= 0) 0 else ((left + 86_399_999) / 86_400_000).toInt()
     }
 
     fun activateTrial(prefs: SharedPreferences, now: Long = System.currentTimeMillis()) {
-        prefs.edit()
+        localFor(prefs).edit()
             .putLong(TRIAL_STARTED_KEY, now)
             .putLong(TRIAL_EXPIRES_KEY, now + TRIAL_MS)
             .putBoolean(TRIAL_USED_KEY, true)
@@ -89,10 +141,9 @@ object Pro {
     }
 
     private fun markCodeRedeemed(prefs: SharedPreferences) {
-        prefs.edit()
-            .putBoolean(PREF_KEY, true).putString(SRC_KEY, "code")
-            .remove(ATTEMPTS_KEY).remove(LOCKOUT_KEY)
-            .apply()
+        // El entitlement va al principal (respaldable); los contadores de canje al local.
+        prefs.edit().putBoolean(PREF_KEY, true).putString(SRC_KEY, "code").apply()
+        localFor(prefs).edit().remove(ATTEMPTS_KEY).remove(LOCKOUT_KEY).apply()
     }
 
     fun editionLimit(prefs: SharedPreferences): Int = if (isPro(prefs)) PRO_EDITIONS else FREE_EDITIONS
@@ -122,7 +173,11 @@ object Pro {
 
     fun redeemCode(prefs: SharedPreferences, code: String, deviceId: String): RedeemResult {
         val now = System.currentTimeMillis()
-        if (now < prefs.getLong(LOCKOUT_KEY, 0L)) return RedeemResult.TooManyAttempts
+        val lp = localFor(prefs)
+        if (now < lp.getLong(LOCKOUT_KEY, 0L)) return RedeemResult.TooManyAttempts
+        // A9: validar el formato aquí también (no solo en la UI). Un código mal formado no
+        // llega a la red y no gasta intento.
+        if (!CODE_FORMAT.matches(code)) return RedeemResult.InvalidCode
         return try {
             val conn = URL(BACKEND_URL).openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
@@ -130,8 +185,11 @@ object Pro {
             conn.doOutput = true
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
-            val safeCode = code.replace("\"", "")
-            val safeDevice = deviceId.replace("\"", "")
+            // A9: escapar barras invertidas ANTES que las comillas (si no, la barra que
+            // escapa la comilla se volvería a escapar y rompería el JSON).
+            fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"")
+            val safeCode = esc(code)
+            val safeDevice = esc(deviceId)
             conn.outputStream.use { it.write("""{"code":"$safeCode","deviceId":"$safeDevice"}""".toByteArray()) }
             when (conn.responseCode) {
                 200 -> { markCodeRedeemed(prefs); RedeemResult.Success }
@@ -145,8 +203,9 @@ object Pro {
     }
 
     private fun registerFailedAttempt(prefs: SharedPreferences, now: Long) {
-        val attempts = prefs.getInt(ATTEMPTS_KEY, 0) + 1
-        prefs.edit().apply {
+        val lp = localFor(prefs)
+        val attempts = lp.getInt(ATTEMPTS_KEY, 0) + 1
+        lp.edit().apply {
             if (attempts >= MAX_ATTEMPTS) {
                 putLong(LOCKOUT_KEY, now + LOCKOUT_MS)
                 remove(ATTEMPTS_KEY)

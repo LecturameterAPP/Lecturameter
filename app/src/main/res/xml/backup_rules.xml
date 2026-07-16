@@ -6,4 +6,7 @@
 -->
 <full-backup-content>
     <include domain="sharedpref" path="lecturameter.xml" />
+    <!-- A6: el trial y el lockout del canje viven aparte y NO se respaldan, para que
+         reinstalar no reinicie ni reactive la prueba gratis desde un backup viejo. -->
+    <exclude domain="sharedpref" path="lecturameter_pro_local.xml" />
 </full-backup-content>

@@ -419,6 +419,15 @@ fun accentForTheme(theme: Theme): Color = when {
 
 fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
 
+// A4: color de CONTENIDO (texto/icono) sobre un fondo pintado con accentForTheme. El blanco
+// fijo era ilegible en Aurora (acento lila claro). Devuelve blanco en Oscuro/Claro/OLED, un
+// marrón muy oscuro en Cuero y un morado muy oscuro en Aurora.
+fun onAccentColor(theme: Theme): Color = when {
+    theme.bgDark == BgDarkC -> Color(0xFF241608)  // Cuero
+    theme.bgDark == BgDarkA -> Color(0xFF1A1030)  // Aurora
+    else                    -> Color.White
+}
+
 // D-015 r3: en Cuero los iconos de rail y acciones van en oro suave FIJO (el azul Material
 // quedaba raro sobre marrón+dorado); en el resto de temas se mantiene el azul de siempre.
 fun actionIconTint(theme: Theme): Color = if (isCueroTheme(theme)) GoldIconCuero else Accent

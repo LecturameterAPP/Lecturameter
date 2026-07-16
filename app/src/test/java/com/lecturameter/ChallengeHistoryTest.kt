@@ -2,8 +2,9 @@ package com.lecturameter
 
 // D-016 (16-07-2026): historial de retos. Estos tests fijan (1) que Gson deserializa el
 // campo v4 challengeHistory y que un backup v3 sin él queda a null, (2) el criterio de
-// dedupe del historial por (nombre|tipo|objetivo|año) que usa la restauración y el
-// archivado, y (3) la regla de qué retos se archivan (completado o vencido).
+// dedupe del historial por (nombre|tipo|objetivo|año) que usa la RESTAURACIÓN al fusionar
+// backups (el archivado en vivo usa ademas las fechas, ver A1 en archiveSnapshot), y (3)
+// la regla de qué retos se archivan (completado o vencido).
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -41,7 +42,7 @@ class ChallengeHistoryTest {
         assertNull(backup.challengeHistory)
     }
 
-    // Réplica del criterio de merge del restore y del archivado (archiveSnapshot).
+    // Réplica del criterio de merge del restore (clave de 4 partes, sin fechas).
     private fun key(s: ChallengeSnapshot) = "${s.name.trim().lowercase()}|${s.type}|${s.target}|${s.year}"
     private fun mergeIncoming(local: List<ChallengeSnapshot>, fromBackup: List<ChallengeSnapshot>): List<ChallengeSnapshot> {
         val localKeys = local.map(::key).toSet()

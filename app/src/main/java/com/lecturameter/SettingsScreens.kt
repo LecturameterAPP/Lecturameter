@@ -979,7 +979,9 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                 label, color = if (selected) Accent else theme.textMuted,
                                 fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                maxLines = 1
+                                // A5: en pantallas pequeñas el nombre del tema se cortaba a media
+                                // palabra; con ellipsis se recorta limpio.
+                                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                         }
                     }

@@ -190,7 +190,10 @@ internal fun embedLocalCoverUrl(url: String?): String? {
     if (url == null || url.startsWith("http") || url.startsWith("data:")) return url
     return try {
         val file = java.io.File(url)
-        if (!file.exists()) return url
+        // A2: si el fichero local ya no existe, devolver null (no la ruta cruda). Embeber una
+        // ruta /data/... en el backup dejaría la portada rota para siempre al restaurar en otro
+        // dispositivo; con null, el flujo normal de "portada rota se recarga" la recupera.
+        if (!file.exists()) return null
         // Seguridad: solo leer si el archivo está bajo una ruta esperada de portadas locales.
         // Esto evita que un coverUrl manipulado (vía backup malicioso restaurado, por ejemplo)
         // exfiltre archivos privados de la app en el siguiente backup.
