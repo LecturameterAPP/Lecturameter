@@ -27,15 +27,17 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false">
+        <!-- Icono conmutable (Pro): el filtro LAUNCHER vive en DOS activity-alias
+             (clásico activo por defecto, dorado apagado) y NUNCA en la activity real.
+             Así cambiar de icono solo alterna aliases y jamás deshabilita .MainActivity,
+             que es el destino explícito de los PendingIntents del widget y de las
+             notificaciones (deshabilitarla los rompería). Coste asumido: al actualizar
+             desde la 2.7 el acceso directo anclado se recoloca una vez. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
             <!-- Deep link desde el widget al detalle de un libro.
                  El widget construye intents lecturameter://book/{id} que se preservan
                  en el PendingIntent que crea Glance (los extras se pierden, la URI no). -->
@@ -52,6 +54,30 @@
                 <data android:scheme="lecturameter" android:host="recap"/>
             </intent-filter>
         </activity>
+        <activity-alias
+            android:name=".LauncherClassic"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".LauncherGold"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:enabled="false"
+            android:icon="@mipmap/ic_launcher_pro"
+            android:roundIcon="@mipmap/ic_launcher_pro_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
 
         <provider
             android:name="androidx.core.content.FileProvider"
