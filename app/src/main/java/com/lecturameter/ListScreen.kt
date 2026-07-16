@@ -561,7 +561,15 @@ fun ListScreen(
                         }
                         // Feedback 13-07: la búsqueda online (antes 🔍 del rail) vive aquí,
                         // junto a la ordenación — buscar libros nuevos en las APIs
-                        IconButton(onClick = onSearch) {
+                        // Feedback 17-07: si ya hay texto escrito, se lleva a la búsqueda
+                        // online y la barra local queda limpia al volver
+                        IconButton(onClick = {
+                            if (searchQuery.isNotBlank()) {
+                                listMainRef?.pendingSearchQuery?.value = searchQuery
+                                searchQuery = ""
+                            }
+                            onSearch()
+                        }) {
                             Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = Accent, modifier = Modifier.size(20.dp))
                         }
                         // Sort button inside search row
@@ -796,6 +804,8 @@ fun ListScreen(
                                             // Feedback 14-07 (F6): canal propio de query — NO
                                             // pendingScannedIsbn (disparaba el diálogo del escáner)
                                             listMainRef?.pendingSearchQuery?.value = searchQuery
+                                            // Feedback 17-07: al volver de la búsqueda online la barra local queda limpia
+                                            searchQuery = ""
                                             onNavigateToBookSearch()
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Accent),

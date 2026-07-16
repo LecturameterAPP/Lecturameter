@@ -415,6 +415,16 @@ class BooksViewModel : ViewModel() {
      * en BackupRepository usa a propósito la clave SIN fechas (4 partes) para fusionar
      * backups; esa clave NO se toca aquí.
      */
+    /** P-026 congelado (17-07): desglose de libros calculado en el momento de archivar.
+     *  STREAK no tiene desglose por libro (D-016). */
+    private fun frozenContributionsFor(
+        type: ChallengeType, rangeStart: String, rangeEnd: String, titleFilter: String?
+    ): List<com.lecturameter.model.FrozenContribution>? {
+        if (type == ChallengeType.STREAK) return null
+        return challengeContributions(type, rangeStart, rangeEnd, titleFilter)
+            .map { (title, value, frac) -> com.lecturameter.model.FrozenContribution(title, value, frac) }
+    }
+
     private fun archiveSnapshot(s: com.lecturameter.model.ChallengeSnapshot, prefs: android.content.SharedPreferences): Boolean {
         fun key(x: com.lecturameter.model.ChallengeSnapshot) =
             "${x.name.trim().lowercase()}|${x.type}|${x.target}|${x.year}|${x.startDate}|${x.endDate}"
@@ -452,7 +462,8 @@ class BooksViewModel : ViewModel() {
                         id = c.id, name = c.name, type = c.type, target = c.target,
                         finalProgress = prev, completed = prev >= c.target, year = rolled,
                         startDate = null, endDate = null, isDefault = c.isDefault,
-                        titleFilter = c.titleFilter, archivedAt = today
+                        titleFilter = c.titleFilter, archivedAt = today,
+                        contributions = frozenContributionsFor(c.type, prevStart, prevEnd, c.titleFilter)
                     ), prefs)
                     // El reto sigue activo: su progreso se recalcula solo sobre el año nuevo
                 }
@@ -483,12 +494,18 @@ class BooksViewModel : ViewModel() {
             val completed = current >= target
             val expired = c.endDate != null && today > c.endDate
             if (!completed && !expired) return@mapNotNull null
+            val snapYear = (c.endDate ?: c.startDate)?.take(4)?.toIntOrNull() ?: year
+            // Mismo rango que usa el sheet P-026 para retos históricos (año natural si
+            // el reto no tiene fechas explícitas)
             c to com.lecturameter.model.ChallengeSnapshot(
                 id = c.id, name = c.name, type = c.type, target = c.target,
                 finalProgress = current, completed = completed,
-                year = (c.endDate ?: c.startDate)?.take(4)?.toIntOrNull() ?: year,
+                year = snapYear,
                 startDate = c.startDate, endDate = c.endDate,
-                isDefault = c.isDefault, titleFilter = c.titleFilter, archivedAt = today
+                isDefault = c.isDefault, titleFilter = c.titleFilter, archivedAt = today,
+                contributions = frozenContributionsFor(
+                    c.type, c.startDate ?: "$snapYear-01-01", c.endDate ?: "$snapYear-12-31", c.titleFilter
+                )
             )
         }
         if (toArchive.isNotEmpty()) {

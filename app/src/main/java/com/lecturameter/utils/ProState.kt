@@ -17,9 +17,10 @@ import java.net.URL
  * contra el worker de Cloudflare (redeemCode), o prueba de 7 días (activateTrial).
  *
  * Gates que lo consultan: tope de retos activos (3 páginas; el historial de retos es
- * GRATIS COMPLETO desde el cambio de Víctor 16-07), mapa de calor horario (Pro; el
- * calendario mensual/anual es gratis), temas de pago (Cuero/Aurora/AMOLED, con
- * grandfathering del tema ACTIVO al actualizar) y tope de ediciones (2 gratis / 5 Pro, P-031).
+ * GRATIS COMPLETO desde el cambio de Víctor 16-07), temas de pago (Cuero/Aurora/AMOLED,
+ * con grandfathering del tema ACTIVO al actualizar) y tope de ediciones (3 gratis =
+ * base + 2 / ilimitadas en Pro, decisión de Víctor 17-07). El mapa de calor HORARIO
+ * pasó a GRATIS el 17-07 (sale en el Wrapped, no puede estar tras paywall).
  */
 object Pro {
     const val PREF_KEY = "pro_unlocked"                 // entitlement permanente (código o Play)
@@ -86,7 +87,7 @@ object Pro {
     }
 
     // Worker de códigos propio de Lecturameter (prefijo LM-). El código del worker vive en
-    // C:\Refrac\backend; hasta que se despliegue con wrangler, el canje devuelve error de red.
+    // C:\Refrac\backend; DESPLEGADO en Cloudflare el 16-07-2026 (ver backend/COMO_GENERAR_CODIGOS.md).
     const val BACKEND_URL = "https://lm-codes.appaugur.workers.dev/redeem"
 
     /** Páginas de retos activos incluidas en el plan gratis (5 retos por página). */
@@ -95,9 +96,10 @@ object Pro {
     const val PER_PAGE = 5
 
     /** P-031: tope de ediciones por libro. Quien ya tenga más NUNCA pierde datos: solo se
-     *  bloquea AÑADIR por encima del tope. */
-    const val FREE_EDITIONS = 2
-    const val PRO_EDITIONS = 5
+     *  bloquea AÑADIR por encima del tope. Decisión Víctor 17-07: gratis base + 2 (3
+     *  totales) y Pro sin límite. */
+    const val FREE_EDITIONS = 3
+    const val PRO_EDITIONS = Int.MAX_VALUE
 
     /** Temas de pago (D-013). El resto son gratis siempre. */
     val PAID_THEMES = setOf(ThemeMode.CUERO, ThemeMode.AURORA, ThemeMode.AMOLED)

@@ -487,7 +487,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingScannedMismatch = null }) {
-                        Text(stringResource(R.string.txt_847607d7), color = Accent)
+                        Text(stringResource(R.string.txt_847607d7), color = Red)
                     }
                 },
                 confirmButton = {
@@ -496,7 +496,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         selectedEditionResult = scannedEd
                         pendingScannedMismatch = null
                     }) {
-                        Text(stringResource(R.string.edition_scan_mismatch_add), color = Red)
+                        Text(stringResource(R.string.edition_scan_mismatch_add), color = Accent)
                     }
                 }
             )

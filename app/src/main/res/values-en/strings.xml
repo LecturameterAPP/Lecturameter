@@ -34,17 +34,17 @@
     <string name="txt_16f666bb">In Goodreads: My profile → My books → Import and export → Export library. Then select the .csv file here.</string>
     <string name="txt_17724589">Starting page</string>
     <string name="txt_18fb3478">Choose your language / Select your language</string>
-    <string name="txt_1db69449">🐢 THOSE THAT STOLE YOU THE MOST TIME</string>
-    <string name="txt_1e4e823d">Added widget</string>
+    <string name="txt_1db69449">🐢 THE BOOKS THAT STOLE THE MOST OF YOUR TIME</string>
+    <string name="txt_1e4e823d">Widget added</string>
     <string name="txt_1ee4f1c7">🔁 Rereading</string>
-    <string name="txt_1f34cadf">Home (dd-mm-yyyy)</string>
+    <string name="txt_1f34cadf">Start (dd-mm-yyyy)</string>
     <string name="txt_1f750a24">relative speed</string>
     <string name="txt_1f8cb5ce">Helps diagnose errors</string>
     <string name="txt_1fa1de14">⏱️ You can activate it whenever you want</string>
     <string name="txt_2136819a">Impressions, favorite quote…</string>
     <string name="txt_2209707e">📊 Global summary</string>
     <string name="txt_227430b0">Choose</string>
-    <string name="txt_24610ea2">Initial state</string>
+    <string name="txt_24610ea2">Initial status</string>
     <string name="txt_24ea3fcb">Active</string>
     <string name="txt_2686dd75">p/day</string>
     <string name="txt_26afc116">Order:</string>
@@ -53,7 +53,7 @@
     <string name="txt_28be9b81">End page</string>
     <string name="txt_28d57875">BOOKS + READING SESSIONS + HISTORY</string>
     <string name="txt_29b6d9fc">New book</string>
-    <string name="txt_2ac042cb">Backup Drive</string>
+    <string name="txt_2ac042cb">Drive backup</string>
     <string name="txt_2d283ff6">Attach images (max. 3)</string>
     <string name="txt_2d639552">Local Backup disabled</string>
     <string name="txt_2d903c83">🎁 Wrapped</string>
@@ -64,7 +64,7 @@
     <string name="txt_30fddd15">Goodreads Compatible Format</string>
     <string name="txt_316406f4">SUMMARY</string>
     <string name="txt_32630ca9">All</string>
-    <string name="txt_3397e69c">State</string>
+    <string name="txt_3397e69c">Status</string>
     <string name="txt_33fe5747">I need your permission to show you the reading time in the notification bar while you read.</string>
     <string name="txt_362b636c">LONGEST STREAK</string>
     <string name="txt_36f1a4d2">🌐 LANGUAGE</string>
@@ -74,7 +74,7 @@
     <string name="txt_39464d70">Date (dd-MM-yyyy)</string>
     <string name="txt_39e254c6">Drop</string>
     <string name="txt_3c75ceda">First page</string>
-    <string name="txt_3d8b847e">Indicates actual content range for accurate progress calculations.</string>
+    <string name="txt_3d8b847e">Enter the actual content range for accurate progress calculations.</string>
     <string name="txt_3f346645">Understood</string>
     <string name="txt_3f98c4c5">Save to Drive</string>
     <string name="txt_40a68828">This book is already showing in the widget. Do you want to remove it?</string>
@@ -128,21 +128,21 @@
     <string name="search_results_summary">%1$d results · with cover first</string>
     <string name="app_version_label">Version %1$s</string>
     <string name="tutorial_mock_genres">Fantasy</string>
-    <string name="tutorial_mock_pages">📄 782 pags (210p)</string>
+    <string name="tutorial_mock_pages">📄 782 pgs (210p)</string>
     <string name="tutorial_mock_days">⏳ 9 days</string>
     <string name="tutorial_mock_book_title">The Eye of the World</string>
     <string name="tutorial_mock_book_author">Robert Jordan</string>
     <string name="tutorial_mock_days_pill">27 days</string>
     <string name="tutorial_mock_ses_chip">📚 1 Ses</string>
-    <string name="tutorial_mock_pages_chip">📄 25 Pags</string>
+    <string name="tutorial_mock_pages_chip">📄 25 pgs</string>
     <string name="chart_bar_label">%1$s: %2$d pages</string>
     <string name="notif_channel_session_end">Reading session end</string>
     <string name="notif_channel_session_end_desc">Reminder to log your pages when a session ends</string>
     <string name="notif_session_done">Session finished</string>
     <string name="notif_channel_timer">Reading timer</string>
     <string name="notif_channel_timer_desc">Active session timer controls</string>
-    <string name="notif_status_paused">⏸  Paused — %1$s</string>
-    <string name="notif_status_reading">📖  Reading… — %1$s</string>
+    <string name="notif_status_paused">⏸  Paused · %1$s</string>
+    <string name="notif_status_reading">📖  Reading… · %1$s</string>
     <string name="backup_time_never">Never</string>
     <string name="backup_time_moment">Just now</string>
     <string name="backup_time_mins">%1$dmin ago</string>
@@ -172,7 +172,7 @@
     <string name="dialog_delete_session_date">Delete the session from %1$s?</string>
     <string name="tutorial_mock_date">June 30, 2026</string>
     <string name="func_pages_upto"> (up to %1$dp)</string>
-    <string name="word_pages_abbr">pags</string>
+    <string name="word_pages_abbr">pgs</string>
     <string name="msg_drive_saved">✅ Backup saved to Google Drive</string>
     <string name="msg_drive_error">❌ Error: %1$s</string>
     <string name="msg_drive_connected">✅ Connected as %1$s</string>
@@ -200,7 +200,7 @@
     <string name="txt_739eacc1">Starting page</string>
     <string name="txt_73fa4a4d">Only with functional pages</string>
     <string name="txt_75a77549">Open Library + Google Books (millions of books)</string>
-    <string name="txt_75fe6e58">No internet connection. Cannot upload edits.</string>
+    <string name="txt_75fe6e58">No internet connection. Editions can\'t be loaded.</string>
     <string name="txt_7603b36e">🚫 Drop book</string>
     <string name="txt_76306812">❤️ SUPPORT THE PROJECT</string>
     <string name="txt_76760a79">📨 Send feedback</string>
@@ -213,7 +213,7 @@
     <string name="txt_7cd6ad03">Note (optional)</string>
     <string name="txt_7d6c2883">Period:</string>
     <string name="txt_7ddf5345">📤 Import/Export</string>
-    <string name="txt_80b7fc7c">Between December 26 and January 26, visit Wrapped to generate and save the year\'s wrapped.</string>
+    <string name="txt_80b7fc7c">Between December 26 and January 26, visit Statistics to generate and save the year\'s wrapped.</string>
     <string name="txt_82056f1f">Puedes cambiarlo después en Ajustes / You can change it later in Settings</string>
     <string name="txt_847607d7">Cancel</string>
     <string name="txt_8487931b">Confirm</string>
@@ -228,12 +228,12 @@
     <string name="txt_8d5e2184">There are no sessions on this date</string>
     <string name="txt_8e00796a">How do you want to refresh?</string>
     <string name="txt_8e892422">Edit session</string>
-    <string name="txt_900cd8a8">Home page *</string>
+    <string name="txt_900cd8a8">First page *</string>
     <string name="txt_9042f197">🔧 Filters</string>
     <string name="txt_9096e7e0">YOUR READING HISTORY</string>
     <string name="txt_9303ba12">✍️ By author</string>
     <string name="txt_939f09a3">Pages</string>
-    <string name="txt_950a32e2">Punctuation</string>
+    <string name="txt_950a32e2">Rating</string>
     <string name="txt_95b01315">🇪🇸 Spanish</string>
     <string name="txt_96b976d8">You can see it again from Settings.</string>
     <string name="txt_97225860">Add manually</string>
@@ -252,7 +252,7 @@
     <string name="txt_a6f46d56">TOP AUTHORS</string>
     <string name="txt_a70ecc0a">Average score:</string>
     <string name="txt_a7931e50">e.g. 13</string>
-    <string name="txt_a8830f9a">📁 Choose mobile image</string>
+    <string name="txt_a8830f9a">📁 Choose image from phone</string>
     <string name="txt_aa02a2da">Paste a link:</string>
     <string name="txt_aa1b8e40">📊 Statistics per cycle</string>
     <string name="txt_ad69e733">PayPal</string>
@@ -262,11 +262,11 @@
     <string name="txt_ae333e6f">Choose how often you want backups to be made</string>
     <string name="txt_af20f31b">Check your Wi-Fi or mobile data</string>
     <string name="txt_af80d2f5">Search by title, author or ISBN</string>
-    <string name="txt_af85d57c">Clean filters</string>
-    <string name="txt_afe10477">Copy to Google Drive</string>
+    <string name="txt_af85d57c">Clear filters</string>
+    <string name="txt_afe10477">Google Drive backup</string>
     <string name="txt_b375487f">Delete book</string>
     <string name="txt_b7369062">＋ Add another edition</string>
-    <string name="txt_b73ecdab">All states</string>
+    <string name="txt_b73ecdab">All statuses</string>
     <string name="txt_b7a882b4">I need access to storage to save backup copies of your books in the Downloads folder.</string>
     <string name="txt_b7e522e3">Automatically saved to your Wrapped history</string>
     <string name="txt_b9015f44">📖 Functional pages</string>
@@ -278,8 +278,8 @@
     <string name="txt_bd23eb60">Continue</string>
     <string name="txt_bd3d357e">Choose how often the widget data is updated</string>
     <string name="txt_bd81d36d">📈 PAGES PER MONTH</string>
-    <string name="txt_bdd207ee">Yeah</string>
-    <string name="txt_bddf53d0">— No genre —</string>
+    <string name="txt_bdd207ee">Yes</string>
+    <string name="txt_bddf53d0">No genre</string>
     <string name="txt_beea2815">Session history</string>
     <string name="txt_bfd55cba">Local Backup</string>
     <string name="txt_c1404abf">When changing the active edition, the book details (cover, pages, sessions, comments) show those of the new edition. Sessions from the other edition are NOT deleted, they are preserved and become visible again when you reactivate that edition.\n\nIn statistics, each edition counts as a separate book.</string>
@@ -290,7 +290,7 @@
     <string name="txt_c4b4e77a">Change status</string>
     <string name="txt_c5ed541f">FULL BACKUP (JSON)</string>
     <string name="txt_c673411e">← Back</string>
-    <string name="txt_c7363de2">Wrapped Lecturameter</string>
+    <string name="txt_c7363de2">Wrapped · Lecturameter</string>
     <string name="txt_c822bd3d">IN NUMBERS</string>
     <string name="txt_c8a3ca02">Restore from Drive</string>
     <string name="txt_c8d92673">End page *</string>
@@ -313,9 +313,9 @@
     <string name="txt_d80248ef">Description *</string>
     <string name="txt_d8125eae">Reading timer</string>
     <string name="txt_db955caf">Local folder</string>
-    <string name="txt_dcd9cd29">Backup Drive disabled</string>
+    <string name="txt_dcd9cd29">Drive backup disabled</string>
     <string name="txt_def36a08">📤 Export statistics</string>
-    <string name="txt_df94c6d3">Pags</string>
+    <string name="txt_df94c6d3">Pgs</string>
     <string name="txt_e30acdbb">If you like Lecturameter, you can buy me a coffee. :)</string>
     <string name="txt_e33e3006">No comment. Tap ✏️ to add one.</string>
     <string name="txt_e346618a">IMPORT</string>
@@ -325,7 +325,7 @@
     <string name="txt_e4bf49dd">e.g. 45</string>
     <string name="txt_e6b9af9f">Select CSV file</string>
     <string name="txt_e706900d">End (dd-mm-yyyy)</string>
-    <string name="txt_e7396239">State:</string>
+    <string name="txt_e7396239">Status:</string>
     <string name="txt_e796083f">DROPPED</string>
     <string name="txt_e810b914">➕ Register session</string>
     <string name="txt_e82171d9">Tap to scan the book\'s barcode</string>
@@ -382,7 +382,7 @@
     <string name="msg_not_found_prefix">⚠ Not found: %1$s</string>
     <string name="word_cover">cover</string>
     <string name="word_genre">genre</string>
-    <string name="word_join_nor"> or </string>
+    <string name="word_join_nor">" or "</string>
     <string name="msg_book_no_longer_widget">%1$s is no longer displayed on the widget</string>
     <string name="msg_now_displayed_widget">📺 Now displayed on the widget</string>
     <string name="msg_describe_feedback">Please describe your feedback</string>
@@ -428,7 +428,7 @@
     <string name="wrapped_dropped_text">%1$d book%2$s left unfinished</string>
     <string name="wrapped_books_vs">books vs %1$d</string>
     <string name="rating_muy_malo">Very bad 😞</string>
-    <string name="rating_regular">Decent 😐</string>
+    <string name="rating_regular">So-so 😐</string>
     <string name="rating_bien">Good 🙂</string>
     <string name="rating_muy_bueno">Very good 😊</string>
     <string name="rating_excelente">Excellent! 🌟</string>
@@ -507,7 +507,7 @@
     <string name="genre_ciencia">Science</string>
     <string name="genre_ciencia_ficcion">Science fiction</string>
     <string name="genre_comics_y_novela_grafica">Comics &amp; graphic novels</string>
-    <string name="genre_costumbrismo">Costumbrism</string>
+    <string name="genre_costumbrismo">Costumbrismo</string>
     <string name="genre_crimen">Crime</string>
     <string name="genre_deportes">Sports</string>
     <string name="genre_desarrollo_personal">Personal development</string>
@@ -760,7 +760,7 @@
 
     <!-- v21.33: missing strings that broke compilation -->
     <string name="label_books_total">%1$d books</string>
-    <string name="msg_backup_pending">⚠️ Backup pending — it will finish in the background</string>
+    <string name="msg_backup_pending">⚠️ Backup pending: it will finish in the background</string>
     <string name="msg_backup_saved_custom">✅ Backup saved to %1$s</string>
     <string name="msg_backup_saved_default">✅ Backup saved to default folder</string>
     <string name="msg_backup_error">Backup failed</string>
@@ -892,7 +892,7 @@
     <!-- D-013: Lecturameter Pro -->
     <string name="pro_section_title">LECTURAMETER PRO</string>
     <string name="pro_title">Lecturameter Pro</string>
-    <string name="pro_benefits">Leather, Aurora and OLED themes, hourly heatmap, unlimited challenges, up to 5 editions per book and the golden icon. One time payment, no subscriptions, no ads.</string>
+    <string name="pro_benefits">Leather, Aurora and OLED themes, unlimited challenges, unlimited editions per book and the golden icon. One time payment, no subscriptions, no ads.</string>
     <string name="pro_trial_button">Try 7 days for free</string>
     <string name="pro_compare_free">Free</string>
     <string name="pro_compare_pro">Pro</string>
@@ -902,16 +902,13 @@
     <string name="pro_compare_challenges_label">Active challenges</string>
     <string name="pro_compare_challenges_free">15</string>
     <string name="pro_compare_challenges_pro">Unlimited</string>
-    <string name="pro_compare_heatmap_label">Heatmap</string>
-    <string name="pro_compare_heatmap_free">Monthly</string>
-    <string name="pro_compare_heatmap_pro">+ Hourly</string>
     <string name="pro_compare_editions_label">Editions per book</string>
-    <string name="pro_compare_editions_free">2</string>
-    <string name="pro_compare_editions_pro">5</string>
+    <string name="pro_compare_editions_free">3</string>
+    <string name="pro_compare_editions_pro">Unlimited</string>
     <string name="pro_compare_icon_label">App icon</string>
     <string name="pro_compare_icon_free">Classic</string>
     <string name="pro_compare_icon_pro">+ Golden</string>
-    <string name="pro_compare_footer">Wrapped, recaps, stats, full challenge history, widget and backups: always free for everyone.</string>
+    <string name="pro_compare_footer">Wrapped, recaps, stats, heatmaps, full challenge history, widget and backups: always free for everyone.</string>
     <string name="pro_icon_label">App icon</string>
     <string name="pro_icon_classic">Classic</string>
     <string name="pro_icon_gold">Golden</string>
@@ -935,12 +932,11 @@
     <string name="pro_code_err_invalid">Wrong or already redeemed code.</string>
     <string name="pro_code_err_attempts">Too many attempts. Wait 24 hours.</string>
     <string name="pro_code_err_network">Could not reach the server. Try again.</string>
-    <string name="pro_editions_hint">🔒 With Pro, up to %1$d editions per book</string>
+    <string name="pro_editions_hint">🔒 With Pro, unlimited editions per book</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>
     <string name="adv_hourly_subtitle">When do you read the most?</string>
-    <string name="adv_hourly_locked">The hourly heatmap is part of Pro</string>
     <string name="adv_hourly_days">M,T,W,T,F,S,S</string>
     <string name="adv_hourly_peak">Reading peak: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Series statistics</string>
@@ -1019,10 +1015,10 @@
     <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->
-    <string name="search_online_cta">Search "%1$s" in the online catalog</string>
+    <string name="search_online_cta">Search “%1$s” in the online catalog</string>
     <!-- Fase 5 (MD5): rotating-template Bingo -->
     <string name="bingo_title">Reading bingo</string>
-    <string name="bingo_subtitle">"%1$s" card · %2$s</string>
+    <string name="bingo_subtitle">“%1$s” card · %2$s</string>
     <string name="bingo_renews">Renews on the 1st of every month</string>
     <string name="bingo_progress">%1$d/%2$d cells · %3$d lines</string>
     <string name="bingo_completed">Card completed!&#160;🎉</string>
@@ -1126,15 +1122,15 @@
     <string name="wclose_books">Books finished</string>
     <string name="wclose_pages">Pages read</string>
     <string name="wclose_time">Reading time</string>
-    <string name="wclose_quote">"Every page of this year is already yours.\nWhat do you want to read next year?"</string>
+    <string name="wclose_quote">“Every page of this year is already yours.\nWhat do you want to read next year?”</string>
     <!-- Fase 6.2: voluntary micro-survey -->
-    <string name="survey_invite_title">Tell us how you use Lecturameter?</string>
+    <string name="survey_invite_title">Want to tell us how you use Lecturameter?</string>
     <string name="survey_invite_body">One question, ten seconds. Nothing is sent unless you send it.</string>
     <string name="survey_invite_action">Answer</string>
     <string name="survey_privacy">Answering is optional and anonymous. It helps us decide what to improve first.</string>
     <string name="survey_send">Send</string>
     <string name="survey_not_now">Not now</string>
-    <string name="survey_sent_toast">Thanks! Opinion sent.</string>
+    <string name="survey_sent_toast">Thanks! Feedback sent.</string>
     <string name="survey_more_link">Anything else? Send full feedback</string>
     <string name="survey_q_section">Which section do you use the most?</string>
     <string name="survey_o_library">📚 Library</string>

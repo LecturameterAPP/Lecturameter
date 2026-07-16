@@ -294,5 +294,16 @@ data class ChallengeSnapshot(
     val endDate: String? = null,
     val isDefault: Boolean = false,
     val titleFilter: String? = null,
-    val archivedAt: String = ""      // yyyy-MM-dd
+    val archivedAt: String = "",     // yyyy-MM-dd
+    // Decisión Víctor 17-07: el desglose de libros (P-026) también se CONGELA al archivar,
+    // para que borrar libros/sesiones después no descuadre el historial. Snapshots
+    // anteriores a este campo lo llevan null y el sheet recalcula en vivo (fallback).
+    val contributions: List<FrozenContribution>? = null
+)
+
+// P-026 congelado: aportación de un libro a un reto en el momento de archivarse.
+data class FrozenContribution(
+    val title: String,               // "" si el libro ya estaba borrado al archivar
+    val value: Int,
+    val frac: Float
 )

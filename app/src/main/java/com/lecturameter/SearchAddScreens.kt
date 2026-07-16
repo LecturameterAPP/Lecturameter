@@ -199,6 +199,8 @@ fun BookSearchScreen(
         // (multi-select hasta 2, mismo patrón que AddScreen), prefijado con lo detectado
         var searchGenres by remember { mutableStateOf(mapApiGenre(r.genre).ifEmpty { if (r.genre.isNotBlank()) listOf("Otro") else emptyList() }) }
         var searchGenreExpanded by remember { mutableStateOf(false) }
+        // P-012: sugeridos = lo detectado por la API al abrir el diálogo
+        val searchSuggestedGenres = remember { searchGenres }
         val needsDates  = status in listOf(BookStatus.READING, BookStatus.FINISHED, BookStatus.REREADING, BookStatus.DROPPED)
         val needsEndDate = status in listOf(BookStatus.FINISHED, BookStatus.REREADING, BookStatus.DROPPED)
         AlertDialog(onDismissRequest = { selectedResult = null }, containerColor = theme.bgMid,
@@ -256,10 +258,15 @@ fun BookSearchScreen(
                     if (status == BookStatus.FINISHED) {
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(R.string.txt_7a9622a0), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            (1..10).forEach { n ->
-                                Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(if (n <= searchRating) Amber.copy(alpha = 0.85f) else theme.surface).border(1.dp, if (n <= searchRating) Amber else theme.border, RoundedCornerShape(6.dp)).clickable { searchRating = if (searchRating == n) 0 else n }, contentAlignment = Alignment.Center) {
-                                    Text("$n", color = if (n <= searchRating) Color.White else theme.textDim, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        // Feedback 17-07: dos filas de 5 (en una sola fila se cortaba en pantallas estrechas)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(1..5, 6..10).forEach { range ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    range.forEach { n ->
+                                        Box(Modifier.size(26.dp).clip(RoundedCornerShape(6.dp)).background(if (n <= searchRating) Amber.copy(alpha = 0.85f) else theme.surface).border(1.dp, if (n <= searchRating) Amber else theme.border, RoundedCornerShape(6.dp)).clickable { searchRating = if (searchRating == n) 0 else n }, contentAlignment = Alignment.Center) {
+                                            Text("$n", color = if (n <= searchRating) Color.White else theme.textDim, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -267,8 +274,6 @@ fun BookSearchScreen(
                     // Feedback 2.7: género editable antes de guardar (máx 2)
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_57d644ad), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
-                    // P-012: bottom sheet con buscador y grupos en lugar del dropdown plano
-                    val searchSuggestedGenres = remember { searchGenres }
                     Box {
                         OutlinedTextField(
                             value = if (searchGenres.isEmpty()) "" else searchGenres.map { displayGenre(it) }.joinToString(" · "),
@@ -281,15 +286,6 @@ fun BookSearchScreen(
                             shape = RoundedCornerShape(10.dp)
                         )
                         Box(Modifier.matchParentSize().clip(RoundedCornerShape(10.dp)).clickable { searchGenreExpanded = true })
-                    }
-                    if (searchGenreExpanded) {
-                        GenreSelectorSheet(
-                            initial = searchGenres,
-                            suggested = searchSuggestedGenres,
-                            theme = theme,
-                            onDismiss = { searchGenreExpanded = false },
-                            onConfirm = { searchGenres = it }
-                        )
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_066bbf84), color = theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 6.dp))
@@ -337,6 +333,18 @@ fun BookSearchScreen(
             },
             dismissButton = { TextButton(onClick = { selectedResult = null }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
+        // Feedback 17-07: el sheet vive FUERA del AlertDialog — dentro quedaba
+        // restringido al ancho de la ventana del diálogo y se cortaba por la
+        // derecha en algunos móviles.
+        if (searchGenreExpanded) {
+            GenreSelectorSheet(
+                initial = searchGenres,
+                suggested = searchSuggestedGenres,
+                theme = theme,
+                onDismiss = { searchGenreExpanded = false },
+                onConfirm = { searchGenres = it }
+            )
+        }
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
@@ -998,8 +1006,9 @@ fun EditionsSection(
                 if (idx < editions.lastIndex) Divider(color = theme.border, thickness = 1.dp)
             }
 
-            // P-031 + D-013: tope de ediciones 2 gratis / 5 Pro (antes 3 fijo para todos).
-            // Quien ya tenga más del tope gratis NUNCA pierde nada: solo se bloquea añadir.
+            // P-031 + D-013 (r2 17-07): tope de ediciones 3 gratis (base + 2) / Pro sin
+            // límite. Quien ya tenga más del tope gratis NUNCA pierde nada: solo se
+            // bloquea añadir.
             val edContext = LocalContext.current
             val edPrefs = remember { edContext.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE) }
             var showEditionUpsell by remember { mutableStateOf(false) }
@@ -1015,13 +1024,13 @@ fun EditionsSection(
                 ) {
                     Text(stringResource(R.string.txt_b7369062), color = theme.textDim, fontSize = 13.sp)
                 }
-            } else if (editions.size < com.lecturameter.utils.Pro.PRO_EDITIONS && !com.lecturameter.utils.Pro.isPro(edPrefs)) {
+            } else if (!com.lecturameter.utils.Pro.isPro(edPrefs)) {
                 Divider(color = theme.border, thickness = 1.dp)
                 Box(
                     Modifier.fillMaxWidth().clickable { showEditionUpsell = true }.padding(vertical = 11.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.pro_editions_hint, com.lecturameter.utils.Pro.PRO_EDITIONS), color = accentForTheme(theme), fontSize = 13.sp)
+                    Text(stringResource(R.string.pro_editions_hint), color = accentForTheme(theme), fontSize = 13.sp)
                 }
             }
 

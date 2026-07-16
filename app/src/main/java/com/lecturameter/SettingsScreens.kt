@@ -989,6 +989,37 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             }
         }
 
+        // ── IDIOMA ────────────────────────────────────────────────────────────
+        // Feedback 17-07: el idioma va SIEMPRE justo debajo de los temas
+        // (orden fijo: temas > idioma > Pro > icono de la app > resto)
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(stringResource(R.string.txt_36f1a4d2), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("es" to stringResource(R.string.txt_95b01315), "en" to stringResource(R.string.txt_f759fe35)).forEach { (lang, label) ->
+                    val selected = vm.currentLanguage == lang
+                    Surface(
+                        onClick = {
+                            if (!selected) {
+                                vm.setLanguage(lang, prefs)
+                                (context as? android.app.Activity)?.recreate()
+                            }
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            label, color = if (selected) Accent else theme.textMuted,
+                            fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // ── LECTURAMETER PRO (D-013) ──────────────────────────────────────────
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.pro_section_title), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -1072,35 +1103,6 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                 Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(12.dp))
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        // ── IDIOMA ────────────────────────────────────────────────────────────
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(stringResource(R.string.txt_36f1a4d2), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("es" to stringResource(R.string.txt_95b01315), "en" to stringResource(R.string.txt_f759fe35)).forEach { (lang, label) ->
-                    val selected = vm.currentLanguage == lang
-                    Surface(
-                        onClick = {
-                            if (!selected) {
-                                vm.setLanguage(lang, prefs)
-                                (context as? android.app.Activity)?.recreate()
-                            }
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
-                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            label, color = if (selected) Accent else theme.textMuted,
-                            fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
-                        )
                     }
                 }
             }

@@ -95,7 +95,10 @@ fun ChallengeContributionSheet(
     titleFilter: String?,
     vm: BooksViewModel,
     theme: Theme,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    // Decisión 17-07: los retos ARCHIVADOS traen su desglose congelado en el snapshot;
+    // null = reto activo (o snapshot antiguo sin el campo) → se calcula en vivo.
+    frozen: List<com.lecturameter.model.FrozenContribution>? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 28.dp)) {
@@ -106,8 +109,9 @@ fun ChallengeContributionSheet(
             if (type == ChallengeType.STREAK) {
                 Text(stringResource(R.string.challenge_contrib_streak), color = theme.textDim, fontSize = 13.sp)
             } else {
-                val contribs = remember(type, rangeStart, rangeEnd, titleFilter) {
-                    vm.challengeContributions(type, rangeStart, rangeEnd, titleFilter)
+                val contribs = remember(type, rangeStart, rangeEnd, titleFilter, frozen) {
+                    frozen?.map { Triple(it.title, it.value, it.frac) }
+                        ?: vm.challengeContributions(type, rangeStart, rangeEnd, titleFilter)
                 }
                 if (contribs.isEmpty()) {
                     Text(stringResource(R.string.challenge_contrib_none), color = theme.textDim, fontSize = 13.sp)
@@ -534,7 +538,8 @@ fun ChallengeHistoryScreen(vm: BooksViewModel, prefs: android.content.SharedPref
             rangeEnd = snap.endDate ?: "${snap.year}-12-31",
             titleFilter = snap.titleFilter,
             vm = vm, theme = theme,
-            onDismiss = { contribTarget = null }
+            onDismiss = { contribTarget = null },
+            frozen = snap.contributions
         )
     }
 
@@ -794,13 +799,8 @@ fun DailySessionsScreen(
 fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onNavigateToSession: (Long, String) -> Unit, onNavigateToDailySessions: (String) -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val sessions by vm.sessions.collectAsState()
-    // Cambio de última hora de Víctor 16-07: el mapa de calor HORARIO pasa a Pro (el
-    // calendario mensual/anual de arriba sigue gratis para todos).
-    val isProHourly = com.lecturameter.utils.Pro.isPro(prefs)
-    var showHourlyUpsell by remember { mutableStateOf(false) }
-    if (showHourlyUpsell) {
-        ProUpsellSheet(theme, prefs, onDismiss = { showHourlyUpsell = false })
-    }
+    // Decisión Víctor 17-07: el mapa de calor horario vuelve a ser GRATIS (sale en el
+    // Wrapped, no puede estar tras paywall). Se retira el gate del 16-07.
     // v21.41: los meses siguen el idioma de la app (string-array), no el locale del sistema
     val ctx = LocalContext.current
     val monthNames = ctx.resources.getStringArray(R.array.month_names_short).toList()
@@ -993,11 +993,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                     Column {
                         Spacer(Modifier.height(10.dp))
-                        if (isProHourly) {
-                            HourlyHeatmapCard(periodSessions, theme)
-                        } else {
-                            HourlyHeatmapLockedCard(theme, onClick = { showHourlyUpsell = true })
-                        }
+                        HourlyHeatmapCard(periodSessions, theme)
                     }
                 }
             }
@@ -1069,11 +1065,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                     Column {
                         Spacer(Modifier.height(10.dp))
-                        if (isProHourly) {
-                            HourlyHeatmapCard(periodSessions, theme)
-                        } else {
-                            HourlyHeatmapLockedCard(theme, onClick = { showHourlyUpsell = true })
-                        }
+                        HourlyHeatmapCard(periodSessions, theme)
                     }
                 }
             }
