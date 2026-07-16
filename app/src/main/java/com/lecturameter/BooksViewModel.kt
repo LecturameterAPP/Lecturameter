@@ -1283,6 +1283,17 @@ class BooksViewModel : ViewModel() {
         save(prefs)
     }
 
+    // TAREA 4 (B-034, lanzamiento): función única para resolver el idioma de una sesión
+    // "legacy" (editionId == null, de antes de que existieran las ediciones). Regla elegida:
+    // la edición activa del libro si existe, si no "original". Antes sessionsForBookAndLanguage
+    // usaba directamente "original" a secas, mientras que SessionHistoryScreen.kt (4 sitios)
+    // ya usaba esta regla de "activa o original" por su cuenta. Con un libro de una sola
+    // edición ambas reglas coinciden (edición activa == original), por eso el bug era invisible
+    // con las 9 sesiones legacy reales de hoy. Pero si ese libro ganase una segunda edición,
+    // la regla vieja de sessionsForBookAndLanguage ("original" a secas) dejaría de coincidir
+    // con la edición activa y las sesiones legacy desaparecerían del detalle del libro. Unificando
+    // ambos sitios en esta función (que ya existía como activeLanguage pero no se usaba en
+    // ningún sitio) las sesiones legacy se siguen mostrando, bajo la edición activa.
     fun activeLanguage(bookId: Long): String =
         editionsForBook(bookId).firstOrNull { it.isActive }?.language ?: "original"
 
@@ -1290,10 +1301,11 @@ class BooksViewModel : ViewModel() {
         val bookEditions = editionsForBook(bookId)
         val editionIdToLanguage = bookEditions.associate { it.id to it.language }
         val singleEdition = bookEditions.size <= 1
+        val legacyLang = activeLanguage(bookId)
         return sessionsInternal.filter { s ->
             if (s.bookId != bookId) return@filter false
             if (singleEdition) return@filter true
-            val sessionLang = s.editionId?.let { editionIdToLanguage[it] } ?: "original"
+            val sessionLang = s.editionId?.let { editionIdToLanguage[it] } ?: legacyLang
             sessionLang == language
         }.sortedByDescending { it.date }
     }

@@ -1417,6 +1417,34 @@ internal fun isbnToLanguageMeta(isbn: String): Triple<String, String, String> {
     }
 }
 
+// TAREA 3 (lanzamiento, P-028): indica si isbnToLanguageMeta pudo detectar el idioma
+// a partir de un prefijo ISBN reconocido, o si cayó en el valor por defecto ("original")
+// simplemente por no reconocer el prefijo. Se usa para avisar al usuario cuando el
+// idioma asignado a una edición escaneada es solo una suposición, no una detección real.
+internal fun isbnLanguageIsConfident(isbn: String): Boolean {
+    val n = isbn.replace(Regex("[^\\dXx]"), "")
+    val prefix = n.take(7)
+    return when {
+        prefix.startsWith("97884") || prefix.startsWith("97849") ||
+        prefix.startsWith("97913") ||
+        prefix.startsWith("97985") || prefix.startsWith("97995") -> true
+        prefix.startsWith("9780") || prefix.startsWith("9781") -> true
+        prefix.startsWith("9782") -> true
+        prefix.startsWith("9783") -> true
+        prefix.startsWith("97888") -> true
+        prefix.startsWith("97885") || prefix.startsWith("97897") ||
+        prefix.startsWith("97898") -> true
+        prefix.startsWith("97890") || prefix.startsWith("97894") -> true
+        prefix.startsWith("97886") -> true
+        prefix.startsWith("97887") -> true
+        prefix.startsWith("97891") -> true
+        prefix.startsWith("97892") -> true
+        n.length == 10 && n.startsWith("84") -> true
+        n.length == 10 && (n.startsWith("0") || n.startsWith("1")) -> true
+        else -> false
+    }
+}
+
 // Busca metadatos de UN ISBN concreto en Google Books y devuelve un EditionResult.
 // Usado por xISBN para hidratar cada ISBN alternativo encontrado.
 internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withContext(Dispatchers.IO) {

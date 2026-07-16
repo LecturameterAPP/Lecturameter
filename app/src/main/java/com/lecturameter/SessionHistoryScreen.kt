@@ -68,10 +68,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         val keys = sessions.mapNotNull { s ->
             val book = books.find { it.id == s.bookId } ?: return@mapNotNull null
             val edMap = bookEditionMap[s.bookId] ?: emptyMap()
-            val lang = s.editionId?.let { edMap[it] } ?: run {
-                // Legacy: sin editionId → asignar al idioma de la edición activa
-                book.editions.firstOrNull { it.isActive }?.language ?: "original"
-            }
+            // TAREA 4 (B-034): unificado con sessionsForBookAndLanguage vía vm.activeLanguage
+            val lang = s.editionId?.let { edMap[it] } ?: vm.activeLanguage(book.id)
             BookLangKey(s.bookId, lang)
         }.toSet()
         keys.mapNotNull { key ->
@@ -89,9 +87,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         // Agrupar por (bookId, language)
         val byBookLang = sessions.groupBy { s ->
             val edMap = bookEditionMap[s.bookId] ?: emptyMap()
-            val lang = s.editionId?.let { edMap[it] }
-                ?: books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
-                ?: "original"
+            // TAREA 4 (B-034): unificado con sessionsForBookAndLanguage vía vm.activeLanguage
+            val lang = s.editionId?.let { edMap[it] } ?: vm.activeLanguage(s.bookId)
             "${s.bookId}_$lang"
         }
         for ((_, sessions) in byBookLang) {
@@ -125,9 +122,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
     val filteredBooksWithSessions = remember(filteredSessions, booksWithSessions) {
         val filteredKeys = filteredSessions.map { s ->
             val edMap = bookEditionMapForFilter[s.bookId] ?: emptyMap()
-            val lang = s.editionId?.let { edMap[it] }
-                ?: books.find { it.id == s.bookId }?.editions?.firstOrNull { it.isActive }?.language
-                ?: "original"
+            // TAREA 4 (B-034): unificado con sessionsForBookAndLanguage vía vm.activeLanguage
+            val lang = s.editionId?.let { edMap[it] } ?: vm.activeLanguage(s.bookId)
             "${s.bookId}_$lang"
         }.toSet()
         booksWithSessions.filter { (book, lang) -> "${book.id}_$lang" in filteredKeys }
@@ -331,9 +327,8 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     val bookEdMap = books.find { it.id == book.id }?.editions?.associate { it.id to it.language } ?: emptyMap()
                     val bookSessions = filteredSessions.filter { s ->
                         if (s.bookId != book.id) return@filter false
-                        val sLang = s.editionId?.let { bookEdMap[it] }
-                            ?: book.editions.firstOrNull { it.isActive }?.language
-                            ?: "original"
+                        // TAREA 4 (B-034): unificado con sessionsForBookAndLanguage vía vm.activeLanguage
+                        val sLang = s.editionId?.let { bookEdMap[it] } ?: vm.activeLanguage(book.id)
                         sLang == lang
                     }
                     val bookTotalPages = bookSessions.sumOf { it.pages }
