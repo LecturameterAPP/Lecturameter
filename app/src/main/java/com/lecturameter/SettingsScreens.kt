@@ -908,7 +908,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                     ThemeMode.DARK   to stringResource(R.string.theme_dark),
                     ThemeMode.AURORA to stringResource(R.string.theme_aurora),
-                    ThemeMode.AMOLED to stringResource(R.string.theme_oled)
+                    ThemeMode.AMOLED to stringResource(R.string.theme_oled),
+                    ThemeMode.CUERO  to stringResource(R.string.theme_cuero)
                 ).forEach { (mode, label) ->
                     val selected = vm.themeMode == mode
                     Surface(
@@ -929,6 +930,14 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
                                     contentDescription = null,
                                     modifier = Modifier.size(13.dp).clip(RoundedCornerShape(3.dp))
+                                )
+                                Spacer(Modifier.width(3.dp))
+                            } else if (mode == ThemeMode.CUERO) {
+                                // D-015: icono dedicado del tema Cuero (tapa con marco)
+                                androidx.compose.foundation.Image(
+                                    painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_cuero),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(Modifier.width(3.dp))
                             }

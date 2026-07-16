@@ -404,11 +404,18 @@ fun ListScreen(
                 Box {
                     IconButton(onClick = { showThemeMenu = true }, modifier = Modifier.size(34.dp)) {
                         // Feedback 2.6: Aurora recupera su icono PNG (ic_theme_aurora) en vez del emoji
+                        // D-015: Cuero también lleva icono dedicado (tapa con marco, SVG sin emoji)
                         if (vm.themeMode == ThemeMode.AURORA) {
                             androidx.compose.foundation.Image(
                                 painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
                                 contentDescription = stringResource(R.string.theme_aurora),
                                 modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
+                            )
+                        } else if (vm.themeMode == ThemeMode.CUERO) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_cuero),
+                                contentDescription = stringResource(R.string.theme_cuero),
+                                modifier = Modifier.size(18.dp)
                             )
                         } else {
                             Text(
@@ -427,17 +434,26 @@ fun ListScreen(
                             ThemeMode.LIGHT  to stringResource(R.string.theme_light),
                             ThemeMode.DARK   to stringResource(R.string.theme_dark),
                             ThemeMode.AURORA to stringResource(R.string.theme_aurora),
-                            ThemeMode.AMOLED to stringResource(R.string.theme_oled)
+                            ThemeMode.AMOLED to stringResource(R.string.theme_oled),
+                            ThemeMode.CUERO  to stringResource(R.string.theme_cuero)
                         ).forEach { (mode, label) ->
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         // Feedback 2.6: icono PNG para Aurora también en el desplegable
+                                        // D-015: icono dedicado de Cuero también aquí
                                         if (mode == ThemeMode.AURORA) {
                                             androidx.compose.foundation.Image(
                                                 painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp).clip(RoundedCornerShape(4.dp))
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                        } else if (mode == ThemeMode.CUERO) {
+                                            androidx.compose.foundation.Image(
+                                                painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_cuero),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(Modifier.width(6.dp))
                                         }
@@ -450,20 +466,23 @@ fun ListScreen(
                     }
                 }
                 // ⏱️ crono desde el home (T1 elegida por Víctor): selector Leyendo/Releyendo
+                // D-015 r3: en Cuero los iconos de la barra van en oro suave (actionIconTint)
                 IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Timer, contentDescription = "Timer", tint = Accent, modifier = Modifier.size(19.dp))
+                    Icon(Icons.Default.Timer, contentDescription = "Timer", tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
                 }
                 // Feedback 13-07 (4): acceso rápido a Importar/Exportar backups
                 IconButton(onClick = onImportExport, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.ImportExport, contentDescription = "Import/Export", tint = Accent, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.ImportExport, contentDescription = "Import/Export", tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
                 }
                 IconButton(onClick = onSettings, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Accent, modifier = Modifier.size(19.dp))
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
                 }
                 Spacer(Modifier.width(6.dp))
                 Button(
                     onClick = onAdd,
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    colors = if (isCueroTheme(theme))
+                        ButtonDefaults.buttonColors(containerColor = AccentCuero, contentColor = Color(0xFF241608))
+                    else ButtonDefaults.buttonColors(containerColor = Accent),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
@@ -700,6 +719,9 @@ fun ListScreen(
                 }
             }
         }
+
+        // D-015 (Cuero): nervio de lomo entre las estanterías y la lista (solo tema Cuero)
+        CueroNervio(theme, Modifier.padding(start = 10.dp, end = 16.dp, top = 4.dp))
 
         // ── Fase 6.1 (D-008, T1): card del rail — primera vez en el home ─────
         if (railTipVisible) {

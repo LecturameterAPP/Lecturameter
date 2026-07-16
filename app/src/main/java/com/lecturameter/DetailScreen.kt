@@ -1130,6 +1130,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // ── Ediciones ────────────────────────────────────────────────
                 Spacer(Modifier.height(14.dp))
+                // D-015 (Cuero): nervio de lomo antes de la tarjeta de ediciones
+                CueroNervio(theme, Modifier.padding(bottom = 8.dp))
                 EditionsSection(
                     book         = book,
                     editions     = bookEditions,

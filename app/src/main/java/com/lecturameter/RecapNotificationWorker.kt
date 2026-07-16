@@ -17,13 +17,15 @@ import com.lecturameter.repository.ChallengeRepository
 import com.lecturameter.repository.SessionRepository
 import com.lecturameter.utils.computeMonthlyRecap
 import com.lecturameter.utils.computeWeeklyRecap
+import com.lecturameter.utils.isoPlusDays
+import com.lecturameter.utils.mondayOf
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 /**
  * Worker periódico diario que notifica los resúmenes cuando están disponibles:
- *  - Semanal: el domingo, si la semana tiene sesiones (misma regla que la tarjeta in-app).
+ *  - Semanal: la última semana cerrada sin notificar (en domingo, la que termina hoy).
  *  - Mensual: los primeros días del mes, si el mes cerrado tiene sesiones (regla 6.4).
  *  - Wrapped anual: al abrirse la ventana (26-dic → 26-ene), si el año tiene sesiones.
  * Cada aviso se emite UNA vez por periodo (claves recap_notified_* en prefs).
@@ -54,13 +56,21 @@ class RecapNotificationWorker(
             val cal = Calendar.getInstance()
             val todayIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
 
-            // ── Semanal: domingo, semana con sesiones ──
-            if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            // ── Semanal: última semana cerrada sin notificar ──
+            // Riesgo detectado 15-07: el ciclo de 24h de WorkManager no está anclado a hora
+            // fija; si ningún ciclo caía en domingo (sábado 23:50 → lunes 00:30), la semanal
+            // de esa semana se perdía para siempre. Ahora el ancla es el DOMINGO de la última
+            // semana cerrada: en domingo es hoy (comportamiento de siempre) y de lunes a
+            // sábado el domingo anterior. `recap_notified_week` sigue evitando repetirla, y
+            // como solo se mira una semana atrás no pueden salir notificaciones rancias.
+            run {
+                val weeklyAnchor = if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) todayIso
+                                   else isoPlusDays(mondayOf(todayIso), -1)
                 val recap = computeWeeklyRecap(
                     books, sessions,
                     BingoRepository.loadOrNull(prefs),
                     ChallengeRepository.loadOrNull(prefs) ?: emptyList(),
-                    todayIso
+                    weeklyAnchor
                 )
                 if (recap != null && prefs.getString("recap_notified_week", null) != recap.weekStartIso) {
                     notify(

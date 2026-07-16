@@ -413,8 +413,15 @@ fun accentForTheme(theme: Theme): Color = when {
     theme.accent != null                               -> theme.accent  // Dinámico (Material You)
     !theme.isDark                                      -> AccentLight   // Claro (único tema claro)
     theme.bgDark == BgDarkA                            -> AccentAurora  // Aurora
+    theme.bgDark == BgDarkC                            -> AccentCuero   // Cuero (D-015)
     else -> Accent
 }
+
+fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
+
+// D-015 r3: en Cuero los iconos de rail y acciones van en oro suave FIJO (el azul Material
+// quedaba raro sobre marrón+dorado); en el resto de temas se mantiene el azul de siempre.
+fun actionIconTint(theme: Theme): Color = if (isCueroTheme(theme)) GoldIconCuero else Accent
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)
@@ -443,10 +450,21 @@ val BgDarkAm = Color(0xFF000000); val BgMidAm = Color(0xFF000000)
 val SurfaceAm = Color(0x10FFFFFF); val BorderAm = Color(0x18FFFFFF)
 val TextMainAm = Color(0xFFF1F5F9); val TextMutedAm = Color(0xFF94A3B8); val TextDimAm = Color(0xFF64748B)
 
+// Cuero (D-015, mockup r3 aprobado 16-07): cuero marrón con oro imitando encuadernaciones
+// en piel. Tres stops de fondo (bgDeep), tarjeta sólida, y DOS intensidades de oro:
+// el acento (#D9AC5C) para numerales/marcos y el oro suave (#C7A055) para los iconos de
+// rail y acciones — un paso por debajo para mantener la jerarquía (nada de azul en este tema).
+val BgDarkC = Color(0xFF281B10); val BgMidC = Color(0xFF1E140A); val BgDeepC = Color(0xFF120B05)
+val SurfaceC = Color(0xFF291D10); val BorderC = Color(0xFF54401E)
+val TextMainC = Color(0xFFFAF3E3); val TextMutedC = Color(0xFFD6C7A5); val TextDimC = Color(0xFF9C8B66)
+val AccentCuero = Color(0xFFD9AC5C)
+val GoldIconCuero = Color(0xFFC7A055)
+val GoldSoftCuero = Color(0xFF7E6230)
+
 // QA r2 12-07: el tema Dinámico (Material You) se ELIMINA a petición de Víctor —
 // los 4 temas quedan fijos: Claro, Oscuro, Aurora y AMOLED.
 enum class ThemeMode(val value: String) {
-    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled")
+    LIGHT("light"), DARK("dark"), AURORA("aurora"), AMOLED("amoled"), CUERO("cuero")
 }
 
 // Fase 3: bgDeep = tercer stop del degradado de fondo (solo Aurora lo usa; Transparent = 2 stops clásicos)
@@ -458,6 +476,9 @@ fun buildTheme(mode: ThemeMode) = when (mode) {
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
     ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))
+    // bgSurf/bgSurf2 en crema translúcida (no blanco frío) para que las superficies
+    // secundarias no rompan la calidez del cuero
+    ThemeMode.CUERO  -> Theme(BgDarkC,  BgMidC,  SurfaceC,  BorderC,  TextMainC,  TextMutedC,  TextDimC,  true,  bgSurf = Color(0x14FAF3E3), bgSurf2 = Color(0x0AFAF3E3), bgDeep = BgDeepC)
 }
 
 fun statusColor(s: BookStatus) = when (s) {
@@ -1310,6 +1331,49 @@ class MainActivity : ComponentActivity() {
 fun normalizeThemeDeep(t: Theme): Theme =
     if (t.bgDeep == Color.Transparent) t.copy(bgDeep = t.bgDark) else t
 
+// D-015 (Cuero): filete dorado interior — una línea de 1dp en oro suave, 3dp por dentro
+// del borde de la tarjeta (solo tarjetas grandes: libro del home y ediciones del detalle).
+// Con cualquier otro tema el modifier es un no-op.
+fun Modifier.cueroFilete(theme: Theme, corner: androidx.compose.ui.unit.Dp): Modifier =
+    if (!isCueroTheme(theme)) this else this.drawWithContent {
+        drawContent()
+        val inset = 3.dp.toPx()
+        val r = (corner.toPx() - inset).coerceAtLeast(0f)
+        drawRoundRect(
+            color = GoldSoftCuero,
+            topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+            size = androidx.compose.ui.geometry.Size(size.width - inset * 2, size.height - inset * 2),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+        )
+    }
+
+// D-015 (Cuero): separador "nervio de lomo" — doble línea con gema romboidal al centro,
+// como los nervios de una encuadernación en piel. Solo se pinta con Cuero activo.
+@Composable
+fun CueroNervio(theme: Theme, modifier: Modifier = Modifier) {
+    if (!isCueroTheme(theme)) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.fillMaxWidth().padding(vertical = 6.dp)
+    ) {
+        val line: @Composable (Modifier) -> Unit = { m ->
+            Box(m.height(3.dp).drawBehind {
+                val w = 1.dp.toPx()
+                drawRect(GoldSoftCuero, size = androidx.compose.ui.geometry.Size(size.width, w))
+                drawRect(GoldSoftCuero, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - w), size = androidx.compose.ui.geometry.Size(size.width, w))
+            })
+        }
+        line(Modifier.weight(1f))
+        Box(
+            Modifier.padding(horizontal = 6.dp).size(5.dp)
+                .graphicsLayer { rotationZ = 45f }
+                .background(GoldSoftCuero)
+        )
+        line(Modifier.weight(1f))
+    }
+}
+
 // QA 12-07 r2 (Aurora): tema actual accesible desde componentes hoja (chips, pills)
 // sin pasar `theme` por todos los call sites — se usa para remapear el acento.
 val LocalAppTheme = androidx.compose.runtime.compositionLocalOf<Theme?> { null }
@@ -1370,6 +1434,8 @@ sealed class Screen {
     object List : Screen(); object Add : Screen(); object BookSearch : Screen(); object Stats : Screen()
     object ImportExport : Screen(); object WrappedHistory : Screen()
     object Bingo : Screen(); object Settings : Screen(); object Challenges : Screen()
+    // D-016 (P-011): historial de retos archivados
+    object ChallengeHistory : Screen()
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
     object WeeklyRecap : Screen()
     object MonthlyRecap : Screen()
@@ -1394,6 +1460,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.Bingo -> "bingo"
     is Screen.Settings -> "settings"
     is Screen.Challenges -> "challenges"
+    is Screen.ChallengeHistory -> "challenge_history"
     is Screen.WeeklyRecap -> "weekly_recap"
     is Screen.MonthlyRecap -> "monthly_recap"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
@@ -1914,7 +1981,9 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
                 composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }) } }
-                composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }) } }
+                composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }, onHistory = { navigateTo(Screen.ChallengeHistory) }) } }
+                // D-016 (P-011): historial de retos archivados
+                composable("challenge_history") { WideScreenCenter { ChallengeHistoryScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("bingo") { WideScreenCenter { BingoScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable(
                     "detail/{id}?highlightDate={highlightDate}",

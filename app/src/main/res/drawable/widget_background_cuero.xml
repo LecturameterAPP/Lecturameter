@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-015 (Cuero): degradado marrón cuero del mockup r3 aprobado -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="315"
+        android:startColor="#281B10"
+        android:centerColor="#1E140A"
+        android:endColor="#120B05"
+        android:type="linear" />
+    <corners android:radius="20dp" />
+</shape>

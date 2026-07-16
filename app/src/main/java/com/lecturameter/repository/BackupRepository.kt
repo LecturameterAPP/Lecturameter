@@ -128,7 +128,7 @@ import com.lecturameter.utils.*
 // ── JSON Backup / Restore ─────────────────────────────────────────────────────
 
 data class FullBackup(
-    val version: Int = 3,
+    val version: Int = 4,
     val exportedAt: Long = System.currentTimeMillis(),
     val books: List<Book>? = null,
     val sessions: List<ReadingSession>? = null,
@@ -139,7 +139,9 @@ data class FullBackup(
     // simplemente no las traen y quedan a null.
     val challenges: List<Challenge>? = null,
     val bingoCard: BingoCard? = null,
-    val bingoMonthHistory: List<com.lecturameter.utils.BingoMonthSummary>? = null
+    val bingoMonthHistory: List<com.lecturameter.utils.BingoMonthSummary>? = null,
+    // v4 (D-016): historial de retos archivados. Misma regla de compatibilidad.
+    val challengeHistory: List<ChallengeSnapshot>? = null
 )
 
 /**
@@ -177,7 +179,8 @@ fun buildFullBackupFromPrefs(prefs: android.content.SharedPreferences): FullBack
         wrappedHistory = wrapped,
         challenges = com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs),
         bingoCard = com.lecturameter.repository.BingoRepository.loadOrNull(prefs),
-        bingoMonthHistory = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).ifEmpty { null }
+        bingoMonthHistory = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).ifEmpty { null },
+        challengeHistory = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs).ifEmpty { null }
     )
 }
 
@@ -503,11 +506,24 @@ fun importFullBackupFromJson(
                 com.lecturameter.utils.BingoManager.saveMonthSummaries(prefs, (local + incoming).sortedBy { it.monthKey })
             }
         }
+        // v4 (D-016): historial de retos — unión por contenido (nombre|tipo|objetivo|año),
+        // NUNCA por id (los defaults se resiembran con id nuevo en cada instalación).
+        backup.challengeHistory?.let { fromBackup ->
+            val local = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs)
+            fun key(s: ChallengeSnapshot) = "${s.name.trim().lowercase()}|${s.type}|${s.target}|${s.year}"
+            val localKeys = local.map(::key).toSet()
+            val incoming = fromBackup.filter { it.name != null && key(it) !in localKeys }
+            if (incoming.isNotEmpty()) {
+                com.lecturameter.repository.ChallengeHistoryRepository.save(prefs, local + incoming)
+                vm.loadChallengeHistory(prefs)
+            }
+        }
 
         val msg = buildString {
-            if (newBooks.isNotEmpty()) append(context.getString(R.string.import_restored_books, newBooks.size))
-            if (newSessions.isNotEmpty()) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_sessions, newSessions.size)) }
-            if (newChallengesCount > 0) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_challenges, newChallengesCount)) }
+            // Nitpick 16-07: plurales reales ("1 reto", no "1 retos")
+            if (newBooks.isNotEmpty()) append(context.resources.getQuantityString(R.plurals.import_restored_books_q, newBooks.size, newBooks.size))
+            if (newSessions.isNotEmpty()) { if (isNotEmpty()) append(", "); append(context.resources.getQuantityString(R.plurals.import_restored_sessions_q, newSessions.size, newSessions.size)) }
+            if (newChallengesCount > 0) { if (isNotEmpty()) append(", "); append(context.resources.getQuantityString(R.plurals.import_restored_challenges_q, newChallengesCount, newChallengesCount)) }
             if (bingoRestored) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_bingo)) }
             if (isEmpty()) append(context.getString(R.string.import_all_up_to_date))
         }

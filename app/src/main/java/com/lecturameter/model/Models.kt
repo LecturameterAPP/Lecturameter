@@ -278,3 +278,21 @@ data class Challenge(
     val isDefault: Boolean = false,
     val titleFilter: String? = null  // v2.5: solo BOOKS — el título debe contener este texto (saga)
 )
+
+// D-016 (P-011, historial de retos): snapshot inmutable de un reto en el momento de
+// archivarse. Un reto completado o vencido se archiva y desaparece de la pantalla de
+// retos (decisión de Víctor 16-07); el historial agrupa por año y entra en el backup.
+data class ChallengeSnapshot(
+    val id: Long,                    // id del reto original
+    val name: String,
+    val type: ChallengeType,
+    val target: Int,
+    val finalProgress: Int,          // progreso congelado al archivar
+    val completed: Boolean,          // true = completado; false = vencido
+    val year: Int,                   // año del periodo (selector + límite gratis por año)
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val isDefault: Boolean = false,
+    val titleFilter: String? = null,
+    val archivedAt: String = ""      // yyyy-MM-dd
+)

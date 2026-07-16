@@ -538,7 +538,8 @@ fun BookCard(
         )
     }
 
-    Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
+    // D-015 (Cuero): filete dorado interior en la tarjeta de libro (solo tema Cuero)
+    Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).cueroFilete(theme, 16.dp), shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
         Row(Modifier.padding(12.dp)) {
             // ── Cover con badges ─────────────────────────────────────────────
             Box(modifier = Modifier.size(70.dp, (70 * 1.42f).dp)) {

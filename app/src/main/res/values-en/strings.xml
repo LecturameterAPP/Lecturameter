@@ -153,9 +153,19 @@
     <string name="import_updated_books">%1$d books updated</string>
     <string name="import_updated_sessions">%1$d sessions updated</string>
     <string name="import_all_up_to_date">Everything was already up to date</string>
-    <string name="import_restored_books">%1$d books restored</string>
-    <string name="import_restored_sessions">%1$d sessions</string>
-    <string name="import_restored_challenges">%1$d challenges</string>
+    <!-- Nitpick 16-07: "1 retos" → quantity strings (plurales reales) -->
+    <plurals name="import_restored_books_q">
+        <item quantity="one">%1$d book restored</item>
+        <item quantity="other">%1$d books restored</item>
+    </plurals>
+    <plurals name="import_restored_sessions_q">
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
+    </plurals>
+    <plurals name="import_restored_challenges_q">
+        <item quantity="one">%1$d challenge</item>
+        <item quantity="other">%1$d challenges</item>
+    </plurals>
     <string name="import_restored_bingo">bingo card restored</string>
     <string name="msg_no_books_export">⚠️ No books to export</string>
     <string name="msg_no_data_export">⚠️ No data to export</string>
@@ -575,6 +585,7 @@
     <string name="theme_dark">🌙 Dark</string>
     <string name="theme_aurora">Aurora</string>
     <string name="theme_oled">⬛ OLED</string>
+    <string name="theme_cuero">Leather</string>
 
     <!-- Settings sections -->
     <string name="settings_backup_subtitle">Set up your Backups</string>
@@ -840,6 +851,25 @@
     <string name="challenge_default_pages">3,000 pages this year</string>
     <string name="challenge_default_sessions">50 sessions this year</string>
     <string name="challenge_default_minutes">24 hours of reading this year</string>
+    <!-- D-016: historial de retos (P-011) + desglose por libro (P-026) -->
+    <string name="challenge_history_title">Challenge history</string>
+    <string name="challenge_history_subtitle">Your completed and expired challenges, by year</string>
+    <string name="challenge_history_empty">Your challenges will show up here once they are completed or expire.</string>
+    <string name="challenge_history_badge_completed">COMPLETED</string>
+    <string name="challenge_history_badge_expired">EXPIRED</string>
+    <string name="challenge_history_pro_notice">The free plan keeps 3 pages of history per year. Pro keeps the full history.</string>
+    <string name="tip_challenge_archive_title">Finished challenges are archived</string>
+    <string name="tip_challenge_archive_body">When a challenge is completed or expires it moves to the history on its own. Find it in the icon at the top right.</string>
+    <string name="challenge_contrib_title">Books contributing to this challenge</string>
+    <string name="challenge_contrib_none">No contributions to this challenge yet.</string>
+    <string name="challenge_contrib_streak">This challenge counts streak days, not books.</string>
+    <string name="challenge_contrib_deleted">Deleted book</string>
+    <string name="challenge_unit_pages">pgs</string>
+    <string name="challenge_unit_minutes">min</string>
+    <string name="challenge_unit_sessions">sessions</string>
+    <string name="challenge_unit_books">book</string>
+    <string name="challenge_free_limit_title">Free plan limit</string>
+    <string name="challenge_free_limit_text">The free plan includes 3 pages of active challenges (15 challenges). With Pro you can create unlimited challenges.</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>

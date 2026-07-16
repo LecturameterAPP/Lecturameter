@@ -395,19 +395,105 @@ class BooksViewModel : ViewModel() {
         saveChallenges(prefs)
     }
 
-    /** Progreso actual de un reto: Pair(valorActual, objetivo). */
-    fun challengeProgress(c: Challenge): Pair<Int, Int> {
+    // ── D-016: historial de retos ───────────────────────────────────────────────
+    private val _challengeHistory = kotlinx.coroutines.flow.MutableStateFlow<List<com.lecturameter.model.ChallengeSnapshot>>(emptyList())
+    val challengeHistory: kotlinx.coroutines.flow.StateFlow<List<com.lecturameter.model.ChallengeSnapshot>> = _challengeHistory
+
+    fun loadChallengeHistory(prefs: android.content.SharedPreferences) {
+        _challengeHistory.value = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs)
+    }
+
+    private fun archiveSnapshot(s: com.lecturameter.model.ChallengeSnapshot, prefs: android.content.SharedPreferences) {
+        // Dedupe por contenido: los defaults se resiembran con id nuevo en cada instalación
+        fun key(x: com.lecturameter.model.ChallengeSnapshot) = "${x.name.trim().lowercase()}|${x.type}|${x.target}|${x.year}"
+        if (_challengeHistory.value.any { key(it) == key(s) }) return
+        _challengeHistory.value = _challengeHistory.value + s
+        com.lecturameter.repository.ChallengeHistoryRepository.save(prefs, _challengeHistory.value)
+    }
+
+    /**
+     * D-016: barrido de archivado. Un reto COMPLETADO (progreso >= objetivo) o VENCIDO
+     * (endDate explícita ya pasada) se archiva al historial y desaparece de Retos.
+     * Además, UNA VEZ POR AÑO (flag `challenges_year_rolled`) se cierra el año anterior:
+     * los retos anuales (sin fechas) que siguieron activos reciben su snapshot del año
+     * cerrado, y los anuales que se completaron y archivaron durante ese año se
+     * RESIEMBRAN para el año nuevo (si no, Retos se quedaría vacío para siempre).
+     * STREAK no se cierra por año (una racha no entiende de años naturales): solo se
+     * archiva al completarse.
+     */
+    fun reconcileChallenges(prefs: android.content.SharedPreferences) {
+        val today = com.lecturameter.utils.today()
         val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-        val rangeStart = c.startDate ?: "$year-01-01"
-        val rangeEnd   = c.endDate   ?: "$year-12-31"
+
+        // ── Cierre de año (una vez por año) ─────────────────────────────────────
+        val rolled = prefs.getInt("challenges_year_rolled", 0)
+        if (rolled == 0) {
+            // Primera ejecución: no hay año previo que cerrar
+            prefs.edit().putInt("challenges_year_rolled", year).apply()
+        } else if (rolled < year) {
+            val prevStart = "$rolled-01-01"; val prevEnd = "$rolled-12-31"
+            _challenges.value.filter { it.startDate == null && it.endDate == null && it.type != ChallengeType.STREAK }
+                .forEach { c ->
+                    val prev = challengeProgressInRange(c, prevStart, prevEnd)
+                    archiveSnapshot(com.lecturameter.model.ChallengeSnapshot(
+                        id = c.id, name = c.name, type = c.type, target = c.target,
+                        finalProgress = prev, completed = prev >= c.target, year = rolled,
+                        startDate = null, endDate = null, isDefault = c.isDefault,
+                        titleFilter = c.titleFilter, archivedAt = today
+                    ), prefs)
+                    // El reto sigue activo: su progreso se recalcula solo sobre el año nuevo
+                }
+            // Resembrar los anuales que se completaron (y archivaron) durante el año cerrado
+            fun keyOf(name: String, type: ChallengeType, target: Int) = "${name.trim().lowercase()}|$type|$target"
+            val activeKeys = _challenges.value.map { keyOf(it.name, it.type, it.target) }.toSet()
+            var reseeded = false
+            _challengeHistory.value
+                .filter { it.year == rolled && it.completed && it.startDate == null && it.endDate == null }
+                .forEach { s ->
+                    if (keyOf(s.name, s.type, s.target) !in activeKeys) {
+                        _challenges.value = _challenges.value + Challenge(
+                            id = System.currentTimeMillis() + _challenges.value.size,
+                            name = s.name, type = s.type, target = s.target,
+                            startDate = null, endDate = null,
+                            isDefault = s.isDefault, titleFilter = s.titleFilter
+                        )
+                        reseeded = true
+                    }
+                }
+            if (reseeded) saveChallenges(prefs)
+            prefs.edit().putInt("challenges_year_rolled", year).apply()
+        }
+
+        // ── Archivado de completados y vencidos ─────────────────────────────────
+        val toArchive = _challenges.value.mapNotNull { c ->
+            val (current, target) = challengeProgress(c)
+            val completed = current >= target
+            val expired = c.endDate != null && today > c.endDate
+            if (!completed && !expired) return@mapNotNull null
+            c to com.lecturameter.model.ChallengeSnapshot(
+                id = c.id, name = c.name, type = c.type, target = c.target,
+                finalProgress = current, completed = completed,
+                year = (c.endDate ?: c.startDate)?.take(4)?.toIntOrNull() ?: year,
+                startDate = c.startDate, endDate = c.endDate,
+                isDefault = c.isDefault, titleFilter = c.titleFilter, archivedAt = today
+            )
+        }
+        if (toArchive.isNotEmpty()) {
+            toArchive.forEach { (_, snap) -> archiveSnapshot(snap, prefs) }
+            val ids = toArchive.map { it.first.id }.toSet()
+            _challenges.value = _challenges.value.filter { it.id !in ids }
+            saveChallenges(prefs)
+        }
+    }
+
+    /** Progreso de un reto sobre un rango explícito (para snapshots de años cerrados). */
+    fun challengeProgressInRange(c: Challenge, rangeStart: String, rangeEnd: String): Int {
         fun inRange(date: String?) = date != null && date >= rangeStart && date <= rangeEnd
-        val current = when (c.type) {
+        return when (c.type) {
             ChallengeType.PAGES    -> sessionsInternal.filter { inRange(it.date) }.sumOf { it.pages }
             ChallengeType.MINUTES  -> sessionsInternal.filter { inRange(it.date) }.sumOf { it.minutes ?: 0 }
             ChallengeType.SESSIONS -> sessionsInternal.count { inRange(it.date) }
             ChallengeType.BOOKS    -> {
-                // Feedback 2.6: el filtro de saga ignora tildes ("oráculo" ≡ "oraculo") y
-                // también mira los títulos de las ediciones del libro.
                 fun normF(s: String) = java.text.Normalizer.normalize(s.lowercase().trim(), java.text.Normalizer.Form.NFD)
                     .replace(Regex("\\p{M}"), "")
                 val filterNorm = c.titleFilter?.takeIf { it.isNotBlank() }?.let { normF(it) }
@@ -420,7 +506,50 @@ class BooksViewModel : ViewModel() {
             }
             ChallengeType.STREAK   -> currentReadingStreak()
         }
-        return current to c.target
+    }
+
+    /** P-026: desglose de libros que aportan a un reto sobre su rango.
+     *  Devuelve (título, valor aportado, fracción 0..1), ordenado de mayor a menor.
+     *  STREAK devuelve lista vacía (una racha va por días, no por libros). */
+    fun challengeContributions(
+        type: ChallengeType, rangeStart: String, rangeEnd: String, titleFilter: String?
+    ): List<Triple<String, Int, Float>> {
+        fun inRange(date: String?) = date != null && date >= rangeStart && date <= rangeEnd
+        fun titleOf(bookId: Long): String? = booksInternal.find { it.id == bookId }?.title
+        val parts: List<Pair<String?, Int>> = when (type) {
+            ChallengeType.PAGES -> sessionsInternal.filter { inRange(it.date) }
+                .groupBy { it.bookId }.map { (id, ss) -> titleOf(id) to ss.sumOf { it.pages } }
+            ChallengeType.MINUTES -> sessionsInternal.filter { inRange(it.date) }
+                .groupBy { it.bookId }.map { (id, ss) -> titleOf(id) to ss.sumOf { it.minutes ?: 0 } }
+            ChallengeType.SESSIONS -> sessionsInternal.filter { inRange(it.date) }
+                .groupBy { it.bookId }.map { (id, ss) -> titleOf(id) to ss.size }
+            ChallengeType.BOOKS -> {
+                fun normF(s: String) = java.text.Normalizer.normalize(s.lowercase().trim(), java.text.Normalizer.Form.NFD)
+                    .replace(Regex("\\p{M}"), "")
+                val filterNorm = titleFilter?.takeIf { it.isNotBlank() }?.let { normF(it) }
+                booksInternal.filter { b ->
+                    (b.status == BookStatus.FINISHED || b.status == BookStatus.REREADING) && inRange(b.endDate) &&
+                        (filterNorm == null ||
+                            normF(b.title).contains(filterNorm) ||
+                            b.editions.any { normF(it.title).contains(filterNorm) })
+                }.map { it.title to 1 }
+            }
+            ChallengeType.STREAK -> emptyList()
+        }
+        val filtered = parts.filter { it.second > 0 }
+        val total = filtered.sumOf { it.second }.coerceAtLeast(1)
+        return filtered
+            .map { (title, v) -> Triple(title ?: "", v, v.toFloat() / total) }
+            .sortedByDescending { it.second }
+    }
+
+    /** Progreso actual de un reto: Pair(valorActual, objetivo).
+     *  D-016: la cuenta vive en challengeProgressInRange (la reusa el cierre de año). */
+    fun challengeProgress(c: Challenge): Pair<Int, Int> {
+        val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val rangeStart = c.startDate ?: "$year-01-01"
+        val rangeEnd   = c.endDate   ?: "$year-12-31"
+        return challengeProgressInRange(c, rangeStart, rangeEnd) to c.target
     }
 
     /** Racha actual de días consecutivos con al menos una sesión (contando hoy o ayer como ancla). */
@@ -469,6 +598,7 @@ class BooksViewModel : ViewModel() {
             "light"   -> ThemeMode.LIGHT
             "aurora"  -> ThemeMode.AURORA
             "amoled"  -> ThemeMode.AMOLED
+            "cuero"   -> ThemeMode.CUERO
             // QA r2 12-07: Dinámico eliminado — prefs antiguas con "dynamic" caen a oscuro
             else      -> ThemeMode.DARK
         }
@@ -484,6 +614,10 @@ class BooksViewModel : ViewModel() {
         repairBlindAnglophoneDefaultV1900(prefs)
         savedSessionNewestFirst = prefs.getBoolean("session_newest_first", true)
         savedSortOrder = SortOrder.entries.firstOrNull { it.name == prefs.getString("sort_order", null) } ?: SortOrder.DATE_DESC
+        // D-016: historial de retos + barrido de archivado (con books/sessions ya cargados;
+        // en el early-return de primera ejecución no hay nada que archivar)
+        loadChallengeHistory(prefs)
+        reconcileChallenges(prefs)
         // loadTutorialStatus y loadLanguageStatus ya llamados al inicio de load()
     }
     /**

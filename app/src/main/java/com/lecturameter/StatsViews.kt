@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.*
 // v21.42: Icons.Outlined.Star eliminado — estrellas usan ★/☆ Text
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -61,23 +62,114 @@ import androidx.navigation.compose.composable
  *  (páginas, libros, sesiones, minutos o días de racha) sin desbordar el Int. */
 const val MAX_CHALLENGE_TARGET = 1_000_000L
 
+// Feedback 14-07 + D-016: nombre traducido de los retos por defecto (el sembrado congela
+// el nombre en el idioma del momento) — lo usan la pantalla de retos Y el historial
+@Composable
+internal fun challengeDefaultName(type: ChallengeType): String = when (type) {
+    ChallengeType.BOOKS    -> stringResource(R.string.challenge_default_books)
+    ChallengeType.STREAK   -> stringResource(R.string.challenge_default_streak)
+    ChallengeType.PAGES    -> stringResource(R.string.challenge_default_pages)
+    ChallengeType.SESSIONS -> stringResource(R.string.challenge_default_sessions)
+    ChallengeType.MINUTES  -> stringResource(R.string.challenge_default_minutes)
+}
+
+// P-026: unidad corta de lo que aporta cada libro al reto
+@Composable
+internal fun challengeUnitLabel(type: ChallengeType): String = when (type) {
+    ChallengeType.PAGES    -> stringResource(R.string.challenge_unit_pages)
+    ChallengeType.MINUTES  -> stringResource(R.string.challenge_unit_minutes)
+    ChallengeType.SESSIONS -> stringResource(R.string.challenge_unit_sessions)
+    ChallengeType.BOOKS    -> stringResource(R.string.challenge_unit_books)
+    ChallengeType.STREAK   -> ""
+}
+
+/** P-026: hoja con el desglose de libros que aportan a un reto (activo o histórico).
+ *  STREAK no tiene desglose por libro (decisión D-016: una racha va por días). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChallengeContributionSheet(
+    title: String,
+    type: ChallengeType,
+    rangeStart: String,
+    rangeEnd: String,
+    titleFilter: String?,
+    vm: BooksViewModel,
+    theme: Theme,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
+        Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 28.dp)) {
+            Text(title, color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(2.dp))
+            Text(stringResource(R.string.challenge_contrib_title), color = theme.textMuted, fontSize = 12.sp)
+            Spacer(Modifier.height(12.dp))
+            if (type == ChallengeType.STREAK) {
+                Text(stringResource(R.string.challenge_contrib_streak), color = theme.textDim, fontSize = 13.sp)
+            } else {
+                val contribs = remember(type, rangeStart, rangeEnd, titleFilter) {
+                    vm.challengeContributions(type, rangeStart, rangeEnd, titleFilter)
+                }
+                if (contribs.isEmpty()) {
+                    Text(stringResource(R.string.challenge_contrib_none), color = theme.textDim, fontSize = 13.sp)
+                } else {
+                    val unit = challengeUnitLabel(type)
+                    val acc = accentForTheme(theme)
+                    Column(
+                        Modifier.verticalScroll(rememberScrollState()).weight(1f, fill = false),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        contribs.forEach { (bookTitle, value, frac) ->
+                            Surface(shape = RoundedCornerShape(12.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
+                                Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            bookTitle.ifBlank { stringResource(R.string.challenge_contrib_deleted) },
+                                            color = if (bookTitle.isBlank()) theme.textDim else theme.textMain,
+                                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            if (unit.isBlank()) "$value" else "$value $unit",
+                                            color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            "${(frac * 100).toInt()}%",
+                                            color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Spacer(Modifier.height(6.dp))
+                                    LinearProgressBar(frac, acc, Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
+fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onHistory: () -> Unit = {}) {
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Challenge?>(null) }
+    // P-026: reto cuyo desglose de libros está abierto
+    var contribTarget by remember { mutableStateOf<Challenge?>(null) }
+    // D-016: límite del plan gratis alcanzado (diálogo informativo)
+    var showFreeLimitDialog by remember { mutableStateOf(false) }
 
-    // Feedback 14-07: nombre traducido de los retos por defecto (el sembrado congela
-    // el nombre en el idioma del momento) — usado en la tarjeta Y en el diálogo de borrar
+    // D-016: el barrido de archivado corre también al entrar (además de al arrancar),
+    // para que un reto completado ayer se archive sin reiniciar la app
+    LaunchedEffect(Unit) { vm.reconcileChallenges(prefs) }
+
     @Composable
-    fun challengeDisplayName(challenge: Challenge): String = if (challenge.isDefault) when (challenge.type) {
-        ChallengeType.BOOKS    -> stringResource(R.string.challenge_default_books)
-        ChallengeType.STREAK   -> stringResource(R.string.challenge_default_streak)
-        ChallengeType.PAGES    -> stringResource(R.string.challenge_default_pages)
-        ChallengeType.SESSIONS -> stringResource(R.string.challenge_default_sessions)
-        ChallengeType.MINUTES  -> stringResource(R.string.challenge_default_minutes)
-    } else challenge.name
+    fun challengeDisplayName(challenge: Challenge): String =
+        if (challenge.isDefault) challengeDefaultName(challenge.type) else challenge.name
 
     // ── Diálogo crear reto ────────────────────────────────────────────────────
     if (showCreateDialog) {
@@ -224,6 +316,35 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
         )
     }
 
+    // P-026: hoja de desglose del reto activo (rango = el mismo que usa el progreso)
+    contribTarget?.let { challenge ->
+        val yearNow = Calendar.getInstance().get(Calendar.YEAR)
+        ChallengeContributionSheet(
+            title = challengeDisplayName(challenge),
+            type = challenge.type,
+            rangeStart = challenge.startDate ?: "$yearNow-01-01",
+            rangeEnd = challenge.endDate ?: "$yearNow-12-31",
+            titleFilter = challenge.titleFilter,
+            vm = vm, theme = theme,
+            onDismiss = { contribTarget = null }
+        )
+    }
+
+    // D-016: tope del plan gratis (3 páginas de retos activos)
+    if (showFreeLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showFreeLimitDialog = false },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.challenge_free_limit_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.challenge_free_limit_text), color = theme.textMuted, fontSize = 13.sp) },
+            confirmButton = {
+                TextButton(onClick = { showFreeLimitDialog = false }) {
+                    Text(stringResource(R.string.txt_847607d7), color = Accent, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         // Header
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
@@ -233,6 +354,22 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                 Text(stringResource(R.string.challenge_title), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text(stringResource(R.string.challenge_subtitle), color = theme.textMuted, fontSize = 13.sp)
             }
+            // D-016 (P-011): acceso al historial de retos — icono `history` elegido por Víctor
+            IconButton(onClick = onHistory) {
+                Icon(Icons.Default.History, contentDescription = stringResource(R.string.challenge_history_title), tint = actionIconTint(theme))
+            }
+        }
+
+        // D-016: tip de onboarding — los retos completados o vencidos se archivan solos
+        var archiveTipVisible by remember { mutableStateOf(!Tips.seen(prefs, Tips.CHALLENGE_ARCHIVE)) }
+        if (archiveTipVisible) {
+            TipCard(
+                stringResource(R.string.tip_challenge_archive_title),
+                stringResource(R.string.tip_challenge_archive_body),
+                theme,
+                onDismiss = { Tips.mark(prefs, Tips.CHALLENGE_ARCHIVE); archiveTipVisible = false },
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
         }
 
         // D-004: challenges es StateFlow; se colecciona en la raíz de la pantalla
@@ -273,7 +410,8 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                 val (current, target) = vm.challengeProgress(challenge)
                 val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
                 val done = current >= target
-                Surface(shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, if (done) Green.copy(alpha = 0.5f) else theme.border)) {
+                // P-026: tocar la tarjeta abre el desglose de libros que aportan
+                Surface(onClick = { contribTarget = challenge }, shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, if (done) Green.copy(alpha = 0.5f) else theme.border)) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -305,7 +443,16 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        LinearProgressBar(ratio, if (done) Green else Accent, Modifier.fillMaxWidth())
+                        // P-027: el porcentaje va junto a la barra (antes solo el absoluto arriba)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LinearProgressBar(ratio, if (done) Green else Accent, Modifier.weight(1f))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "${(ratio * 100).toInt()}%",
+                                color = if (done) Green else theme.textMuted,
+                                fontSize = 11.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
                         if (done) {
                             Spacer(Modifier.height(6.dp))
                             Text(stringResource(R.string.challenge_completed), color = Green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
@@ -334,7 +481,12 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             }
         }
         OutlinedButton(
-            onClick = { showCreateDialog = true },
+            onClick = {
+                // D-016: el plan gratis incluye 3 páginas de retos activos (5 por página)
+                val freeMax = com.lecturameter.utils.Pro.FREE_CHALLENGE_PAGES * com.lecturameter.utils.Pro.PER_PAGE
+                if (!com.lecturameter.utils.Pro.isPro(prefs) && challenges.size >= freeMax) showFreeLimitDialog = true
+                else showCreateDialog = true
+            },
             modifier = Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 0.dp),
             shape = RoundedCornerShape(12.dp),
             border = BorderStroke(1.dp, Accent)
@@ -344,6 +496,198 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             Text(stringResource(R.string.challenge_create_button), color = Accent, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(28.dp))
+    }
+}
+
+// ── ChallengeHistoryScreen (D-016 / P-011) ────────────────────────────────────
+
+/** Historial de retos archivados: selector de año + paginación (5 por página, como Retos).
+ *  Gratis: 3 páginas por año (acumulativo, cada año suma 3); Pro: completo. Los snapshots
+ *  ocultos por el límite NO se borran, solo dejan de mostrarse. */
+@Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun ChallengeHistoryScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
+    val history by vm.challengeHistory.collectAsState()
+    val acc = accentForTheme(theme)
+    // P-026 aplica también a retos históricos (decisión 16-07)
+    var contribTarget by remember { mutableStateOf<ChallengeSnapshot?>(null) }
+
+    contribTarget?.let { snap ->
+        ChallengeContributionSheet(
+            title = if (snap.isDefault) challengeDefaultName(snap.type) else snap.name,
+            type = snap.type,
+            rangeStart = snap.startDate ?: "${snap.year}-01-01",
+            rangeEnd = snap.endDate ?: "${snap.year}-12-31",
+            titleFilter = snap.titleFilter,
+            vm = vm, theme = theme,
+            onDismiss = { contribTarget = null }
+        )
+    }
+
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        // Header
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.challenge_history_title), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.challenge_history_subtitle), color = theme.textMuted, fontSize = 13.sp)
+            }
+        }
+
+        if (history.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.History, null, tint = theme.textDim, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.challenge_history_empty), color = theme.textDim, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+                }
+            }
+        } else {
+            val years = history.map { it.year }.distinct().sortedDescending()
+            var selectedYear by rememberSaveable { mutableStateOf(years.first()) }
+            if (selectedYear !in years) selectedYear = years.first()
+
+            // Selector de año (chips horizontales)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 10.dp)
+            ) {
+                years.forEach { y ->
+                    val selected = selectedYear == y
+                    Surface(
+                        onClick = { selectedYear = y },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border)
+                    ) {
+                        Text(
+                            "$y", color = if (selected) acc else theme.textMuted,
+                            fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            val isPro = com.lecturameter.utils.Pro.isPro(prefs)
+            val yearItems = history.filter { it.year == selectedYear }.sortedByDescending { it.archivedAt }
+            val freeMax = com.lecturameter.utils.Pro.FREE_HISTORY_PAGES_PER_YEAR * com.lecturameter.utils.Pro.PER_PAGE
+            val visible = if (isPro) yearItems else yearItems.take(freeMax)
+            val yearFull = yearItems.size >= freeMax
+
+            // Aviso Pro cerrable con ✕; una vez cerrado no reaparece hasta que el año
+            // llene sus páginas gratis (decisión D-016 r3)
+            var noticeDismissed by remember { mutableStateOf(prefs.getBoolean("pro_notice_history_closed", false)) }
+            if (!isPro && (!noticeDismissed || yearFull)) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = acc.copy(alpha = 0.10f),
+                    border = BorderStroke(1.dp, acc.copy(alpha = 0.45f)),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp)) {
+                        Text(
+                            stringResource(R.string.challenge_history_pro_notice),
+                            color = theme.textMuted, fontSize = 11.5.sp, lineHeight = 15.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                prefs.edit().putBoolean("pro_notice_history_closed", true).apply()
+                                noticeDismissed = true
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) { Icon(Icons.Default.Close, null, tint = theme.textDim, modifier = Modifier.size(14.dp)) }
+                    }
+                }
+            }
+
+            if (visible.isEmpty()) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.challenge_history_empty), color = theme.textDim, fontSize = 14.sp, textAlign = TextAlign.Center)
+                }
+            } else {
+                val perPage = com.lecturameter.utils.Pro.PER_PAGE
+                val pageCount = (visible.size + perPage - 1) / perPage
+                val pagerState = androidx.compose.foundation.pager.rememberPagerState { (visible.size + perPage - 1) / perPage }
+                LaunchedEffect(pageCount, selectedYear) {
+                    if (pagerState.currentPage >= pageCount) {
+                        pagerState.scrollToPage((pageCount - 1).coerceAtLeast(0))
+                    }
+                }
+                androidx.compose.foundation.pager.HorizontalPager(
+                    state = pagerState,
+                    verticalAlignment = Alignment.Top,
+                    modifier = Modifier.weight(1f)
+                ) { page ->
+                    val pageItems = visible.drop(page * perPage).take(perPage)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                        pageItems.forEach { snap ->
+                            val ratio = (snap.finalProgress.toFloat() / snap.target.coerceAtLeast(1)).coerceIn(0f, 1f)
+                            val barColor = if (snap.completed) Green else Amber
+                            Surface(
+                                onClick = { contribTarget = snap },
+                                shape = RoundedCornerShape(16.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, theme.border)
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                if (snap.isDefault) challengeDefaultName(snap.type) else snap.name,
+                                                color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                                                maxLines = 2, overflow = TextOverflow.Ellipsis
+                                            )
+                                            val meta = buildString {
+                                                append(challengeTypeLabel(snap.type))
+                                                append(" · ").append(snap.year)
+                                                snap.titleFilter?.takeIf { it.isNotBlank() }?.let { append(" · «").append(it).append("»") }
+                                            }
+                                            Text(meta, color = theme.textMuted, fontSize = 11.sp)
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        // Badge COMPLETADO / VENCIDO con el % final congelado
+                                        Surface(shape = RoundedCornerShape(20.dp), color = barColor.copy(alpha = 0.15f)) {
+                                            Text(
+                                                if (snap.completed) stringResource(R.string.challenge_history_badge_completed)
+                                                else stringResource(R.string.challenge_history_badge_expired),
+                                                color = barColor, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(10.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        LinearProgressBar(ratio, barColor, Modifier.weight(1f))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            "${snap.finalProgress}/${snap.target} · ${(ratio * 100).toInt()}%",
+                                            color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (pageCount > 1) {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            repeat(pageCount) { i ->
+                                Box(
+                                    Modifier
+                                        .size(if (i == pagerState.currentPage) 8.dp else 6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (i == pagerState.currentPage) acc else theme.border)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
     }
 }
 

@@ -824,11 +824,12 @@ fun EditionsSection(
     onRemove: (Long) -> Unit,
     onUpdatePages: (editionId: Long, pages: Int) -> Unit = { _, _ -> }
 ) {
+    // D-015 (Cuero): filete dorado interior en la tarjeta de ediciones (solo tema Cuero)
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = theme.bgSurf,
         border = BorderStroke(1.dp, theme.border),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().cueroFilete(theme, 14.dp)
     ) {
         Column {
             // Header

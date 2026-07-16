@@ -313,14 +313,15 @@ private fun RailItem(
             .padding(vertical = 3.dp)
             .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (highlighted) Accent.copy(alpha = 0.16f) else Color.Transparent)
+            .background(if (highlighted) actionIconTint(theme).copy(alpha = 0.16f) else Color.Transparent)
             .then(
                 if (enabled) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongPress)
                 else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (icon != null) Icon(icon, contentDescription = null, tint = Accent, modifier = Modifier.size(19.dp))
+        // D-015 r3: en Cuero los iconos del rail van en oro suave; azul en el resto de temas
+        if (icon != null) Icon(icon, contentDescription = null, tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
         else Text(emoji ?: "", fontSize = 17.sp)
     }
 }

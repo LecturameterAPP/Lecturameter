@@ -91,3 +91,19 @@ object ChallengeRepository {
         prefs.edit().putString("challenges", gson.toJson(challenges)).apply()
     }
 }
+
+// D-016: historial de retos archivados (clave prefs `challenge_history`; entra en backup v4)
+object ChallengeHistoryRepository {
+    private val gson = Gson()
+
+    fun load(prefs: SharedPreferences): List<ChallengeSnapshot> {
+        val json = prefs.getString("challenge_history", null) ?: return emptyList()
+        val type = object : TypeToken<List<ChallengeSnapshot>>() {}.type
+        return (gson.fromJson<List<ChallengeSnapshot>>(json, type) ?: emptyList())
+            .filter { it.name != null && it.type != null }
+    }
+
+    fun save(prefs: SharedPreferences, history: List<ChallengeSnapshot>) {
+        prefs.edit().putString("challenge_history", gson.toJson(history)).apply()
+    }
+}
