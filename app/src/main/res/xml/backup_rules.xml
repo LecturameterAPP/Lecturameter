@@ -5,8 +5,9 @@
     Excludes the cache dir (temp CSV/JSON exports).
 -->
 <full-backup-content>
+    <!-- A6: SOLO se respalda lecturameter.xml. El trial y el lockout del canje viven en
+         lecturameter_pro_local.xml, que al no estar incluido aquí NUNCA se respalda
+         (reinstalar no reinicia ni reactiva la prueba gratis). Lint prohíbe un exclude
+         explícito de un path no incluido, por eso se documenta en vez de excluirse. -->
     <include domain="sharedpref" path="lecturameter.xml" />
-    <!-- A6: el trial y el lockout del canje viven aparte y NO se respaldan, para que
-         reinstalar no reinicie ni reactive la prueba gratis desde un backup viejo. -->
-    <exclude domain="sharedpref" path="lecturameter_pro_local.xml" />
 </full-backup-content>
