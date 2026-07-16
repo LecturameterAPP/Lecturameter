@@ -54,6 +54,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Play avisaba de que el AAB lleva codigo nativo (mlkit/coil) sin simbolos de
+            // depuracion: empaquetar la tabla de simbolos en el bundle (usa el NDK instalado)
+            ndk { debugSymbolLevel 'SYMBOL_TABLE' }
         }
         debug {
             minifyEnabled false
