@@ -158,8 +158,11 @@ private fun ProCompareTable(theme: Theme) {
             }
             ProCompareRow(theme, R.string.pro_compare_themes_label, R.string.pro_compare_themes_free, R.string.pro_compare_themes_pro)
             ProCompareRow(theme, R.string.pro_compare_challenges_label, R.string.pro_compare_challenges_free, R.string.pro_compare_challenges_pro)
-            ProCompareRow(theme, R.string.pro_compare_history_label, R.string.pro_compare_history_free, R.string.pro_compare_history_pro)
+            // Paywall final 16-07: el historial de retos es gratis completo (fuera de la
+            // tabla); entran el mapa de calor horario y el icono dorado
+            ProCompareRow(theme, R.string.pro_compare_heatmap_label, R.string.pro_compare_heatmap_free, R.string.pro_compare_heatmap_pro)
             ProCompareRow(theme, R.string.pro_compare_editions_label, R.string.pro_compare_editions_free, R.string.pro_compare_editions_pro)
+            ProCompareRow(theme, R.string.pro_compare_icon_label, R.string.pro_compare_icon_free, R.string.pro_compare_icon_pro)
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.pro_compare_footer),

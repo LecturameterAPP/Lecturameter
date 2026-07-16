@@ -1024,6 +1024,57 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(18.dp))
                 }
             }
+
+            // Icono de la app conmutable (Pro): alterna los activity-alias LauncherClassic
+            // y LauncherGold. Se habilita el nuevo ANTES de deshabilitar el viejo para que
+            // nunca haya cero entradas en el launcher. Si el Pro caduca NO se revierte solo
+            // (cambiar componentes puede matar el proceso y el icono es inofensivo).
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.pro_icon_label), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+            var appIcon by remember { mutableStateOf(prefs.getString("app_icon", "classic") ?: "classic") }
+            val iconToastMsg = stringResource(R.string.pro_icon_applied)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(
+                    "classic" to stringResource(R.string.pro_icon_classic),
+                    "gold" to stringResource(R.string.pro_icon_gold)
+                ).forEach { (value, label) ->
+                    val selected = appIcon == value
+                    Surface(
+                        onClick = {
+                            if (selected) return@Surface
+                            if (!com.lecturameter.utils.Pro.isPro(prefs)) { showProUpsell = true; return@Surface }
+                            val pm = context.packageManager
+                            val pkg = context.packageName
+                            val classic = android.content.ComponentName(pkg, "com.lecturameter.LauncherClassic")
+                            val gold = android.content.ComponentName(pkg, "com.lecturameter.LauncherGold")
+                            val (enable, disable) = if (value == "gold") gold to classic else classic to gold
+                            pm.setComponentEnabledSetting(enable, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                            pm.setComponentEnabledSetting(disable, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                            prefs.edit().putString("app_icon", value).apply()
+                            appIcon = value
+                            android.widget.Toast.makeText(context, iconToastMsg, android.widget.Toast.LENGTH_LONG).show()
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 8.dp)) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(if (value == "gold") R.mipmap.ic_launcher_pro else R.mipmap.ic_launcher),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(label, color = if (selected) Accent else theme.textMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            if (!com.lecturameter.utils.Pro.isPro(prefs) && value == "gold") {
+                                Spacer(Modifier.width(5.dp))
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // ── IDIOMA ────────────────────────────────────────────────────────────

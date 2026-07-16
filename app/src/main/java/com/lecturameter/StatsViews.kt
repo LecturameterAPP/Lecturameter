@@ -584,43 +584,9 @@ fun ChallengeHistoryScreen(vm: BooksViewModel, prefs: android.content.SharedPref
                 }
             }
 
-            val isPro = com.lecturameter.utils.Pro.isPro(prefs)
-            val yearItems = history.filter { it.year == selectedYear }.sortedByDescending { it.archivedAt }
-            val freeMax = com.lecturameter.utils.Pro.FREE_HISTORY_PAGES_PER_YEAR * com.lecturameter.utils.Pro.PER_PAGE
-            val visible = if (isPro) yearItems else yearItems.take(freeMax)
-            val yearFull = yearItems.size >= freeMax
-
-            // Aviso Pro cerrable con ✕; una vez cerrado no reaparece hasta que el año
-            // llene sus páginas gratis (decisión D-016 r3)
-            var noticeDismissed by remember { mutableStateOf(prefs.getBoolean("pro_notice_history_closed", false)) }
-            var showProUpsell by remember { mutableStateOf(false) }
-            if (showProUpsell) {
-                ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false })
-            }
-            if (!isPro && (!noticeDismissed || yearFull)) {
-                Surface(
-                    onClick = { showProUpsell = true },
-                    shape = RoundedCornerShape(12.dp),
-                    color = acc.copy(alpha = 0.10f),
-                    border = BorderStroke(1.dp, acc.copy(alpha = 0.45f)),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 2.dp)) {
-                        Text(
-                            stringResource(R.string.challenge_history_pro_notice),
-                            color = theme.textMuted, fontSize = 11.5.sp, lineHeight = 15.sp,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = {
-                                prefs.edit().putBoolean("pro_notice_history_closed", true).apply()
-                                noticeDismissed = true
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) { Icon(Icons.Default.Close, null, tint = theme.textDim, modifier = Modifier.size(14.dp)) }
-                    }
-                }
-            }
+            // Historial de retos GRATIS COMPLETO para todos (cambio de última hora de
+            // Víctor 16-07): ya no hay límite de páginas por año ni aviso Pro cerrable.
+            val visible = history.filter { it.year == selectedYear }.sortedByDescending { it.archivedAt }
 
             if (visible.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -825,9 +791,16 @@ fun DailySessionsScreen(
 
 // ── HeatmapView ─────────────────────────────────────────────────────────────
 @Composable
-fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, String) -> Unit, onNavigateToDailySessions: (String) -> Unit = {}) {
+fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onNavigateToSession: (Long, String) -> Unit, onNavigateToDailySessions: (String) -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val sessions by vm.sessions.collectAsState()
+    // Cambio de última hora de Víctor 16-07: el mapa de calor HORARIO pasa a Pro (el
+    // calendario mensual/anual de arriba sigue gratis para todos).
+    val isProHourly = com.lecturameter.utils.Pro.isPro(prefs)
+    var showHourlyUpsell by remember { mutableStateOf(false) }
+    if (showHourlyUpsell) {
+        ProUpsellSheet(theme, prefs, onDismiss = { showHourlyUpsell = false })
+    }
     // v21.41: los meses siguen el idioma de la app (string-array), no el locale del sistema
     val ctx = LocalContext.current
     val monthNames = ctx.resources.getStringArray(R.array.month_names_short).toList()
@@ -1020,7 +993,11 @@ fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, St
                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                     Column {
                         Spacer(Modifier.height(10.dp))
-                        HourlyHeatmapCard(periodSessions, theme)
+                        if (isProHourly) {
+                            HourlyHeatmapCard(periodSessions, theme)
+                        } else {
+                            HourlyHeatmapLockedCard(theme, onClick = { showHourlyUpsell = true })
+                        }
                     }
                 }
             }
@@ -1092,7 +1069,11 @@ fun HeatmapView(vm: BooksViewModel, theme: Theme, onNavigateToSession: (Long, St
                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                     Column {
                         Spacer(Modifier.height(10.dp))
-                        HourlyHeatmapCard(periodSessions, theme)
+                        if (isProHourly) {
+                            HourlyHeatmapCard(periodSessions, theme)
+                        } else {
+                            HourlyHeatmapLockedCard(theme, onClick = { showHourlyUpsell = true })
+                        }
                     }
                 }
             }

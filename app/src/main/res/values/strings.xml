@@ -877,7 +877,6 @@
     <string name="challenge_history_empty">Aquí aparecerán tus retos cuando se completen o venzan.</string>
     <string name="challenge_history_badge_completed">COMPLETADO</string>
     <string name="challenge_history_badge_expired">VENCIDO</string>
-    <string name="challenge_history_pro_notice">El plan gratis guarda 3 páginas de historial por año. Con Pro el historial es completo.</string>
     <string name="tip_challenge_archive_title">Los retos terminados se archivan</string>
     <string name="tip_challenge_archive_body">Cuando un reto se completa o vence pasa solo al historial. Lo tienes en el icono de arriba a la derecha.</string>
     <string name="challenge_contrib_title">Libros que aportan a este reto</string>
@@ -894,7 +893,7 @@
     <!-- D-013: Lecturameter Pro -->
     <string name="pro_section_title">LECTURAMETER PRO</string>
     <string name="pro_title">Lecturameter Pro</string>
-    <string name="pro_benefits">Temas Cuero, Aurora y OLED, historial de retos completo, retos sin límite y hasta 5 ediciones por libro. Pago único, sin suscripciones ni anuncios.</string>
+    <string name="pro_benefits">Temas Cuero, Aurora y OLED, mapa de calor horario, retos sin límite, hasta 5 ediciones por libro y el icono dorado. Pago único, sin suscripciones ni anuncios.</string>
     <string name="pro_trial_button">Probar 7 días gratis</string>
     <string name="pro_compare_free">Gratis</string>
     <string name="pro_compare_pro">Pro</string>
@@ -904,13 +903,20 @@
     <string name="pro_compare_challenges_label">Retos activos</string>
     <string name="pro_compare_challenges_free">15</string>
     <string name="pro_compare_challenges_pro">Sin límite</string>
-    <string name="pro_compare_history_label">Historial de retos</string>
-    <string name="pro_compare_history_free">3 páginas por año</string>
-    <string name="pro_compare_history_pro">Completo</string>
+    <string name="pro_compare_heatmap_label">Mapa de calor</string>
+    <string name="pro_compare_heatmap_free">Mensual</string>
+    <string name="pro_compare_heatmap_pro">+ Horario</string>
     <string name="pro_compare_editions_label">Ediciones por libro</string>
     <string name="pro_compare_editions_free">2</string>
     <string name="pro_compare_editions_pro">5</string>
-    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, widget y copias de seguridad: siempre gratis para todos.</string>
+    <string name="pro_compare_icon_label">Icono de la app</string>
+    <string name="pro_compare_icon_free">Clásico</string>
+    <string name="pro_compare_icon_pro">+ Dorado</string>
+    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, historial de retos completo, widget y copias de seguridad: siempre gratis para todos.</string>
+    <string name="pro_icon_label">Icono de la app</string>
+    <string name="pro_icon_classic">Clásico</string>
+    <string name="pro_icon_gold">Dorado</string>
+    <string name="pro_icon_applied">Icono cambiado. El launcher puede tardar unos segundos en refrescar y algunos móviles piden recolocar el acceso directo.</string>
     <string name="support_code_hint">Si tu donación llega al precio de Pro, escríbeme y te doy un código de Pro (uno por cada múltiplo).</string>
     <string name="pro_buy_button">Comprar por %1$s</string>
     <string name="pro_buy_unavailable">Disponible en Google Play</string>
@@ -935,6 +941,7 @@
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
     <string name="adv_hourly_subtitle">¿Cuándo lees más?</string>
+    <string name="adv_hourly_locked">El mapa de calor horario es parte de Pro</string>
     <string name="adv_hourly_days">L,M,X,J,V,S,D</string>
     <string name="adv_hourly_peak">Pico de lectura: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Estadísticas de saga</string>

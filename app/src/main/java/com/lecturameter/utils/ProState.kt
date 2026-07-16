@@ -16,9 +16,10 @@ import java.net.URL
  * Fuentes de Pro: compra en Play (BillingManager → markPurchased), código LM canjeado
  * contra el worker de Cloudflare (redeemCode), o prueba de 7 días (activateTrial).
  *
- * Gates que lo consultan: historial de retos (3 páginas por año gratis), tope de retos
- * activos (3 páginas), temas de pago (Cuero/Aurora/AMOLED, con grandfathering del tema
- * ACTIVO al actualizar) y tope de ediciones (2 gratis / 5 Pro, P-031).
+ * Gates que lo consultan: tope de retos activos (3 páginas; el historial de retos es
+ * GRATIS COMPLETO desde el cambio de Víctor 16-07), mapa de calor horario (Pro; el
+ * calendario mensual/anual es gratis), temas de pago (Cuero/Aurora/AMOLED, con
+ * grandfathering del tema ACTIVO al actualizar) y tope de ediciones (2 gratis / 5 Pro, P-031).
  */
 object Pro {
     const val PREF_KEY = "pro_unlocked"                 // entitlement permanente (código o Play)
@@ -90,9 +91,6 @@ object Pro {
 
     /** Páginas de retos activos incluidas en el plan gratis (5 retos por página). */
     const val FREE_CHALLENGE_PAGES = 3
-
-    /** Páginas de historial de retos POR AÑO en el plan gratis (acumulativo: cada año suma 3). */
-    const val FREE_HISTORY_PAGES_PER_YEAR = 3
 
     const val PER_PAGE = 5
 

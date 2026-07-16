@@ -242,7 +242,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
 
         if (statsView == "heatmap") {
             recapCards()
-            HeatmapView(vm = vm, theme = theme, onNavigateToSession = { bookId, date -> onDetailWithDate(bookId, date) }, onNavigateToDailySessions = onDailySessions)
+            HeatmapView(vm = vm, prefs = _prefs, theme = theme, onNavigateToSession = { bookId, date -> onDetailWithDate(bookId, date) }, onNavigateToDailySessions = onDailySessions)
         } else if (showCharts) {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 32.dp)) {
                 item { recapCards() }
