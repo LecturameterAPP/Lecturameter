@@ -81,7 +81,10 @@ fun ProUpsellSheet(
                 Text(stringResource(R.string.pro_title), color = theme.textMain, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(4.dp))
                 Text(stringResource(R.string.pro_benefits), color = theme.textMuted, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(14.dp))
+                // B: tabla comparativa compacta Gratis vs Pro
+                ProCompareTable(theme)
+                Spacer(Modifier.height(16.dp))
                 if (Pro.trialAvailable(prefs)) {
                     Button(
                         onClick = { Pro.activateTrial(prefs); refresh++; onProChanged() },
@@ -136,6 +139,43 @@ fun ProUpsellSheet(
                 }
             }
         }
+    }
+}
+
+// B: tabla comparativa Gratis vs Pro. Compacta (labelSmall/bodySmall) para no alargar el
+// sheet. Usa los tokens de color del tema activo. La fila final es una NOTA, no una columna:
+// deja claro que Wrapped/recaps/estadísticas/widget/backups son gratis para todos siempre.
+@Composable
+private fun ProCompareTable(theme: Theme) {
+    val acc = accentForTheme(theme)
+    Surface(shape = RoundedCornerShape(12.dp), color = theme.bgSurf, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            // Cabecera de columnas
+            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1.5f))
+                Text(stringResource(R.string.pro_compare_free), Modifier.weight(1f), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Text(stringResource(R.string.pro_compare_pro), Modifier.weight(1f), color = acc, fontSize = 11.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            }
+            ProCompareRow(theme, R.string.pro_compare_themes_label, R.string.pro_compare_themes_free, R.string.pro_compare_themes_pro)
+            ProCompareRow(theme, R.string.pro_compare_challenges_label, R.string.pro_compare_challenges_free, R.string.pro_compare_challenges_pro)
+            ProCompareRow(theme, R.string.pro_compare_history_label, R.string.pro_compare_history_free, R.string.pro_compare_history_pro)
+            ProCompareRow(theme, R.string.pro_compare_editions_label, R.string.pro_compare_editions_free, R.string.pro_compare_editions_pro)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.pro_compare_footer),
+                color = theme.textDim, fontSize = 10.sp, lineHeight = 13.sp,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProCompareRow(theme: Theme, label: Int, free: Int, pro: Int) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(label), Modifier.weight(1.5f), color = theme.textMuted, fontSize = 11.sp)
+        Text(stringResource(free), Modifier.weight(1f), color = theme.textDim, fontSize = 11.sp, textAlign = TextAlign.Center)
+        Text(stringResource(pro), Modifier.weight(1f), color = theme.textMain, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
 
