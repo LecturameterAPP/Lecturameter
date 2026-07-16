@@ -870,6 +870,28 @@
     <string name="challenge_unit_books">book</string>
     <string name="challenge_free_limit_title">Free plan limit</string>
     <string name="challenge_free_limit_text">The free plan includes 3 pages of active challenges (15 challenges). With Pro you can create unlimited challenges.</string>
+    <!-- D-013: Lecturameter Pro -->
+    <string name="pro_section_title">LECTURAMETER PRO</string>
+    <string name="pro_title">Lecturameter Pro</string>
+    <string name="pro_benefits">Leather, Aurora and OLED themes, full challenge history, unlimited challenges and up to 5 editions per book. One time payment, no subscriptions, no ads.</string>
+    <string name="pro_trial_button">Try 7 days for free</string>
+    <string name="pro_buy_button">Buy for %1$s</string>
+    <string name="pro_buy_unavailable">Available on Google Play</string>
+    <string name="pro_have_code">I have a code</string>
+    <string name="pro_not_now">Not now</string>
+    <string name="pro_close">Close</string>
+    <string name="pro_active_title">Lecturameter Pro active</string>
+    <string name="pro_active_body">You have full access to every Pro feature. Thanks for supporting the project. :)</string>
+    <string name="pro_status_active">Active. Thanks for supporting the project. :)</string>
+    <string name="pro_status_trial">Free trial: %1$d days left</string>
+    <string name="pro_status_free">Themes, full challenge history and more</string>
+    <string name="pro_redeem_title">Redeem code</string>
+    <string name="pro_redeem_button">Redeem</string>
+    <string name="pro_code_err_format">The format is LM-XXXX-XXXX-XXXX</string>
+    <string name="pro_code_err_invalid">Wrong or already redeemed code.</string>
+    <string name="pro_code_err_attempts">Too many attempts. Wait 24 hours.</string>
+    <string name="pro_code_err_network">Could not reach the server. Try again.</string>
+    <string name="pro_editions_hint">🔒 With Pro, up to %1$d editions per book</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>

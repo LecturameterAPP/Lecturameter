@@ -998,14 +998,30 @@ fun EditionsSection(
                 if (idx < editions.lastIndex) Divider(color = theme.border, thickness = 1.dp)
             }
 
-            // Add edition button — only if < 3 editions
-            if (editions.size < 3) {
+            // P-031 + D-013: tope de ediciones 2 gratis / 5 Pro (antes 3 fijo para todos).
+            // Quien ya tenga más del tope gratis NUNCA pierde nada: solo se bloquea añadir.
+            val edContext = LocalContext.current
+            val edPrefs = remember { edContext.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE) }
+            var showEditionUpsell by remember { mutableStateOf(false) }
+            if (showEditionUpsell) {
+                ProUpsellSheet(theme, edPrefs, onDismiss = { showEditionUpsell = false })
+            }
+            val edLimit = com.lecturameter.utils.Pro.editionLimit(edPrefs)
+            if (editions.size < edLimit) {
                 Divider(color = theme.border, thickness = 1.dp)
                 Box(
                     Modifier.fillMaxWidth().clickable { onAddEdition() }.padding(vertical = 11.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(stringResource(R.string.txt_b7369062), color = theme.textDim, fontSize = 13.sp)
+                }
+            } else if (editions.size < com.lecturameter.utils.Pro.PRO_EDITIONS && !com.lecturameter.utils.Pro.isPro(edPrefs)) {
+                Divider(color = theme.border, thickness = 1.dp)
+                Box(
+                    Modifier.fillMaxWidth().clickable { showEditionUpsell = true }.padding(vertical = 11.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.pro_editions_hint, com.lecturameter.utils.Pro.PRO_EDITIONS), color = accentForTheme(theme), fontSize = 13.sp)
                 }
             }
 

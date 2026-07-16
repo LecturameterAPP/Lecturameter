@@ -1142,6 +1142,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         val prefs = getSharedPreferences("lecturameter", MODE_PRIVATE)
+        // D-013: conectar Play Billing (restaura compras de lecturameter_pro si las hay)
+        LmBilling.init(this)
         vm.initContext(this)
         vm.load(prefs)
         // El permiso POST_NOTIFICATIONS se pide con diálogo educativo la primera vez

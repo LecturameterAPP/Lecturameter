@@ -594,6 +594,9 @@ class BooksViewModel : ViewModel() {
         ensureBingoCard(prefs)
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
         booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
+        // D-013: grandfathering ONE-SHOT antes de leer el tema — quien venía usando
+        // Aurora o AMOLED (gratis hasta la 2.7) conserva ESE tema para siempre
+        com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
         themeMode = when (prefs.getString("theme_mode", "dark")) {
             "light"   -> ThemeMode.LIGHT
             "aurora"  -> ThemeMode.AURORA
@@ -601,6 +604,12 @@ class BooksViewModel : ViewModel() {
             "cuero"   -> ThemeMode.CUERO
             // QA r2 12-07: Dinámico eliminado — prefs antiguas con "dynamic" caen a oscuro
             else      -> ThemeMode.DARK
+        }
+        // D-013: si el tema guardado es de pago y ya no está permitido (p. ej. terminó
+        // la prueba de 7 días), la app cae a Oscuro en vez de enseñar un tema sin licencia
+        if (!com.lecturameter.utils.Pro.themeAllowed(prefs, themeMode)) {
+            themeMode = ThemeMode.DARK
+            prefs.edit().putString("theme_mode", "dark").apply()
         }
         com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }
         loadWrapped(prefs)

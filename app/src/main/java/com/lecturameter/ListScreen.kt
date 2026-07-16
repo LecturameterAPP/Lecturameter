@@ -400,6 +400,11 @@ fun ListScreen(
                 // Feedback 13-07 (7): el selector de tema vuelve a la barra de acciones,
                 // a la IZQUIERDA del crono (pegado al título no convencía)
                 var showThemeMenu by remember { mutableStateOf(false) }
+                // D-013: los temas de pago (Cuero/Aurora/AMOLED) abren el upsell si no hay Pro
+                var showThemeUpsell by remember { mutableStateOf(false) }
+                if (showThemeUpsell) {
+                    ProUpsellSheet(theme, prefs, onDismiss = { showThemeUpsell = false })
+                }
                 val barContext = LocalContext.current
                 Box {
                     IconButton(onClick = { showThemeMenu = true }, modifier = Modifier.size(34.dp)) {
@@ -458,9 +463,18 @@ fun ListScreen(
                                             Spacer(Modifier.width(6.dp))
                                         }
                                         Text(label, color = if (vm.themeMode == mode) Accent else theme.textMain, fontWeight = if (vm.themeMode == mode) FontWeight.Bold else FontWeight.Normal)
+                                        // D-013: candado en los temas de pago sin Pro
+                                        if (!com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) {
+                                            Spacer(Modifier.width(5.dp))
+                                            Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(12.dp))
+                                        }
                                     }
                                 },
-                                onClick = { vm.setThemeMode(mode, prefs, barContext); showThemeMenu = false }
+                                onClick = {
+                                    if (!com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) showThemeUpsell = true
+                                    else vm.setThemeMode(mode, prefs, barContext)
+                                    showThemeMenu = false
+                                }
                             )
                         }
                     }

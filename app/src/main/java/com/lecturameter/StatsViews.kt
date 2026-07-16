@@ -330,6 +330,12 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
         )
     }
 
+    // D-013: upsell de Pro (lo abren el límite de retos y el aviso del historial)
+    var showProUpsell by remember { mutableStateOf(false) }
+    if (showProUpsell) {
+        ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false })
+    }
+
     // D-016: tope del plan gratis (3 páginas de retos activos)
     if (showFreeLimitDialog) {
         AlertDialog(
@@ -338,8 +344,13 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             title = { Text(stringResource(R.string.challenge_free_limit_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.challenge_free_limit_text), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
+                TextButton(onClick = { showFreeLimitDialog = false; showProUpsell = true }) {
+                    Text(stringResource(R.string.pro_title), color = accentForTheme(theme), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
                 TextButton(onClick = { showFreeLimitDialog = false }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Accent, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.txt_847607d7), color = theme.textMuted)
                 }
             }
         )
@@ -579,8 +590,13 @@ fun ChallengeHistoryScreen(vm: BooksViewModel, prefs: android.content.SharedPref
             // Aviso Pro cerrable con ✕; una vez cerrado no reaparece hasta que el año
             // llene sus páginas gratis (decisión D-016 r3)
             var noticeDismissed by remember { mutableStateOf(prefs.getBoolean("pro_notice_history_closed", false)) }
+            var showProUpsell by remember { mutableStateOf(false) }
+            if (showProUpsell) {
+                ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false })
+            }
             if (!isPro && (!noticeDismissed || yearFull)) {
                 Surface(
+                    onClick = { showProUpsell = true },
                     shape = RoundedCornerShape(12.dp),
                     color = acc.copy(alpha = 0.10f),
                     border = BorderStroke(1.dp, acc.copy(alpha = 0.45f)),

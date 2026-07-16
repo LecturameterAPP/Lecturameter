@@ -900,6 +900,13 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             Text(stringResource(R.string.txt_f5d52eba), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         }
 
+        // D-013: upsell de Pro (lo abren los temas de pago y la sección Pro de abajo)
+        var showProUpsell by remember { mutableStateOf(false) }
+        var proRefresh by remember { mutableStateOf(0) }
+        if (showProUpsell) {
+            ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false }, onProChanged = { proRefresh++ })
+        }
+
         // ── TEMA ─────────────────────────────────────────────────────────────
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(stringResource(R.string.txt_057acd78), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -913,7 +920,11 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 ).forEach { (mode, label) ->
                     val selected = vm.themeMode == mode
                     Surface(
-                        onClick = { vm.setThemeMode(mode, prefs, context) },
+                        onClick = {
+                            // D-013: los temas de pago abren el upsell si no hay Pro
+                            if (!com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) showProUpsell = true
+                            else vm.setThemeMode(mode, prefs, context)
+                        },
                         shape = RoundedCornerShape(20.dp),
                         color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
                         border = BorderStroke(1.dp, if (selected) Accent else theme.border),
@@ -949,6 +960,43 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // ── LECTURAMETER PRO (D-013) ──────────────────────────────────────────
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(stringResource(R.string.pro_section_title), color = theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 8.dp))
+            val proStatusText = remember(proRefresh) {
+                when {
+                    prefs.getBoolean(com.lecturameter.utils.Pro.PREF_KEY, false) -> "active"
+                    com.lecturameter.utils.Pro.trialActive(prefs) -> "trial"
+                    else -> "free"
+                }
+            }
+            Surface(
+                onClick = { showProUpsell = true },
+                shape = RoundedCornerShape(14.dp),
+                color = theme.surface,
+                border = BorderStroke(1.dp, if (proStatusText == "free") theme.border else accentForTheme(theme).copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("⭐", fontSize = 16.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.pro_title), color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when (proStatusText) {
+                                "active" -> stringResource(R.string.pro_status_active)
+                                "trial" -> stringResource(R.string.pro_status_trial, com.lecturameter.utils.Pro.trialDaysLeft(prefs))
+                                else -> stringResource(R.string.pro_status_free)
+                            },
+                            color = if (proStatusText == "free") theme.textDim else accentForTheme(theme),
+                            fontSize = 12.sp
+                        )
+                    }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(18.dp))
                 }
             }
         }

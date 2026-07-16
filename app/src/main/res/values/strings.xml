@@ -871,6 +871,28 @@
     <string name="challenge_unit_books">libro</string>
     <string name="challenge_free_limit_title">Límite del plan gratis</string>
     <string name="challenge_free_limit_text">El plan gratis incluye 3 páginas de retos activos (15 retos). Con Pro puedes crear retos sin límite.</string>
+    <!-- D-013: Lecturameter Pro -->
+    <string name="pro_section_title">LECTURAMETER PRO</string>
+    <string name="pro_title">Lecturameter Pro</string>
+    <string name="pro_benefits">Temas Cuero, Aurora y OLED, historial de retos completo, retos sin límite y hasta 5 ediciones por libro. Pago único, sin suscripciones ni anuncios.</string>
+    <string name="pro_trial_button">Probar 7 días gratis</string>
+    <string name="pro_buy_button">Comprar por %1$s</string>
+    <string name="pro_buy_unavailable">Disponible en Google Play</string>
+    <string name="pro_have_code">Tengo un código</string>
+    <string name="pro_not_now">Ahora no</string>
+    <string name="pro_close">Cerrar</string>
+    <string name="pro_active_title">Lecturameter Pro activo</string>
+    <string name="pro_active_body">Tienes acceso completo a todas las funciones Pro. Gracias por apoyar el proyecto. :)</string>
+    <string name="pro_status_active">Activo. Gracias por apoyar el proyecto. :)</string>
+    <string name="pro_status_trial">Prueba gratis: %1$d días restantes</string>
+    <string name="pro_status_free">Temas, historial completo de retos y más</string>
+    <string name="pro_redeem_title">Canjear código</string>
+    <string name="pro_redeem_button">Canjear</string>
+    <string name="pro_code_err_format">El formato es LM-XXXX-XXXX-XXXX</string>
+    <string name="pro_code_err_invalid">Código incorrecto o ya canjeado.</string>
+    <string name="pro_code_err_attempts">Demasiados intentos. Espera 24 horas.</string>
+    <string name="pro_code_err_network">Sin conexión con el servidor. Inténtalo de nuevo.</string>
+    <string name="pro_editions_hint">🔒 Con Pro, hasta %1$d ediciones por libro</string>
     <!-- v2.4 rework: estadísticas avanzadas -->
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
