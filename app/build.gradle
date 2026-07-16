@@ -11,7 +11,9 @@ android {
         applicationId "com.lecturameter.public"
         minSdk 26
         targetSdk 35
-        versionCode 10030
+        // 10031: build con el permiso BILLING (billing-ktx lo añade solo al manifest) para
+        // poder crear productos in-app en Play Console. Sube al canal de prueba cerrada.
+        versionCode 10031
         versionName "3.0"
         multiDexEnabled true
 
