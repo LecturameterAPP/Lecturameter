@@ -175,6 +175,31 @@ fun HourlyHeatmapCard(sessions: List<ReadingSession>, theme: Theme) {
     }
 }
 
+// Cambio de última hora de Víctor 16-07: el mapa de calor HORARIO pasa a ser Pro. Este
+// placeholder ocupa aproximadamente el mismo espacio que HourlyHeatmapCard (misma Surface,
+// mismo padding) para que la pantalla no "salte" al activar/desactivar Pro, y al tocarlo
+// abre el ProUpsellSheet (lo gestiona quien lo invoca, vía onClick).
+@Composable
+fun HourlyHeatmapLockedCard(theme: Theme, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)
+    ) {
+        Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.adv_hourly_title), color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(14.dp))
+            Icon(Icons.Default.Lock, null, tint = theme.textDim, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.adv_hourly_locked),
+                color = theme.textMuted, fontSize = 12.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+            Spacer(Modifier.height(14.dp))
+        }
+    }
+}
+
 @Composable
 fun AdvancedStatsSections(vm: BooksViewModel, theme: Theme) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla

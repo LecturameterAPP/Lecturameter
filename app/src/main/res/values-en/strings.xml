@@ -876,7 +876,6 @@
     <string name="challenge_history_empty">Your challenges will show up here once they are completed or expire.</string>
     <string name="challenge_history_badge_completed">COMPLETED</string>
     <string name="challenge_history_badge_expired">EXPIRED</string>
-    <string name="challenge_history_pro_notice">The free plan keeps 3 pages of history per year. Pro keeps the full history.</string>
     <string name="tip_challenge_archive_title">Finished challenges are archived</string>
     <string name="tip_challenge_archive_body">When a challenge is completed or expires it moves to the history on its own. Find it in the icon at the top right.</string>
     <string name="challenge_contrib_title">Books contributing to this challenge</string>
@@ -934,6 +933,7 @@
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>
     <string name="adv_hourly_subtitle">When do you read the most?</string>
+    <string name="adv_hourly_locked">The hourly heatmap is part of Pro</string>
     <string name="adv_hourly_days">M,T,W,T,F,S,S</string>
     <string name="adv_hourly_peak">Reading peak: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Series statistics</string>

@@ -877,7 +877,6 @@
     <string name="challenge_history_empty">Aquí aparecerán tus retos cuando se completen o venzan.</string>
     <string name="challenge_history_badge_completed">COMPLETADO</string>
     <string name="challenge_history_badge_expired">VENCIDO</string>
-    <string name="challenge_history_pro_notice">El plan gratis guarda 3 páginas de historial por año. Con Pro el historial es completo.</string>
     <string name="tip_challenge_archive_title">Los retos terminados se archivan</string>
     <string name="tip_challenge_archive_body">Cuando un reto se completa o vence pasa solo al historial. Lo tienes en el icono de arriba a la derecha.</string>
     <string name="challenge_contrib_title">Libros que aportan a este reto</string>
@@ -935,6 +934,7 @@
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
     <string name="adv_hourly_subtitle">¿Cuándo lees más?</string>
+    <string name="adv_hourly_locked">El mapa de calor horario es parte de Pro</string>
     <string name="adv_hourly_days">L,M,X,J,V,S,D</string>
     <string name="adv_hourly_peak">Pico de lectura: %1$s · %2$d:00–%3$d:00</string>
     <string name="adv_saga_title">Estadísticas de saga</string>
