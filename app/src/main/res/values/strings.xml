@@ -893,7 +893,7 @@
     <!-- D-013: Lecturameter Pro -->
     <string name="pro_section_title">LECTURAMETER PRO</string>
     <string name="pro_title">Lecturameter Pro</string>
-    <string name="pro_benefits">Temas Cuero, Aurora y OLED, historial de retos completo, retos sin límite y hasta 5 ediciones por libro. Pago único, sin suscripciones ni anuncios.</string>
+    <string name="pro_benefits">Temas Cuero, Aurora y OLED, mapa de calor horario, retos sin límite, hasta 5 ediciones por libro y el icono dorado. Pago único, sin suscripciones ni anuncios.</string>
     <string name="pro_trial_button">Probar 7 días gratis</string>
     <string name="pro_compare_free">Gratis</string>
     <string name="pro_compare_pro">Pro</string>
@@ -903,13 +903,16 @@
     <string name="pro_compare_challenges_label">Retos activos</string>
     <string name="pro_compare_challenges_free">15</string>
     <string name="pro_compare_challenges_pro">Sin límite</string>
-    <string name="pro_compare_history_label">Historial de retos</string>
-    <string name="pro_compare_history_free">3 páginas por año</string>
-    <string name="pro_compare_history_pro">Completo</string>
+    <string name="pro_compare_heatmap_label">Mapa de calor</string>
+    <string name="pro_compare_heatmap_free">Mensual</string>
+    <string name="pro_compare_heatmap_pro">+ Horario</string>
     <string name="pro_compare_editions_label">Ediciones por libro</string>
     <string name="pro_compare_editions_free">2</string>
     <string name="pro_compare_editions_pro">5</string>
-    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, widget y copias de seguridad: siempre gratis para todos.</string>
+    <string name="pro_compare_icon_label">Icono de la app</string>
+    <string name="pro_compare_icon_free">Clásico</string>
+    <string name="pro_compare_icon_pro">+ Dorado</string>
+    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, historial de retos completo, widget y copias de seguridad: siempre gratis para todos.</string>
     <string name="support_code_hint">Si tu donación llega al precio de Pro, escríbeme y te doy un código de Pro (uno por cada múltiplo).</string>
     <string name="pro_buy_button">Comprar por %1$s</string>
     <string name="pro_buy_unavailable">Disponible en Google Play</string>
