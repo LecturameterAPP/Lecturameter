@@ -1439,6 +1439,9 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             Column(Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.txt_76306812), color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 Text(stringResource(R.string.txt_e30acdbb), color = theme.textMuted, fontSize = 11.sp)
+                // C: nota informativa (sin lógica) sobre canjear donaciones por códigos de Pro
+                Spacer(Modifier.height(6.dp))
+                Text(stringResource(R.string.support_code_hint), color = theme.textDim, fontSize = 11.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(12.dp))
                 // Ko-fi
                 Surface(

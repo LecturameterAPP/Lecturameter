@@ -910,6 +910,7 @@
     <string name="pro_compare_editions_free">2</string>
     <string name="pro_compare_editions_pro">5</string>
     <string name="pro_compare_footer">Wrapped, recaps, stats, widget and backups: always free for everyone.</string>
+    <string name="support_code_hint">If your donation reaches the price of Pro, write to me and I will send you a Pro code (one for each multiple).</string>
     <string name="pro_buy_button">Buy for %1$s</string>
     <string name="pro_buy_unavailable">Available on Google Play</string>
     <string name="pro_have_code">I have a code</string>
