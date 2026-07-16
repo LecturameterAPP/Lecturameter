@@ -1130,6 +1130,9 @@
     <string name="survey_o_yes">Sí</string>
     <string name="survey_o_no">No</string>
     <string name="survey_o_not_yet">Aún no</string>
+    <!-- P-030: pregunta abierta opcional en la encuesta -->
+    <string name="survey_open_label">¿Qué te gustaría ver en la app en el futuro? (opcional)</string>
+    <string name="survey_open_placeholder">Escribe aquí si quieres contarnos algo más</string>
 
     <!-- B-021: literales que estaban hardcodeados en el código y salían en español
          con la app en inglés (mismo patrón que el worker de recaps). -->

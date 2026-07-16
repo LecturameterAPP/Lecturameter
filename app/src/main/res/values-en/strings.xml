@@ -1124,6 +1124,9 @@
     <string name="survey_o_yes">Yes</string>
     <string name="survey_o_no">No</string>
     <string name="survey_o_not_yet">Not yet</string>
+    <!-- P-030: optional open question in the survey -->
+    <string name="survey_open_label">What would you like to see in the app in the future? (optional)</string>
+    <string name="survey_open_placeholder">Write here if you\'d like to tell us more</string>
 
     <!-- B-021 -->
     <string name="editions_summary">%1$d editions · each one counts as a separate book in statistics · %2$d pages in total</string>

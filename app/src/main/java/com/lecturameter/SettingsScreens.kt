@@ -400,6 +400,8 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
     val idx = remember { prefs.getInt("survey_index", 0).mod(questions.size) }
     val (qid, qRes, options) = questions[idx]
     var selected by remember { mutableStateOf<String?>(null) }
+    // P-030: pregunta abierta opcional, no bloquea el envío si se deja vacía
+    var openAnswer by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     val sentMsg = stringResource(R.string.survey_sent_toast)
     val failMsg = stringResource(R.string.err_feedback_send_retry)
@@ -429,6 +431,22 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                         )
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                // P-030: pregunta abierta opcional, viaja con la respuesta rotativa en el mismo envío
+                OutlinedTextField(
+                    value = openAnswer,
+                    onValueChange = { openAnswer = it },
+                    label = { Text(stringResource(R.string.survey_open_label), color = theme.textMuted, fontSize = 12.sp) },
+                    placeholder = { Text(stringResource(R.string.survey_open_placeholder), color = theme.textDim, fontSize = 12.sp) },
+                    singleLine = false,
+                    minLines = 2, maxLines = 4,
+                    enabled = !sending,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain,
+                        focusedBorderColor = Accent, unfocusedBorderColor = theme.border
+                    )
+                )
                 Text(
                     stringResource(R.string.survey_more_link), color = Accent, fontSize = 11.5.sp,
                     modifier = Modifier.clickable(enabled = !sending) { onOpenFeedback() }.padding(top = 4.dp)
@@ -442,8 +460,13 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                     val info = "App: Lecturameter ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" +
                         "Package: ${BuildConfig.APPLICATION_ID}\n" +
                         "Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})"
+                    // La pregunta abierta viaja añadida al mismo texto, sin romper el formato "Q/A" existente
+                    val answerText = buildString {
+                        append("Q: $qid\nA: $selected")
+                        if (openAnswer.isNotBlank()) append("\nQ: open\nA: ${openAnswer.trim()}")
+                    }
                     val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        FeedbackSender.send("survey", "Q: $qid\nA: $selected", info, null, emptyList())
+                        FeedbackSender.send("survey", answerText, info, null, emptyList())
                     }
                     sending = false
                     if (ok) {
