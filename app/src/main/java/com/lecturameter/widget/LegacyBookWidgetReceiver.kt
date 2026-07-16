@@ -170,7 +170,7 @@ private fun buildWidgetViews(
         if (cfg.showPercent) stats.completionPct?.let { "${emo("📊")}${it}%" } else null)
     // v21.35: progress bar sky — visible when pct available
     val pct = stats.completionPct
-    if (pct != null && pct > 0) {
+    if (cfg.showProgressBar && pct != null && pct > 0) {
         views.setViewVisibility(R.id.widget_progress_bar, View.VISIBLE)
         views.setInt(R.id.widget_progress_bar, "setProgress", pct)
     } else {

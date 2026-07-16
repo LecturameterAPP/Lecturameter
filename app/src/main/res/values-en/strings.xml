@@ -957,6 +957,7 @@
     <string name="widget_cfg_sessions">📖 Show sessions</string>
     <string name="widget_cfg_pages">📄 Show last session pages</string>
     <string name="widget_cfg_percent">📊 Show percentage</string>
+    <string name="widget_cfg_progress">📶 Show progress bar</string>
     <string name="widget_cfg_save">Save</string>
     <!-- v2.4 rework: wrapped favorites -->
     <string name="wrapped_favorites_section">Your 3 favorites of the year</string>

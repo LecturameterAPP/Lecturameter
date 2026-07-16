@@ -185,7 +185,7 @@ private fun WidgetContent(
                     }
                 }
                 val pct = stats.completionPct
-                if (pct != null && pct > 0) {
+                if (cfg.showProgressBar && pct != null && pct > 0) {
                     // padding ANTES de height: al revés, el padding interno se come los 4dp de barra
                     LinearProgressIndicator(
                         progress = pct / 100f,
@@ -199,7 +199,7 @@ private fun WidgetContent(
             // Mini: sin chips ni hora, pero la barra de progreso sí cabe
             if (mini && book != null && stats != null) {
                 val pct = stats.completionPct
-                if (pct != null && pct > 0) {
+                if (cfg.showProgressBar && pct != null && pct > 0) {
                     LinearProgressIndicator(
                         progress = pct / 100f,
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp).height(8.dp),

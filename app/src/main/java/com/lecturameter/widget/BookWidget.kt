@@ -41,7 +41,9 @@ data class WidgetDisplayConfig(
     val showTime: Boolean = true,
     val showSessions: Boolean = true,
     val showPages: Boolean = true,
-    val showPercent: Boolean = true
+    val showPercent: Boolean = true,
+    // D: barra de progreso del widget. ON por defecto para no romper widgets ya configurados.
+    val showProgressBar: Boolean = true
 )
 
 // v2.5: la configuración de chips pasa a ser GLOBAL (una sola para todos los widgets),
@@ -60,7 +62,8 @@ fun loadWidgetDisplayConfig(context: Context, appWidgetId: Int = 0): WidgetDispl
         showTime     = g("time"),
         showSessions = g("sessions"),
         showPages    = g("pages"),
-        showPercent  = g("percent")
+        showPercent  = g("percent"),
+        showProgressBar = g("progress")
     )
 }
 
@@ -73,6 +76,7 @@ fun saveWidgetDisplayConfig(context: Context, appWidgetId: Int, cfg: WidgetDispl
         .putBoolean("cfg_global_sessions", cfg.showSessions)
         .putBoolean("cfg_global_pages",    cfg.showPages)
         .putBoolean("cfg_global_percent",  cfg.showPercent)
+        .putBoolean("cfg_global_progress", cfg.showProgressBar)
         .apply()
 }
 
