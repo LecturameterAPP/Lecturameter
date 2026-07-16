@@ -69,6 +69,9 @@ object LmBilling : PurchasesUpdatedListener {
             override fun onBillingServiceDisconnected() {
                 com.lecturameter.utils.AppLogger.log("Billing disconnected")
                 if (reconnects < MAX_RECONNECTS) { reconnects++; connect() }
+                // A8: agotados los reintentos, vaciar productDetails para que el botón de
+                // compra del upsell pase a deshabilitado en vez de quedar "vivo" sin servicio.
+                else _productDetails.value = emptyMap()
             }
         })
     }
@@ -82,8 +85,10 @@ object LmBilling : PurchasesUpdatedListener {
                     .build()
             ))
             .build()
-        billingClient?.launchBillingFlow(activity, params)
-        return true
+        // A8: comprobar el resultado de launchBillingFlow y devolver false si falla (p. ej.
+        // el servicio se cayó justo antes), para que la UI no crea que la compra arrancó.
+        val result = billingClient?.launchBillingFlow(activity, params)
+        return result?.responseCode == BillingClient.BillingResponseCode.OK
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {

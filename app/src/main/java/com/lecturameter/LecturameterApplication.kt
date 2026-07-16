@@ -8,6 +8,8 @@ class LecturameterApplication : Application() {
         super.onCreate()
         EditionCache.init(this)
         AppLogger.init(this)
+        // A6: fija el fichero de prefs local del trial/lockout y migra las claves viejas.
+        com.lecturameter.utils.Pro.init(this)
         AppLogger.log("App iniciada — ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
     }
 }

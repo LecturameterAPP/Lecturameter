@@ -127,6 +127,7 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
     var showSessions by remember { mutableStateOf(initial.showSessions) }
     var showPages by remember { mutableStateOf(initial.showPages) }
     var showPercent by remember { mutableStateOf(initial.showPercent) }
+    var showProgressBar by remember { mutableStateOf(initial.showProgressBar) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E)),
@@ -164,6 +165,8 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_sessions), showSessions) { showSessions = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_pages), showPages) { showPages = it }
                     WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_percent), showPercent) { showPercent = it }
+                    // D: toggle de la barra de progreso (gratis para todos)
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_progress), showProgressBar) { showProgressBar = it }
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -176,7 +179,8 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
                             showTime = showTime,
                             showSessions = showSessions,
                             showPages = showPages,
-                            showPercent = showPercent
+                            showPercent = showPercent,
+                            showProgressBar = showProgressBar
                         )
                     )
                 },

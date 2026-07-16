@@ -883,6 +883,7 @@
     <string name="challenge_contrib_none">No contributions to this challenge yet.</string>
     <string name="challenge_contrib_streak">This challenge counts streak days, not books.</string>
     <string name="challenge_contrib_deleted">Deleted book</string>
+    <string name="pct_less_than_one">less than 1%</string>
     <string name="challenge_unit_pages">pgs</string>
     <string name="challenge_unit_minutes">min</string>
     <string name="challenge_unit_sessions">sessions</string>
@@ -894,6 +895,22 @@
     <string name="pro_title">Lecturameter Pro</string>
     <string name="pro_benefits">Leather, Aurora and OLED themes, full challenge history, unlimited challenges and up to 5 editions per book. One time payment, no subscriptions, no ads.</string>
     <string name="pro_trial_button">Try 7 days for free</string>
+    <string name="pro_compare_free">Free</string>
+    <string name="pro_compare_pro">Pro</string>
+    <string name="pro_compare_themes_label">Themes</string>
+    <string name="pro_compare_themes_free">Light and Dark</string>
+    <string name="pro_compare_themes_pro">+ Leather, Aurora and OLED</string>
+    <string name="pro_compare_challenges_label">Active challenges</string>
+    <string name="pro_compare_challenges_free">15</string>
+    <string name="pro_compare_challenges_pro">Unlimited</string>
+    <string name="pro_compare_history_label">Challenge history</string>
+    <string name="pro_compare_history_free">3 pages per year</string>
+    <string name="pro_compare_history_pro">Full</string>
+    <string name="pro_compare_editions_label">Editions per book</string>
+    <string name="pro_compare_editions_free">2</string>
+    <string name="pro_compare_editions_pro">5</string>
+    <string name="pro_compare_footer">Wrapped, recaps, stats, widget and backups: always free for everyone.</string>
+    <string name="support_code_hint">If your donation reaches the price of Pro, write to me and I will send you a Pro code (one for each multiple).</string>
     <string name="pro_buy_button">Buy for %1$s</string>
     <string name="pro_buy_unavailable">Available on Google Play</string>
     <string name="pro_have_code">I have a code</string>
@@ -940,6 +957,7 @@
     <string name="widget_cfg_sessions">📖 Show sessions</string>
     <string name="widget_cfg_pages">📄 Show last session pages</string>
     <string name="widget_cfg_percent">📊 Show percentage</string>
+    <string name="widget_cfg_progress">📶 Show progress bar</string>
     <string name="widget_cfg_save">Save</string>
     <!-- v2.4 rework: wrapped favorites -->
     <string name="wrapped_favorites_section">Your 3 favorites of the year</string>

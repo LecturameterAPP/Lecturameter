@@ -41,7 +41,9 @@ data class WidgetDisplayConfig(
     val showTime: Boolean = true,
     val showSessions: Boolean = true,
     val showPages: Boolean = true,
-    val showPercent: Boolean = true
+    val showPercent: Boolean = true,
+    // D: barra de progreso del widget. ON por defecto para no romper widgets ya configurados.
+    val showProgressBar: Boolean = true
 )
 
 // v2.5: la configuración de chips pasa a ser GLOBAL (una sola para todos los widgets),
@@ -60,7 +62,8 @@ fun loadWidgetDisplayConfig(context: Context, appWidgetId: Int = 0): WidgetDispl
         showTime     = g("time"),
         showSessions = g("sessions"),
         showPages    = g("pages"),
-        showPercent  = g("percent")
+        showPercent  = g("percent"),
+        showProgressBar = g("progress")
     )
 }
 
@@ -73,6 +76,7 @@ fun saveWidgetDisplayConfig(context: Context, appWidgetId: Int, cfg: WidgetDispl
         .putBoolean("cfg_global_sessions", cfg.showSessions)
         .putBoolean("cfg_global_pages",    cfg.showPages)
         .putBoolean("cfg_global_percent",  cfg.showPercent)
+        .putBoolean("cfg_global_progress", cfg.showProgressBar)
         .apply()
 }
 
@@ -90,7 +94,12 @@ internal data class WidgetThemeColors(
 
 internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
-    return when (prefs.getString("theme_mode", "dark")) {
+    val saved = prefs.getString("theme_mode", "dark") ?: "dark"
+    // A7: si el trial caducó sin que el usuario abriera la app, el widget no puede seguir
+    // mostrando un tema de pago. Si el tema guardado ya no está permitido, se cae a oscuro.
+    val mode = com.lecturameter.ThemeMode.values().firstOrNull { it.value == saved }
+    val effective = if (mode != null && !com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) "dark" else saved
+    return when (effective) {
         "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt())
