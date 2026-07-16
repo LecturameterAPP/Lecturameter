@@ -156,7 +156,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 Text(stringResource(R.string.wrapped_year_header, year), color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 if (wrapped != null) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        repeat(10) { i ->
+                        // Feedback 15-07 (reincidencia): el "repeat(10)" fijo dejaba sin punto
+                        // a la slide de cierre-comparativa (P-015) y, con Bingo, también a esa
+                        // extra. Ahora sigue siempre el nº real de páginas del pager.
+                        repeat(pagerState.pageCount) { i ->
                             Box(Modifier.size(if (i == pagerState.currentPage) 8.dp else 5.dp)
                                 .clip(CircleShape)
                                 .background(if (i == pagerState.currentPage) Accent else theme.border))
@@ -166,7 +169,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
             }
             if (wrapped != null) {
                 // v2.6: guardar simulación en historial (solo si este año aún no está guardado)
-                if (vm.wrappedForYear(year) == null) {
+                // Feedback 15-07 ("el guardado sobra"): en la slide 8 (CIERRE, el resumen final
+                // de páginas/libros/racha/récord/autor/sin terminar) el icono de guardar sobra
+                // — es el único candidato de guardado/compartir de esa slide y ahí se oculta;
+                // en el resto de slides se conserva tal cual.
+                if (vm.wrappedForYear(year) == null && pagerState.currentPage != 8) {
                     IconButton(onClick = {
                         vm.saveWrappedForYear(wrapped, prefs)
                         android.widget.Toast.makeText(context,
@@ -386,8 +393,27 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 3: MEJOR Y MÁS RÁPIDO ──────────────────────────────
                 3 -> Column(sm) {
+                    // Feedback 15-07 ("por qué sólo 1 si hay varios"): los snapshots de Wrapped
+                    // guardados antes de v19.x/v21.41 no tienen bestRatedTop3/fastestBooksTop3
+                    // (Gson los deserializa como lista vacía) y solo guardan el título/nota
+                    // legacy de UN libro. Si eso pasa pero hay más libros reales de ese año que
+                    // cumplen el mismo criterio (nota > 0 / velocidad calculable), se reconstruye
+                    // la lista desde los libros reales — mismo criterio que computeWrapped,
+                    // sin inventar datos — en vez de enseñar 1 sola tarjeta con hueco vacío.
+                    val yearFinished = remember(wrapped.year, books) {
+                        books.filter {
+                            it.status == BookStatus.FINISHED && it.endDate != null && it.startDate != null &&
+                                it.endDate.startsWith(wrapped.year.toString()) && !it.importedFromGoodreads
+                        }
+                    }
                     val top3 = wrapped.bestRatedTop3.ifEmpty {
-                        if (wrapped.bestRatedTitle.isNotBlank()) listOf(Triple(wrapped.bestRatedTitle, wrapped.bestRatedScore, "")) else emptyList()
+                        yearFinished.filter { it.rating > 0 }
+                            .sortedWith(compareByDescending<Book> { it.rating }.thenByDescending { it.endDate ?: "" })
+                            .take(3)
+                            .map { Triple(it.title, it.rating, it.endDate ?: "") }
+                            .ifEmpty {
+                                if (wrapped.bestRatedTitle.isNotBlank()) listOf(Triple(wrapped.bestRatedTitle, wrapped.bestRatedScore, "")) else emptyList()
+                            }
                     }
                     if (top3.isNotEmpty()) {
                         // Hero: libro nº1 — v2.6: card compacta (padding/portada/número reducidos)
@@ -426,8 +452,16 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         }
                     }
                     // v2.5: top 3 libros más rápidos (antes solo 1)
+                    // Mismo fallback que bestRatedTop3: reconstruir desde libros reales
+                    // (multi-día, mismo criterio que computeWrapped) si el snapshot es legacy.
                     val fastTop3 = wrapped.fastestBooksTop3.ifEmpty {
-                        if (wrapped.fastestBookTitle.isNotBlank()) listOf(Triple(wrapped.fastestBookTitle, wrapped.fastestBookPpd, wrapped.fastestBookPages)) else emptyList()
+                        yearFinished.filter { it.startDate != it.endDate && daysBetween(it.startDate!!, it.endDate!!) >= 2 }
+                            .map { b -> Triple(b.title, b.pages.toDouble() / daysBetween(b.startDate!!, b.endDate!!), b.pages) }
+                            .sortedByDescending { it.second }
+                            .take(3)
+                            .ifEmpty {
+                                if (wrapped.fastestBookTitle.isNotBlank()) listOf(Triple(wrapped.fastestBookTitle, wrapped.fastestBookPpd, wrapped.fastestBookPages)) else emptyList()
+                            }
                     }
                     if (fastTop3.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
