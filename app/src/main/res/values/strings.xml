@@ -879,6 +879,8 @@
     <string name="pro_buy_button">Comprar por %1$s</string>
     <string name="pro_buy_unavailable">Disponible en Google Play</string>
     <string name="pro_have_code">Tengo un código</string>
+    <string name="pro_restore_button">Restaurar compra</string>
+    <string name="pro_restore_none">No se encontró ninguna compra en esta cuenta de Google Play.</string>
     <string name="pro_not_now">Ahora no</string>
     <string name="pro_close">Cerrar</string>
     <string name="pro_active_title">Lecturameter Pro activo</string>

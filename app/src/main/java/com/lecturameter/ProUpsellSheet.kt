@@ -24,10 +24,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val LM_CODE_REGEX = Regex("^LM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
+internal val LM_CODE_REGEX = Regex("^LM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
 
-/** Formatea la entrada en vivo a LM-XXXX-XXXX-XXXX. */
-private fun formatLmCode(raw: String): String {
+/** Formatea la entrada en vivo a LM-XXXX-XXXX-XXXX. Internal para testearla (ProStateTest). */
+internal fun formatLmCode(raw: String): String {
     val clean = raw.uppercase().filter { it.isLetterOrDigit() }
         .removePrefix("LM").take(12)
     return buildString {
@@ -109,6 +109,27 @@ fun ProUpsellSheet(
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { showCodeEntry = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.pro_have_code), color = acc, fontSize = 13.sp)
+                }
+                // Restauración manual: si compró con esta cuenta y el restore automático
+                // del arranque no llegó (caché de Play desincronizada), este botón lo fuerza.
+                var restoring by remember { mutableStateOf(false) }
+                val restoreNoneMsg = stringResource(R.string.pro_restore_none)
+                TextButton(
+                    onClick = {
+                        restoring = true
+                        LmBilling.restore { found ->
+                            // El callback de Billing llega en su propio hilo: al principal
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                restoring = false
+                                if (found) { refresh++; onProChanged() }
+                                else android.widget.Toast.makeText(context, restoreNoneMsg, android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = !restoring,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.pro_restore_button), color = theme.textMuted, fontSize = 12.sp)
                 }
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.pro_not_now), color = theme.textDim, fontSize = 12.sp)

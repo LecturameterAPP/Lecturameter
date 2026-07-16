@@ -40,6 +40,11 @@ object LmBilling : PurchasesUpdatedListener {
     private val _purchaseCompleted = MutableStateFlow(0)
     val purchaseCompleted: StateFlow<Int> = _purchaseCompleted.asStateFlow()
 
+    // Reintentos acotados de reconexión: el servicio de Play se cae p. ej. al actualizarse
+    // la Play Store; sin reintento el botón de compra quedaría muerto hasta reabrir la app.
+    private const val MAX_RECONNECTS = 3
+    private var reconnects = 0
+
     fun init(context: Context) {
         if (billingClient != null) return
         appContext = context.applicationContext
@@ -47,17 +52,23 @@ object LmBilling : PurchasesUpdatedListener {
             .setListener(this)
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
             .build()
+        connect()
+    }
+
+    private fun connect() {
         billingClient?.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(result: BillingResult) {
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    reconnects = 0
                     queryProducts()
                     restorePurchases()
                 } else {
-                    com.lecturameter.utils.AppLogger.log("Billing setup failed: ${result.debugMessage}")
+                    com.lecturameter.utils.AppLogger.log("Billing setup failed: ${result.responseCode} ${result.debugMessage}")
                 }
             }
             override fun onBillingServiceDisconnected() {
                 com.lecturameter.utils.AppLogger.log("Billing disconnected")
+                if (reconnects < MAX_RECONNECTS) { reconnects++; connect() }
             }
         })
     }
@@ -76,8 +87,16 @@ object LmBilling : PurchasesUpdatedListener {
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
-        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-            purchases?.forEach { handlePurchase(it) }
+        when (result.responseCode) {
+            BillingClient.BillingResponseCode.OK ->
+                purchases?.forEach { handlePurchase(it) }
+            // Ya lo compró con esta cuenta (p. ej. reinstalación con la caché de Play
+            // desincronizada): recuperar el entitlement en vez de fallar en silencio
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED ->
+                restorePurchases()
+            BillingClient.BillingResponseCode.USER_CANCELED -> { /* sin ruido */ }
+            else ->
+                com.lecturameter.utils.AppLogger.log("Billing purchase failed: ${result.responseCode} ${result.debugMessage}")
         }
     }
 
@@ -98,12 +117,26 @@ object LmBilling : PurchasesUpdatedListener {
     }
 
     private fun restorePurchases() {
+        restore { }
+    }
+
+    /** Restauración manual ("Restaurar compra" del upsell) y automática del arranque.
+     *  onResult(true) si se encontró la compra de Pro en la cuenta; false si no hay nada
+     *  que restaurar o Billing no está disponible. Se invoca en el hilo de Billing. */
+    fun restore(onResult: (Boolean) -> Unit) {
+        val client = billingClient ?: run { onResult(false); return }
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
-        billingClient?.queryPurchasesAsync(params) { result, purchases ->
+        client.queryPurchasesAsync(params) { result, purchases ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 purchases.forEach { handlePurchase(it) }
+                onResult(purchases.any { p ->
+                    SKU_LM_PRO in p.products && p.purchaseState == Purchase.PurchaseState.PURCHASED
+                })
+            } else {
+                com.lecturameter.utils.AppLogger.log("Billing restore failed: ${result.responseCode} ${result.debugMessage}")
+                onResult(false)
             }
         }
     }

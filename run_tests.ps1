@@ -21,11 +21,14 @@ $gson     = FindJar "com.google.code.gson" "gson" "2.10.1"
 $stdlib = Get-ChildItem "$cache\org.jetbrains.kotlin\kotlin-stdlib" -Recurse -Filter "kotlin-stdlib-1.9.*.jar" |
     Where-Object { $_.Name -notmatch "sources|javadoc|common" } |
     Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
+# android.jar (solo interfaces, sin implementación real): hace falta para ProStateTest,
+# que implementa SharedPreferences/Editor en memoria (FakePrefs) sin tocar Robolectric.
+$androidJar = "$env:LOCALAPPDATA\Android\Sdk\platforms\android-35\android.jar"
 
 $mainClasses = "$root\app\build\tmp\kotlin-classes\debug"
 $testClasses = "$root\app\build\tmp\kotlin-classes\debugUnitTest"
 
-$cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson"
+$cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson;$androidJar"
 
 & $java -cp $cp org.junit.runner.JUnitCore `
     com.lecturameter.CoreUtilsTest `
@@ -37,5 +40,6 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson"
     com.lecturameter.BackupV3Test `
     com.lecturameter.ChallengeHistoryTest `
     com.lecturameter.IsbnScanTest `
-    com.lecturameter.RestoreDedupeTest
+    com.lecturameter.RestoreDedupeTest `
+    com.lecturameter.ProStateTest
 exit $LASTEXITCODE
