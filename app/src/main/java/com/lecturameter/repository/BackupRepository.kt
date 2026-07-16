@@ -128,12 +128,58 @@ import com.lecturameter.utils.*
 // ── JSON Backup / Restore ─────────────────────────────────────────────────────
 
 data class FullBackup(
-    val version: Int = 2,
+    val version: Int = 3,
     val exportedAt: Long = System.currentTimeMillis(),
     val books: List<Book>? = null,
     val sessions: List<ReadingSession>? = null,
-    val wrappedHistory: List<YearWrapped>? = null
+    val wrappedHistory: List<YearWrapped>? = null,
+    // v3 (16-07-2026): el cartón del Bingo del mes, su historial mensual y los retos
+    // también viajan. Hasta ahora una reinstalación los perdía (el cartón 6/16 de julio
+    // de Víctor se perdió así). Claves nuevas = compatibles: la 2.7 y los backups v2
+    // simplemente no las traen y quedan a null.
+    val challenges: List<Challenge>? = null,
+    val bingoCard: BingoCard? = null,
+    val bingoMonthHistory: List<com.lecturameter.utils.BingoMonthSummary>? = null
 )
+
+/**
+ * Constructor ÚNICO del backup (v3) desde prefs — lo usan el export manual, el worker
+ * local de 2h y el de Drive, que antes duplicaban esta lectura cada uno por su lado.
+ *
+ * Devuelve null con la biblioteca vacía (0 libros y 0 sesiones): los workers mantienen
+ * UN SOLO fichero por carpeta (borran por prefijo y sobrescriben), así que una pasada
+ * en vacío —p. ej. el arranque tras una reinstalación, ANTES de restaurar— pisaría el
+ * único backup bueno con uno de 85 bytes. Visto en el dispositivo real el 16-07.
+ */
+fun buildFullBackupFromPrefs(prefs: android.content.SharedPreferences): FullBackup? {
+    val gson = Gson()
+    val books: List<Book> = gson.fromJson(
+        prefs.getString("books", "[]"),
+        object : TypeToken<List<Book>>() {}.type
+    ) ?: emptyList()
+    val sessions: List<ReadingSession> = gson.fromJson(
+        prefs.getString("sessions", "[]"),
+        object : TypeToken<List<ReadingSession>>() {}.type
+    ) ?: emptyList()
+    if (books.isEmpty() && sessions.isEmpty()) return null
+    val wrapped: List<YearWrapped> = gson.fromJson(
+        prefs.getString("wrapped_history", "[]"),
+        object : TypeToken<List<YearWrapped>>() {}.type
+    ) ?: emptyList()
+    val booksWithCovers = books.map { book ->
+        val embCover = embedLocalCoverUrl(book.coverUrl)
+        val embEditions = book.editions.map { ed -> ed.copy(coverUrl = embedLocalCoverUrl(ed.coverUrl)) }
+        book.copy(coverUrl = embCover, editions = embEditions)
+    }
+    return FullBackup(
+        books = booksWithCovers,
+        sessions = sessions,
+        wrappedHistory = wrapped,
+        challenges = com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs),
+        bingoCard = com.lecturameter.repository.BingoRepository.loadOrNull(prefs),
+        bingoMonthHistory = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).ifEmpty { null }
+    )
+}
 
 /** Convierte portadas locales (rutas absolutas a filesDir) en base64 data URIs
  *  para que sobrevivan al backup/restore. Las URLs https se dejan tal cual. */
@@ -234,11 +280,11 @@ fun formatLastLocalBackup(context: Context, prefs: android.content.SharedPrefere
 
 fun exportFullBackup(context: Context, vm: BooksViewModel): Uri? {
     return try {
-        val backup = FullBackup(
-            books = embedLocalCoversForExport(context, vm.books.value),
-            sessions = vm.sessions.value,
-            wrappedHistory = vm.wrappedHistory.value
-        )
+        // v3: mismo constructor que los workers (prefs = fuente de verdad; el VM
+        // persiste en cada mutación). Biblioteca vacía → null → la UI avisa de error
+        // en vez de compartir un backup vacío.
+        val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+        val backup = buildFullBackupFromPrefs(prefs) ?: return null
         val gson = Gson()
         val json = gson.toJson(backup)
         val sdf = SimpleDateFormat("ddMMyy", Locale.getDefault())
@@ -413,9 +459,56 @@ fun importFullBackupFromJson(
             .putString("sessions", gson.toJson(vm.sessions.value))
             .putString("wrapped_history", gson.toJson(vm.wrappedHistory.value))
             .apply()
+
+        // ── v3: retos + bingo ─────────────────────────────────────────────────
+        // Retos: se añaden los que no existen. Dedupe por id Y por (nombre|tipo|objetivo):
+        // los 5 por defecto se siembran con id = System.currentTimeMillis() en CADA
+        // instalación, así que tras una reinstalación el id nunca coincide y solo el
+        // criterio de contenido evita duplicarlos (mismo criterio que usa el seeding).
+        // No se pisan los locales: un reto presente puede tener un target editado.
+        var newChallengesCount = 0
+        backup.challenges?.let { fromBackup ->
+            val local = com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs) ?: emptyList()
+            val localIds = local.map { it.id }.toSet()
+            fun key(c: Challenge) = "${c.name.trim().lowercase()}|${c.type}|${c.target}"
+            val localKeys = local.map(::key).toSet()
+            val incoming = fromBackup.filter { it.id !in localIds && key(it) !in localKeys }
+            if (incoming.isNotEmpty()) {
+                com.lecturameter.repository.ChallengeRepository.save(prefs, local + incoming)
+                vm.loadChallenges(prefs)
+                newChallengesCount = incoming.size
+            }
+        }
+        // Cartón del Bingo: solo si es del MES ACTUAL (uno viejo rotaría igualmente) y
+        // solo si trae MÁS progreso que el local — restaurar nunca degrada un cartón.
+        var bingoRestored = false
+        backup.bingoCard?.let { fromBackup ->
+            if (fromBackup.monthKey == com.lecturameter.utils.BingoManager.currentMonthKey()) {
+                val local = com.lecturameter.repository.BingoRepository.loadOrNull(prefs)
+                val localDone = local?.cells?.count { it.isCompleted } ?: -1
+                val backupDone = fromBackup.cells.count { it.isCompleted }
+                if (backupDone > localDone) {
+                    com.lecturameter.repository.BingoRepository.save(prefs, fromBackup)
+                    vm.reloadBingoCard(prefs)
+                    bingoRestored = true
+                }
+            }
+        }
+        // Historial mensual del Bingo: unión por monthKey (no se duplican meses).
+        backup.bingoMonthHistory?.let { fromBackup ->
+            val local = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs)
+            val localMonths = local.map { it.monthKey }.toSet()
+            val incoming = fromBackup.filter { it.monthKey.isNotBlank() && it.monthKey !in localMonths }
+            if (incoming.isNotEmpty()) {
+                com.lecturameter.utils.BingoManager.saveMonthSummaries(prefs, (local + incoming).sortedBy { it.monthKey })
+            }
+        }
+
         val msg = buildString {
             if (newBooks.isNotEmpty()) append(context.getString(R.string.import_restored_books, newBooks.size))
             if (newSessions.isNotEmpty()) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_sessions, newSessions.size)) }
+            if (newChallengesCount > 0) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_challenges, newChallengesCount)) }
+            if (bingoRestored) { if (isNotEmpty()) append(", "); append(context.getString(R.string.import_restored_bingo)) }
             if (isEmpty()) append(context.getString(R.string.import_all_up_to_date))
         }
         Pair(true, msg)

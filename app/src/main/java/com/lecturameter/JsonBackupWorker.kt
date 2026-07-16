@@ -65,34 +65,16 @@ class JsonBackupWorker(
             if (!prefs.getBoolean("local_backup_enabled", true)) return Result.success()
 
             com.lecturameter.utils.AppLogger.log("Iniciando backup local")
-            val gson  = Gson()
-
-            val books: List<Book> = gson.fromJson(
-                prefs.getString("books", "[]"),
-                object : TypeToken<List<Book>>() {}.type
-            ) ?: emptyList()
-
-            val sessions: List<ReadingSession> = gson.fromJson(
-                prefs.getString("sessions", "[]"),
-                object : TypeToken<List<ReadingSession>>() {}.type
-            ) ?: emptyList()
-
-            val wrappedHistory: List<YearWrapped> = gson.fromJson(
-                prefs.getString("wrapped_history", "[]"),
-                object : TypeToken<List<YearWrapped>>() {}.type
-            ) ?: emptyList()
-
-            val booksWithCovers = books.map { book ->
-                val embCover    = embedLocalCoverUrl(book.coverUrl)
-                val embEditions = book.editions.map { ed ->
-                    ed.copy(coverUrl = embedLocalCoverUrl(ed.coverUrl))
-                }
-                book.copy(coverUrl = embCover, editions = embEditions)
+            // v3: constructor compartido (retos + bingo incluidos). null = biblioteca
+            // vacía → NO escribir: este worker mantiene UN solo fichero por carpeta y
+            // una pasada en vacío (arranque tras reinstalar, antes de restaurar) pisaría
+            // el único backup bueno con uno de 85 bytes. Visto en dispositivo el 16-07.
+            val backup = buildFullBackupFromPrefs(prefs)
+            if (backup == null) {
+                com.lecturameter.utils.AppLogger.log("Backup local OMITIDO: biblioteca vacía (no se pisa el fichero existente)")
+                return Result.success()
             }
-
-            val jsonContent = gson.toJson(
-                FullBackup(books = booksWithCovers, sessions = sessions, wrappedHistory = wrappedHistory)
-            )
+            val jsonContent = Gson().toJson(backup)
 
             // Carpeta personalizada elegida en Ajustes (SAF) — si falla, fallback a Descargas
             val customFolderUri = prefs.getString("local_backup_folder_uri", null)

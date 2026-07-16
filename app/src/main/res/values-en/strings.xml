@@ -155,6 +155,8 @@
     <string name="import_all_up_to_date">Everything was already up to date</string>
     <string name="import_restored_books">%1$d books restored</string>
     <string name="import_restored_sessions">%1$d sessions</string>
+    <string name="import_restored_challenges">%1$d challenges</string>
+    <string name="import_restored_bingo">bingo card restored</string>
     <string name="msg_no_books_export">⚠️ No books to export</string>
     <string name="msg_no_data_export">⚠️ No data to export</string>
     <string name="dialog_delete_session_date">Delete the session from %1$s?</string>

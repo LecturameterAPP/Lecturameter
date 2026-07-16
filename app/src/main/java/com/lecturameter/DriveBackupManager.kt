@@ -137,7 +137,13 @@ object DriveBackupManager {
             runCatching {
                 com.lecturameter.utils.AppLogger.log("Iniciando backup en Google Drive")
                 val drive = buildDriveService(context, account)
-                val json = buildBackupJson(prefs)
+                // v3: misma guarda que el worker local — con la biblioteca vacía NO se sube
+                // nada: la copia de Drive "persiste tras reinstalar" y es justo la que un
+                // arranque post-reinstalación en vacío machacaría.
+                val json = buildBackupJson(prefs) ?: run {
+                    com.lecturameter.utils.AppLogger.log("Backup Drive OMITIDO: biblioteca vacía (no se pisa la copia de la nube)")
+                    return@runCatching
+                }
                 val content = ByteArrayContent(
                     "application/json",
                     json.toByteArray(Charsets.UTF_8)
@@ -204,27 +210,9 @@ object DriveBackupManager {
 
     // ── Helpers internos ──────────────────────────────────────────────────────
 
-    private fun buildBackupJson(prefs: SharedPreferences): String {
-        val gson = Gson()
-        val books = gson.fromJson<List<Book>>(
-            prefs.getString("books", "[]"),
-            object : TypeToken<List<Book>>() {}.type
-        ) ?: emptyList()
-        val sessions = gson.fromJson<List<ReadingSession>>(
-            prefs.getString("sessions", "[]"),
-            object : TypeToken<List<ReadingSession>>() {}.type
-        ) ?: emptyList()
-        val wrapped = gson.fromJson<List<YearWrapped>>(
-            prefs.getString("wrapped_history", "[]"),
-            object : TypeToken<List<YearWrapped>>() {}.type
-        ) ?: emptyList()
-        val booksWithCovers = books.map { book ->
-            val embCover = embedLocalCoverUrl(book.coverUrl)
-            val embEditions = book.editions.map { ed -> ed.copy(coverUrl = embedLocalCoverUrl(ed.coverUrl)) }
-            book.copy(coverUrl = embCover, editions = embEditions)
-        }
-        return gson.toJson(FullBackup(books = booksWithCovers, sessions = sessions, wrappedHistory = wrapped))
-    }
+    /** v3: delega en el constructor compartido. null = biblioteca vacía (no subir). */
+    private fun buildBackupJson(prefs: SharedPreferences): String? =
+        buildFullBackupFromPrefs(prefs)?.let { Gson().toJson(it) }
 
     // ── Timestamp de la última copia ──────────────────────────────────────────
 

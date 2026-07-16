@@ -325,6 +325,12 @@ class BooksViewModel : ViewModel() {
     private val _bingoCard = kotlinx.coroutines.flow.MutableStateFlow<com.lecturameter.model.BingoCard?>(null)
     val bingoCard: kotlinx.coroutines.flow.StateFlow<com.lecturameter.model.BingoCard?> = _bingoCard
 
+    /** Backup v3: recarga el cartón desde prefs tras una restauración (el import
+     *  escribe vía BingoRepository y este flow es privado). */
+    fun reloadBingoCard(prefs: android.content.SharedPreferences) {
+        com.lecturameter.repository.BingoRepository.loadOrNull(prefs)?.let { _bingoCard.value = it }
+    }
+
     /** Garantiza que hay cartón y que es del mes actual; con [force] rota ya
      *  (botón "Nuevo cartón" al completarlo antes de fin de mes). Las plantillas
      *  rotan en orden circular según el índice persistido. */

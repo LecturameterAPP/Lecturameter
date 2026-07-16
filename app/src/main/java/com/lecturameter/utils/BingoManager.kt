@@ -102,6 +102,11 @@ object BingoManager {
         prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
     }
 
+    /** Backup v3: escritura directa del historial (merge por monthKey en la restauración). */
+    fun saveMonthSummaries(prefs: android.content.SharedPreferences, list: List<BingoMonthSummary>) {
+        prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
+    }
+
     fun loadTemplates(context: Context): List<BingoTemplate> {
         cachedTemplates?.let { return it }
         return try {
