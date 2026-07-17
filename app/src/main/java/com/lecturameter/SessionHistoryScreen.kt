@@ -380,7 +380,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                         Surface(
                             onClick = { expanded[expandKey] = !isExpanded },
                             shape = RoundedCornerShape(14.dp),
-                            color = if (isExpanded) theme.surface else theme.bgMid,
+                            color = cardColor(theme, isExpanded),
                             border = BorderStroke(1.dp, if (isExpanded) acc.copy(alpha = 0.5f) else theme.border),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                         ) {

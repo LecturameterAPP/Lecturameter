@@ -443,6 +443,26 @@ fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
 fun railLineColor(theme: Theme): Color =
     if (theme.bgDark == BgDarkAm) Color(0x33FFFFFF) else theme.border
 
+/**
+ * Fondo de una tarjeta que se pinta sobre el fondo de la pantalla.
+ *
+ * B-038 (Víctor, 18-07: "en el tema oled hay que diferenciar un poco más el fondo en el historial
+ * desplegable, que no se ve bien"). En AMOLED `bgMid` **es** `bgDark`: los dos son negro puro,
+ * porque ésa es la razón de ser del tema (píxel apagado). Así que una tarjeta pintada con `bgMid`
+ * desaparece sobre el fondo y lo único que la delata es su borde al 9%.
+ *
+ * La salida no es renunciar al negro: el negro puro se conserva donde importa, que es el FONDO de
+ * la pantalla. Lo que se levanta es la tarjeta, que es justo lo que tiene que despegar.
+ *
+ * Ojo, es un problema de TEMA, no de esta pantalla: cualquier sitio que pinte una tarjeta con
+ * `theme.bgMid` tiene el mismo agujero en AMOLED (los diálogos se libran porque llevan scrim).
+ */
+fun cardColor(theme: Theme, expanded: Boolean = false): Color = when {
+    theme.bgDark != BgDarkAm -> if (expanded) theme.surface else theme.bgMid
+    expanded                 -> Color(0x24FFFFFF)  // 14%: la abierta despega de la plegada
+    else                     -> Color(0x14FFFFFF)  // 8%: se ve sobre el negro sin dejar de ser oscura
+}
+
 // A4: color de CONTENIDO (texto/icono) sobre un fondo pintado con accentForTheme. El blanco
 // fijo era ilegible en Aurora (acento lila claro). Devuelve blanco en Oscuro y Claro, y el
 // tono más oscuro de cada tema con acento propio (marrón en Cuero, morado en Aurora, negro
@@ -1674,6 +1694,53 @@ fun CueroNervio(theme: Theme, modifier: Modifier = Modifier) {
 // Claro y Oscuro no pintan nada aquí: conservan la raya del TabRow, como hasta ahora.
 // El separador del RAIL NO se toca: "la línea que separa en el rail los dos iconos de
 // arriba y los de abajo se queda".
+/**
+ * La línea vertical que separa el rail del contenido.
+ *
+ * P-036 r4 (Víctor, 18-07: "en la barra que separa el rail de las cards, en tema cuero, se puede
+ * poner el rombito en medio?" → variante R2, y "el rombo en el separador sólo entra en cuero").
+ * Revisa la decisión del 18-07, que era dejar el separador del rail sin tocar.
+ *
+ * R2 es el filete horizontal puesto de pie: la misma regla, el mismo rombo y el mismo hueco de
+ * 6dp a cada lado. No inventa nada nuevo, que es justo por lo que se eligió frente a pegar el
+ * rombo a la línea (R1) o subir el nervio doble entero (R3, que pesaba más que los iconos del
+ * rail, y el rail es navegación).
+ *
+ * Los otros cuatro temas conservan su línea de 1dp intacta, igual que el filete horizontal no
+ * pinta nada en Claro ni en Oscuro. El ancho se queda en 1dp en todos: el rombo se dibuja
+ * centrado y se sale de la caja a propósito, para no mover el contenido 4dp solo en Cuero.
+ */
+@Composable
+fun RailSeparator(theme: Theme, modifier: Modifier = Modifier) {
+    if (!isCueroTheme(theme)) {
+        Box(modifier.fillMaxHeight().width(1.dp).background(railLineColor(theme)))
+        return
+    }
+    Box(modifier.fillMaxHeight().width(1.dp).drawBehind {
+        val hueco = 6.dp.toPx()      // el mismo aire que deja el filete horizontal
+        val medio = 2.5.dp.toPx()    // media diagonal del rombo de 5dp
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val ancho = 1.dp.toPx()
+        // Los dos tramos de la regla, abriéndose para dejar sitio al rombo
+        drawRect(GoldSoftCuero, size = androidx.compose.ui.geometry.Size(ancho, cy - medio - hueco))
+        drawRect(
+            GoldSoftCuero,
+            topLeft = androidx.compose.ui.geometry.Offset(0f, cy + medio + hueco),
+            size = androidx.compose.ui.geometry.Size(ancho, size.height - (cy + medio + hueco))
+        )
+        // El rombo: un cuadrado de 5dp girado 45 grados, o sea sus cuatro vértices
+        drawPath(
+            androidx.compose.ui.graphics.Path().apply {
+                moveTo(cx, cy - medio); lineTo(cx + medio, cy)
+                lineTo(cx, cy + medio); lineTo(cx - medio, cy)
+                close()
+            },
+            GoldSoftCuero
+        )
+    })
+}
+
 @Composable
 fun ThemeDivider(theme: Theme, modifier: Modifier = Modifier) {
     when {
@@ -1686,19 +1753,40 @@ fun ThemeDivider(theme: Theme, modifier: Modifier = Modifier) {
 
 // Aurora: el halo se dibuja a mano con trazos anchos y translúcidos superpuestos, no con
 // Modifier.blur (que es API 31+ y esta app soporta desde la 26).
+//
+// P-036 r4 (Víctor, 18-07): vuelve la ONDA que se descartó en la ronda 1, pero más suave. Él la
+// dejó en el deslizador del mockup en **2dp de amplitud, forma onda**; la de la ronda 1 iba a
+// ±2,6dp. Una sola S: sube en el primer cuarto y baja en el tercero.
+//
+// La caja crece de 9dp a 15dp: con ±2dp de onda, el trazo del halo (7dp de ancho, o sea 3,5dp a
+// cada lado del recorrido) llega de -1dp a 10dp y se recortaba contra los 9dp de antes. El
+// padding vertical baja a 3dp para que el conjunto ocupe lo mismo que ocupaba y no mueva nada.
+private const val AURORA_WAVE_DP = 2f
+
 @Composable
 private fun AuroraDivider(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().padding(vertical = 6.dp).height(9.dp).drawBehind {
+    Box(modifier.fillMaxWidth().padding(vertical = 3.dp).height(15.dp).drawBehind {
         val brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
             listOf(Color(0xFF5EEAD4), AccentAurora)
         )
         val y = size.height / 2f
-        val a = androidx.compose.ui.geometry.Offset(0f, y)
-        val b = androidx.compose.ui.geometry.Offset(size.width, y)
+        val w = size.width
+        // El punto de control va al doble de la amplitud: una Bézier cuadrática solo alcanza la
+        // mitad del camino hacia su control, así que el pico real queda en AURORA_WAVE_DP.
+        val c = AURORA_WAVE_DP.dp.toPx() * 2f
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, y)
+            quadraticBezierTo(w * 0.25f, y - c, w * 0.5f, y)
+            quadraticBezierTo(w * 0.75f, y + c, w, y)
+        }
         val cap = androidx.compose.ui.graphics.StrokeCap.Round
-        drawLine(brush, a, b, strokeWidth = 7.dp.toPx(), alpha = 0.12f, cap = cap)
-        drawLine(brush, a, b, strokeWidth = 4.dp.toPx(), alpha = 0.22f, cap = cap)
-        drawLine(brush, a, b, strokeWidth = 1.4.dp.toPx(), cap = cap)
+        fun trazo(ancho: Float, alfa: Float) = drawPath(
+            path, brush, alpha = alfa,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = ancho, cap = cap)
+        )
+        trazo(7.dp.toPx(), 0.12f)
+        trazo(4.dp.toPx(), 0.22f)
+        trazo(1.4.dp.toPx(), 1f)
     })
 }
 
