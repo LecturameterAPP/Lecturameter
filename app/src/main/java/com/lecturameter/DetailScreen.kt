@@ -154,11 +154,20 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     fun requestNotifPermThenStart(action: () -> Unit) {
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
-            != android.content.pm.PackageManager.PERMISSION_GRANTED &&
-            !prefs.getBoolean("notif_perm_asked", false)) {
-            prefs.edit().putBoolean("notif_perm_asked", true).apply()
-            pendingTimerAction = action
-            showNotifPermDialog = true
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val alreadyAsked = prefs.getBoolean("notif_perm_asked", false)
+            val activity = context as? android.app.Activity
+            val canAskAgain = activity != null && androidx.core.app.ActivityCompat
+                .shouldShowRequestPermissionRationale(activity, android.Manifest.permission.POST_NOTIFICATIONS)
+            if (!alreadyAsked || canAskAgain) {
+                prefs.edit().putBoolean("notif_perm_asked", true).apply()
+                pendingTimerAction = action
+                showNotifPermDialog = true
+            } else {
+                // Permanentemente denegado: arrancar sin notificación y enseñar aviso de ajustes
+                action()
+                showNotifPermDeniedDialog = true
+            }
         } else {
             action()
         }

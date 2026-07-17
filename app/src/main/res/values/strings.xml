@@ -435,14 +435,18 @@
     <string name="rating_obra_maestra">Obra maestra ✨</string>
     <string name="wrapped_libro_mas_rapido">LIBRO MÁS RÁPIDO</string>
     <string name="wrapped_fastest_detail">%1$s págs/día · %2$d páginas</string>
-    <string name="wrapped_streak_suffix">consecutivos</string>
+    <plurals name="wrapped_streak_full">
+        <item quantity="one">%1$d día seguido</item>
+        <item quantity="other">%1$d días seguidos</item>
+    </plurals>
+    <plurals name="wrapped_book_count">
+        <item quantity="one">%1$d libro</item>
+        <item quantity="other">%1$d libros</item>
+    </plurals>
     <string name="wrapped_record_session">récord sesión</string>
     <string name="wrapped_longest_session">Sesión más larga: %1$d páginas el %2$s</string>
     <string name="wrapped_most_read_day">Día más leído: %1$s (%2$d págs)</string>
     <string name="wrapped_best_month">Tu mejor mes fue %1$s con %2$d páginas</string>
-    <!-- B3 fase B (18-07): etiqueta sobre la barra del mejor mes (variante B1). En
-         mayúsculas: es una insignia, no una frase. -->
-    <string name="wrapped_best_month_tag">MEJOR MES</string>
     <string name="wrapped_pags_vs">págs vs %1$s</string>
     <string name="wrapped_history_count_one">%1$d Año Guardado</string>
     <string name="wrapped_history_count_other">%1$d Años Guardados</string>
@@ -614,7 +618,7 @@
     <string name="privacy_policy_section_analytics_title">Sin analíticas ni publicidad</string>
     <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla.</string>
     <string name="privacy_policy_section_search_title">Búsqueda y escaneo de libros</string>
-    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
+    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
     <string name="privacy_policy_section_feedback_title">Feedback y encuestas</string>
     <string name="privacy_policy_feedback_body">Enviar feedback o responder a una encuesta dentro de la app es totalmente opcional. Si lo haces, se envía el texto que has escrito junto con información técnica del dispositivo (modelo, versión de Android, versión de la app) a un servidor propio de Lecturameter para que el desarrollador pueda leerlo.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>
@@ -940,6 +944,7 @@
     <string name="pro_code_err_invalid">Código incorrecto o ya canjeado.</string>
     <string name="pro_code_err_attempts">Demasiados intentos. Espera 24 horas.</string>
     <string name="pro_code_err_network">Sin conexión con el servidor. Inténtalo de nuevo.</string>
+    <string name="pro_code_err_exhausted">Este código ya se ha usado en el máximo de dispositivos. Si es tuyo y cambiaste de móvil, escríbenos a lecturameter.app@gmail.com.</string>
     <string name="pro_editions_hint">🔒 Con Pro, ediciones por libro sin límite</string>
     <!-- v2.4 rework: estadísticas avanzadas -->
     <string name="adv_stats_title">Estadísticas avanzadas</string>
@@ -1030,7 +1035,10 @@
     <string name="wrapped_same_sessions">Igual de sesiones</string>
     <string name="wrapped_streak_longer">Tu racha de lecturas fue %1$d días más larga</string>
     <string name="wrapped_streak_shorter">Tu racha de lecturas fue %1$d días más corta</string>
-    <string name="wrapped_streak_equal">Tu racha de lecturas fue igual de larga</string>
+    <plurals name="wrapped_streak_equal">
+        <item quantity="one">Tu racha de lecturas fue igual de larga (%1$d día)</item>
+        <item quantity="other">Tu racha de lecturas fue igual de larga (%1$d días)</item>
+    </plurals>
     <string name="wrapped_record_line">Récord: %1$d pág. en una sesión</string>
     <string name="settings_widget_customize_sub">Elige qué chips y emojis se muestran</string>
     <string name="history_stat_global_ppd">Media global págs/día</string>

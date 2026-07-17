@@ -141,6 +141,13 @@ data class OpenLibraryResult(
     val matchAuthors: String = ""
 )
 
+// Feedback 17-07: año de publicación robusto. Antes se hacía take(4)/takeLast(4) sobre la
+// fecha cruda, que va bien con Google Books ("2020-10-01") pero NO con OpenLibrary, cuyo
+// publish_date es texto libre ("Oct 2020", "October 1999"): take(4) daba "Oct " y se
+// guardaba el mes como año. Aquí se extrae la PRIMERA secuencia año 1xxx/2xxx de donde sea.
+private val YEAR_RE = Regex("(1\\d{3}|2\\d{3})")
+private fun yearOf(raw: String): String = YEAR_RE.find(raw)?.value ?: ""
+
 // v2.6: mapea códigos MARC de OpenLibrary (3 letras) a ISO-639-1 de la app
 private fun olLangToCode(l: String): String = when (l.lowercase(Locale.ROOT)) {
     "spa" -> "es"; "eng" -> "en"; "cat" -> "ca"
@@ -213,7 +220,7 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
             }.trim()
             // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido)
             val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
-            val publishYear = info.optString("publishedDate", "").take(4)
+            val publishYear = yearOf(info.optString("publishedDate", ""))
             val imageLinks = info.optJSONObject("imageLinks")
             val coverUrl = imageLinks?.optString("thumbnail")
                 ?.replace("http://", "https://")
@@ -1690,7 +1697,7 @@ internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withCont
         // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido); fichas rotas de GB
         // asignaban páginas absurdas a la edición
         val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
-        val publishYear = info.optString("publishedDate", "").take(4)
+        val publishYear = yearOf(info.optString("publishedDate", ""))
         val publisher = info.optString("publisher", "")
         val imageLinks = info.optJSONObject("imageLinks")
         val rawCoverUrl = imageLinks?.let {
@@ -1795,7 +1802,7 @@ private suspend fun fetchEditionsViaOpenLibraryByIsbn(isbn: String): List<Editio
         )
         // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
         val pages = entry.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
-        val publishDate = entry.optString("publish_date", "").take(4)
+        val publishDate = yearOf(entry.optString("publish_date", ""))
         val publisher = entry.optJSONArray("publishers")?.optString(0, "") ?: ""
         val publishPlace = entry.optJSONArray("publish_places")?.optString(0, "") ?: ""
         val (langId, langLabel, flag) = editionLanguageMeta(langCode, edIsbn, publisher, publishPlace)
@@ -1905,7 +1912,7 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
             // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
             val pages = book.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
             val publisher = book.optJSONArray("publishers")?.optJSONObject(0)?.optString("name", "") ?: ""
-            val year = book.optString("publish_date", "").takeLast(4)
+            val year = yearOf(book.optString("publish_date", ""))
             val coverObj = book.optJSONObject("cover")
             val coverUrl = coverObj?.let {
                 it.optString("large").ifBlank { null }
@@ -1925,7 +1932,7 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
         val isbn = cleanIsbn(j.optJSONArray("isbn_13")?.optString(0, null)
             ?: j.optJSONArray("isbn_10")?.optString(0, null))
         val publisher = j.optJSONArray("publishers")?.optString(0, "") ?: ""
-        val year = j.optString("publish_date", "").takeLast(4)
+        val year = yearOf(j.optString("publish_date", ""))
         val coverId = j.optJSONArray("covers")?.optLong(0, -1L) ?: -1L
         val coverUrl = when {
             coverId > 0 -> "https://covers.openlibrary.org/b/id/$coverId-L.jpg"
@@ -2230,7 +2237,7 @@ suspend fun fetchEditionsForBook(
                     }
                     // Feedback 2.7: páginas implausibles (<40) → 0 (desconocido)
                     val pages = e.optInt("number_of_pages", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
-                    val publishDate = e.optString("publish_date", "").take(4)
+                    val publishDate = yearOf(e.optString("publish_date", ""))
                     val coverId = e.optJSONArray("covers")?.optLong(0, -1L) ?: -1L
                     var coverUrl: String? = if (coverId > 0) "https://covers.openlibrary.org/b/id/$coverId-L.jpg" else null
                     // Validar que el cover_i devuelve imagen real (>8 KB) — solo en español o con presupuesto
@@ -2302,7 +2309,7 @@ suspend fun fetchEditionsForBook(
             // Feedback 2.7: pageCount implausible (<40) → 0 (desconocido) — fichas rotas
             // de GB asignaban páginas absurdas a ediciones (ej. 22 págs)
             val pages = info.optInt("pageCount", 0).takeIf { it >= MIN_PLAUSIBLE_PAGES } ?: 0
-            val publishYear = info.optString("publishedDate", "").take(4)
+            val publishYear = yearOf(info.optString("publishedDate", ""))
             val identifiers = info.optJSONArray("industryIdentifiers")
             var gbIsbn: String? = null
             if (identifiers != null) {

@@ -938,17 +938,31 @@ fun EditionsSection(
                             // Idioma y año: lo que distingue una edición de otra de un vistazo.
                             // Si la edición no tiene ni idioma ni año (importaciones viejas),
                             // cae al título: una cabecera vacía sería imposible de identificar.
+                            // Feedback 17-07: el año solo se muestra si es un año de verdad. Las
+                            // ediciones importadas de OpenLibrary guardaban a veces el mes ("Oct")
+                            // en publishYear (su publish_date es "Oct 2020" y el parser hacía
+                            // take(4)); mostrar "Inglés, Oct" cantaba. Si el valor no es un año de
+                            // 4 cifras, no se enseña. El parser también se arregló para futuras altas.
+                            val yearShown = ed.publishYear.takeIf { Regex("^\\d{4}$").matches(it) }
                             val head = listOfNotNull(
                                 ed.languageLabel.ifBlank { null },
-                                ed.publishYear.ifBlank { null }
+                                yearShown
                             ).joinToString(", ").ifBlank { ed.title.ifBlank { book.title } }
                             Text(head, color = theme.textMain, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            if (ed.pages > 0) {
+                            // Feedback 17-07: la editorial también distingue una edición de otra
+                            // (misma lengua y año, sello distinto). Va en la sublínea junto a las
+                            // páginas ("Minotauro · 320 págs") para no recargar la cabecera; el
+                            // maxLines=1 + ellipsis la recorta si no cabe, así que nunca desborda.
+                            val subParts = listOfNotNull(
+                                ed.publisher.ifBlank { null },
+                                if (ed.pages > 0) stringResource(R.string.editions_pages_short, ed.pages) else null
+                            )
+                            if (subParts.isNotEmpty()) {
                                 // textMuted y no textDim: medido, textDim sobre la tarjeta se
                                 // queda en 2,1:1 (Oscuro abierta) y 2,7:1 (AMOLED). Con
                                 // textMuted el peor caso sube a 3,97:1 (Oscuro abierta), que
                                 // es el mismo suelo que ya tiene el subtítulo de SettingsSection.
-                                Text(stringResource(R.string.editions_pages_short, ed.pages), color = theme.textMuted, fontSize = 10.5.sp)
+                                Text(subParts.joinToString(" · "), color = theme.textMuted, fontSize = 10.5.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             }
                         }
                         // Status pill — v21.41: distingue Reading de Rereading
@@ -977,9 +991,8 @@ fun EditionsSection(
                     // El título de la edición baja aquí: puede diferir por idioma y sigue
                     // siendo útil, pero no es lo que se mira para elegir.
                     Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    ed.publisher.ifBlank { null }?.let {
-                        Text(it, color = theme.textDim, fontSize = 11.sp)
-                    }
+                    // La editorial ya sale en la sublínea de la cabecera (siempre visible); no
+                    // se repite aquí.
                     if (!ed.isbn.isNullOrBlank()) {
                         Text(
                             "ISBN: ${ed.isbn}",

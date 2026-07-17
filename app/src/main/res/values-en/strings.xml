@@ -435,13 +435,18 @@
     <string name="rating_obra_maestra">Masterpiece ✨</string>
     <string name="wrapped_libro_mas_rapido">FASTEST BOOK</string>
     <string name="wrapped_fastest_detail">%1$s pages/day · %2$d pages</string>
-    <string name="wrapped_streak_suffix">in a row</string>
+    <plurals name="wrapped_streak_full">
+        <item quantity="one">%1$d day in a row</item>
+        <item quantity="other">%1$d days in a row</item>
+    </plurals>
+    <plurals name="wrapped_book_count">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
     <string name="wrapped_record_session">session record</string>
     <string name="wrapped_longest_session">Longest session: %1$d pages on %2$s</string>
     <string name="wrapped_most_read_day">Most read day: %1$s (%2$d pages)</string>
     <string name="wrapped_best_month">Your best month was %1$s with %2$d pages</string>
-    <!-- B3 fase B (18-07): etiqueta sobre la barra del mejor mes (variante B1) -->
-    <string name="wrapped_best_month_tag">BEST MONTH</string>
     <string name="wrapped_pags_vs">pages vs %1$s</string>
     <string name="wrapped_history_count_one">%1$d Year Saved</string>
     <string name="wrapped_history_count_other">%1$d Years Saved</string>
@@ -613,7 +618,7 @@
     <string name="privacy_policy_section_analytics_title">No analytics, no ads</string>
     <string name="privacy_policy_analytics_body">Lecturameter has no usage analytics, shows no ads, and doesn\'t require you to create any account to use it.</string>
     <string name="privacy_policy_section_search_title">Searching and scanning books</string>
-    <string name="privacy_policy_search_body">When you search for a book or scan an ISBN, that text or code is sent to public book catalog APIs (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates) to fetch details like the title, cover, or author. No personal data of yours is sent in these lookups.</string>
+    <string name="privacy_policy_search_body">When you search for a book or scan an ISBN, that text or code is sent to public book catalog APIs (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) to fetch details like the title, cover, or author. No personal data of yours is sent in these lookups.</string>
     <string name="privacy_policy_section_feedback_title">Feedback and surveys</string>
     <string name="privacy_policy_feedback_body">Sending feedback or answering a survey inside the app is entirely optional. If you do, the text you wrote is sent along with technical device information (model, Android version, app version) to Lecturameter\'s own server so the developer can read it.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>
@@ -938,6 +943,7 @@
     <string name="pro_code_err_invalid">Wrong or already redeemed code.</string>
     <string name="pro_code_err_attempts">Too many attempts. Wait 24 hours.</string>
     <string name="pro_code_err_network">Could not reach the server. Try again.</string>
+    <string name="pro_code_err_exhausted">This code has already been used on the maximum number of devices. If it\'s yours and you changed phones, email us at lecturameter.app@gmail.com.</string>
     <string name="pro_editions_hint">🔒 With Pro, unlimited editions per book</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
@@ -1027,7 +1033,10 @@
     <string name="wrapped_same_sessions">Same sessions</string>
     <string name="wrapped_streak_longer">Your reading streak was %1$d days longer</string>
     <string name="wrapped_streak_shorter">Your reading streak was %1$d days shorter</string>
-    <string name="wrapped_streak_equal">Your reading streak was just as long</string>
+    <plurals name="wrapped_streak_equal">
+        <item quantity="one">Your reading streak was just as long (%1$d day)</item>
+        <item quantity="other">Your reading streak was just as long (%1$d days)</item>
+    </plurals>
     <string name="wrapped_record_line">Record: %1$d pages in one session</string>
     <string name="settings_widget_customize_sub">Choose which chips and emojis are shown</string>
     <string name="history_stat_global_ppd">Global avg pages/day</string>

@@ -323,6 +323,45 @@ class ProStateTest {
         assertFalse(Pro.themeAllowed(prefs, ThemeMode.CUERO))
     }
 
+    // CRÍTICO (auditoría dinero 17-07): un tema de pago elegido DURANTE la prueba de 7 días
+    // NO es herencia de la 2.7, es entitlement, y no puede quedarse gratis al caducar. En
+    // instalación limpia el one-shot no se quemaba en vacío y se quemaba luego con theme_mode
+    // ya en "aurora" → tema de pago gratis para siempre para el 100% de instalaciones de Play.
+    @Test
+    fun `un tema de pago elegido durante la prueba NO se hereda al caducar`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)                 // hay historial de prueba
+        prefs.map["theme_mode"] = "aurora"           // permitido mientras el trial vive
+        Pro.grandfatherCurrentThemeIfNeeded(prefs)   // primer load() con libros ya guardados
+        assertNull(prefs.getString(Pro.GRANDFATHER_KEY, null))
+    }
+
+    // El comprador de Pro tampoco hereda por grandfathering un tema que puso teniendo Pro.
+    @Test
+    fun `con Pro comprado el grandfathering no concede ningun tema heredado`() {
+        val prefs = FakePrefs()
+        Pro.markPurchased(prefs)
+        prefs.map["theme_mode"] = "amoled"
+        Pro.grandfatherCurrentThemeIfNeeded(prefs)
+        assertNull(prefs.getString(Pro.GRANDFATHER_KEY, null))
+    }
+
+    // CRÍTICO (auditoría dinero 17-07): un reembolso de Play (compra que desaparece de la
+    // cuenta) retira el Pro COMPRADO, pero nunca el de código.
+    @Test
+    fun `revoke retira el Pro comprado pero respeta el de codigo`() {
+        val comprado = FakePrefs()
+        Pro.markPurchased(comprado)
+        Pro.revokePlayEntitlementIfGone(comprado)
+        assertFalse(Pro.isPro(comprado))            // reembolso: fuera Pro
+
+        val codigo = FakePrefs()
+        codigo.map[Pro.PREF_KEY] = true
+        codigo.map[Pro.SRC_KEY] = "code"            // canjeó un código, no compró en Play
+        Pro.revokePlayEntitlementIfGone(codigo)
+        assertTrue(Pro.isPro(codigo))               // NO se toca: no tiene compra en Play
+    }
+
     // ── P-032: regalo de un tema al acabar la prueba ─────────────────────────
 
     @Test

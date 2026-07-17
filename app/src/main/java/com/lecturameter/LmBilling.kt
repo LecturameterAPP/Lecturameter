@@ -183,6 +183,19 @@ object LmBilling : PurchasesUpdatedListener {
                 val found = purchases.any { p ->
                     SKU_LM_PRO in p.products && p.purchaseState == Purchase.PurchaseState.PURCHASED
                 }
+                // CRÍTICO (auditoría dinero 17-07): Play respondió OK y la cuenta NO tiene la
+                // compra → reembolso o cancelación. Retirar el Pro comprado (solo el de compra;
+                // revokePlayEntitlementIfGone respeta el de código y el trial). Sin esto,
+                // comprar + reembolsar dejaba Pro para siempre.
+                if (!found) appContext?.let { ctx ->
+                    val prefs = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+                    val wasPro = com.lecturameter.utils.Pro.isPro(prefs)
+                    com.lecturameter.utils.Pro.revokePlayEntitlementIfGone(prefs)
+                    // Si de verdad se retiró algo, avisar a la UI para que recomponga (candado
+                    // de temas de pago, topes de retos/ediciones) sin esperar a reiniciar.
+                    if (wasPro && !com.lecturameter.utils.Pro.isPro(prefs))
+                        _purchaseCompleted.value = _purchaseCompleted.value + 1
+                }
                 onResult(if (found) RestoreResult.FOUND else RestoreResult.NONE)
             } else {
                 // SERVICE_DISCONNECTED / SERVICE_UNAVAILABLE / BILLING_UNAVAILABLE / sin red.

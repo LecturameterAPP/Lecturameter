@@ -88,6 +88,14 @@ fun ListScreen(
     var scannedIsbnForDialog by remember { mutableStateOf("") }
     // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
     var showQuickStartSheet by remember { mutableStateOf(false) }
+    // Mockup 17-07: el icono del crono se pone ámbar cuando hay sesión en curso
+    var timerRunningHome by remember { mutableStateOf(TimerStateHolder.running) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(500L)
+            timerRunningHome = TimerStateHolder.running
+        }
+    }
     // B5 idea 1 (mockup aprobado 17-07): el "+" no cambia de aspecto ni de sitio, cambia de
     // DESTINO. La cabecera va a cero dp de holgura a 360dp (título 135 + iconos 136 + "+" 39
     // + espacios 18 = los 328 útiles), así que la jerarquía no se puede arreglar ensanchando
@@ -518,10 +526,11 @@ fun ListScreen(
                         }
                     }
                 }
-                // ⏱️ crono desde el home (T1 elegida por Víctor): selector Leyendo/Releyendo
-                // D-015 r3: en Cuero los iconos de la barra van en oro suave (actionIconTint)
+                // ⏱️ crono desde el home (T1): ámbar cuando hay sesión en curso (mockup 17-07)
                 IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Timer, contentDescription = "Timer", tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
+                    Icon(Icons.Default.Timer, contentDescription = "Timer",
+                        tint = if (timerRunningHome) Amber else actionIconTint(theme),
+                        modifier = Modifier.size(19.dp))
                 }
                 // Feedback 13-07 (4): acceso rápido a Importar/Exportar backups
                 IconButton(onClick = onImportExport, modifier = Modifier.size(34.dp)) {
@@ -876,7 +885,10 @@ fun ListScreen(
                 // D-002: alineado con la barra de búsqueda (línea del rail entre medias)
                 modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 16.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                // Feedback 17-07: la vertical no estaba y las tarjetas se tocaban (0dp). Se
+                // veía sobre todo en Cuero: dos filetes dorados pegados parecen una costura.
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (activeBooks.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {

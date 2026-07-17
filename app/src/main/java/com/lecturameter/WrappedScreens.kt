@@ -269,12 +269,12 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     // Autor + género
                     if (wrapped.favoriteAuthor.isNotBlank()) {
                         WrappedFavRow("", stringResource(R.string.wcard_author_year), wrapped.favoriteAuthor,
-                            "${wrapped.favoriteAuthorBooks} libros", Accent2, theme)
+                            androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, wrapped.favoriteAuthorBooks, wrapped.favoriteAuthorBooks), Accent2, theme)
                         Spacer(Modifier.height(8.dp))
                     }
                     if (wrapped.favoriteGenre.isNotBlank()) {
                         WrappedFavRow("", stringResource(R.string.wcard_genre_year), displayGenre(wrapped.favoriteGenre),
-                            "${wrapped.favoriteGenreBooks} libros", acc, theme)
+                            androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, wrapped.favoriteGenreBooks, wrapped.favoriteGenreBooks), acc, theme)
                     }
                     if (wrapped.longestStreakDays > 0) {
                         Spacer(Modifier.height(12.dp))
@@ -284,7 +284,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 Text("🔥", fontSize = 28.sp); Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text(stringResource(R.string.txt_362b636c), color = wrappedInk(Red, theme), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                                    Text("${wrapped.longestStreakDays} ${stringResource(R.string.word_day)}s ${stringResource(R.string.wrapped_streak_suffix)}", color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                    Text(androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_streak_full, wrapped.longestStreakDays, wrapped.longestStreakDays), color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -376,10 +376,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     Spacer(Modifier.height(14.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (wrapped.favoriteAuthor.isNotBlank())
-                            WrappedBigCard(wrapped.favoriteAuthor, "${wrapped.favoriteAuthorBooks} libros", theme,
+                            WrappedBigCard(wrapped.favoriteAuthor, androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, wrapped.favoriteAuthorBooks, wrapped.favoriteAuthorBooks), theme,
                                 Slot.TOPS_AUTHOR, Modifier.weight(1f), maxLines = 2)
                         if (wrapped.favoriteGenre.isNotBlank())
-                            WrappedBigCard(displayGenre(wrapped.favoriteGenre), "${wrapped.favoriteGenreBooks} libros", theme,
+                            WrappedBigCard(displayGenre(wrapped.favoriteGenre), androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, wrapped.favoriteGenreBooks, wrapped.favoriteGenreBooks), theme,
                                 Slot.TOPS_GENRE, Modifier.weight(1f), maxLines = 2)
                     }
                     Spacer(Modifier.height(12.dp))
@@ -388,7 +388,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Text(stringResource(R.string.wcard_authors), color = wrappedInk(Accent2, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                         Spacer(Modifier.height(6.dp))
                         wrapped.topAuthorsTop3.forEachIndexed { i, (name, n) ->
-                            WrappedTop3Row(medals[i], name, "$n libros", i == 0, Accent2, theme)
+                            WrappedTop3Row(medals[i], name, androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, n, n), i == 0, Accent2, theme)
                             Spacer(Modifier.height(6.dp))
                         }
                         Spacer(Modifier.height(10.dp))
@@ -397,7 +397,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Text(stringResource(R.string.wcard_genres), color = wrappedInk(acc, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                         Spacer(Modifier.height(6.dp))
                         wrapped.topGenresTop3.forEachIndexed { i, (name, n) ->
-                            WrappedTop3Row(medals[i], displayGenre(name), "$n libros", i == 0, acc, theme)
+                            WrappedTop3Row(medals[i], displayGenre(name), androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, n, n), i == 0, acc, theme)
                             Spacer(Modifier.height(6.dp))
                         }
                     }
@@ -595,16 +595,17 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                         }
                                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Bottom) {
-                                            if (isMax)
-                                                Surface(shape = RoundedCornerShape(3.dp), color = Cyan.copy(0.18f)) {
-                                                    Text(stringResource(R.string.wrapped_best_month_tag),
-                                                        color = wrappedInk(Cyan, theme), fontSize = 6.5.sp,
-                                                        fontWeight = FontWeight.Bold, maxLines = 1,
-                                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp))
-                                                }
+                                            // Feedback 17-07: la etiqueta "MEJOR MES" flotante encima de la
+                                            // barra máxima se apilaba sobre el número y empujaba la barra hacia
+                                            // abajo (el hueco reservado, labelH, solo contaba UN número, no la
+                                            // etiqueta extra), así que el máximo salía MÁS BAJO que el segundo
+                                            // y encima quedaba feo apretado. El máximo ya se distingue de sobra
+                                            // por el número en cian y negrita, la letra del eje en cian y la
+                                            // frase "Tu mejor mes fue..." bajo la gráfica. Fuera la etiqueta.
                                             if (p > 0)
                                                 Text(if (p >= 1000) "${p/1000}k" else "$p",
-                                                    color = if (isMax) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
+                                                    // Feedback 17-07: el número también en el acento del tema.
+                                                    color = wrappedInk(acc, theme),
                                                     fontSize = if (isMax) 9.sp else 7.sp,
                                                     fontWeight = if (isMax || i in podium) FontWeight.Black else FontWeight.Normal)
                                             Spacer(Modifier.height(2.dp))
@@ -612,14 +613,15 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                                 .height((barMaxH * ratio.coerceAtLeast(if (p > 0) 0.03f else 0f)))
                                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                                 .alpha(barAlpha)
-                                                .background(if (isMax)
-                                                    // B-037 r2: las barras son GRÁFICO, no texto (mínimo 3:1). Iban
-                                                    // en cian y morado crudos sobre la tarjeta, que en Claro es
-                                                    // BLANCA: el cian daba 1,81:1. El carril de franjas de abajo ya
-                                                    // estaba arreglado y este no: dos gráficos hermanos, uno sí y
-                                                    // otro no (revisión 18-07).
-                                                    Brush.verticalGradient(listOf(wrappedGraphic(Cyan, theme), wrappedGraphic(Sky, theme)))
-                                                else Brush.verticalGradient(listOf(wrappedGraphic(Accent2, theme), wrappedGraphic(Accent2, theme).copy(0.5f)))))
+                                                // Feedback 17-07: las barras adoptan el ACENTO DEL TEMA (oro en
+                                                // Cuero, morado en Aurora, índigo en Oscuro…) en vez de la paleta
+                                                // fija cian/violeta, que desentonaba sobre Cuero. El mejor mes
+                                                // destaca por la opacidad plena (barAlpha=1 vs 0.45 del resto) más
+                                                // el número y la letra del eje. wrappedGraphic sigue garantizando
+                                                // el contraste 3:1 del gráfico sobre la tarjeta de cada tema.
+                                                .background(Brush.verticalGradient(listOf(
+                                                    wrappedGraphic(acc, theme),
+                                                    wrappedGraphic(acc, theme).copy(0.5f)))))
                                         }
                                     }
                                 }
@@ -627,7 +629,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     months.forEachIndexed { i, m ->
                                         val isMax = i == bestIdx
-                                        Text(m, color = if (isMax) wrappedInk(Cyan, theme) else theme.textMuted,
+                                        Text(m, color = if (isMax) wrappedInk(acc, theme) else theme.textMuted,
                                             fontSize = 9.sp,
                                             fontWeight = if (isMax) FontWeight.Bold else FontWeight.Normal,
                                             modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
@@ -637,7 +639,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 if (bestIdx >= 0) {
                                     Spacer(Modifier.height(10.dp))
                                     Text(stringResource(R.string.wrapped_best_month, monthNames.getOrElse(bestIdx) { "" }, maxP),
-                                        color = wrappedInk(Cyan, theme), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        color = wrappedInk(acc, theme), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -708,24 +710,18 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         wrapped.bestDayPerMonth.chunked(3).forEach { row ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 row.forEach { (m, date, pages) ->
-                                    val isBest = date == wrapped.mostReadDay
                                     val isSelected = date == selectedDay
-                                    // Feedback 2.7: el mes seleccionado destaca más (fondo/borde
-                                    // más intensos y texto en cian); el resto queda compacto para
-                                    // que los 12 meses sigan siendo legibles.
+                                    // Feedback 17-07: SOLO el mes seleccionado se resalta en cian. Antes el
+                                    // "mejor del año" (isBest) llevaba ADEMÁS un tinte cian permanente, así
+                                    // que al tocar otro mes el mejor (p. ej. junio) se quedaba marcado en azul
+                                    // y parecía seleccionado a la vez que el nuevo. El mejor sigue siendo la
+                                    // selección de partida al abrir la slide; eso ya lo señala de sobra.
                                     Surface(
                                         onClick = { selectedDay = date },
                                         shape = RoundedCornerShape(12.dp),
-                                        color = when {
-                                            isSelected -> Cyan.copy(0.22f)
-                                            isBest     -> Cyan.copy(0.08f)
-                                            else       -> acc.copy(0.06f)
-                                        },
-                                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, when {
-                                            isSelected -> wrappedInk(Cyan, theme)
-                                            isBest     -> wrappedInk(Cyan, theme).copy(0.45f)
-                                            else       -> acc.copy(0.18f)
-                                        }),
+                                        color = if (isSelected) Cyan.copy(0.22f) else acc.copy(0.06f),
+                                        border = BorderStroke(if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) wrappedInk(Cyan, theme) else acc.copy(0.18f)),
                                         modifier = Modifier.weight(1f)) {
                                         Column(Modifier.padding(horizontal = 8.dp, vertical = 7.dp)) {
                                             Text(monthNames.getOrElse(m) { "" },
@@ -739,7 +735,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                             // conserva la unidad porque cabe de sobra a este ancho
                                             // y sin ella "38" no dice de qué es.
                                             Text(stringResource(R.string.wrapped_fav_pages, pages),
-                                                color = if (isBest || isSelected) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
+                                                color = if (isSelected) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
                                                 fontSize = 12.sp, fontWeight = FontWeight.Black,
                                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
@@ -963,7 +959,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text("🔥", fontSize = 24.sp); Spacer(Modifier.width(10.dp))
                                     Text(
-                                        if (dStreak == 0) stringResource(R.string.wrapped_streak_equal)
+                                        if (dStreak == 0) androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_streak_equal, wrapped.longestStreakDays, wrapped.longestStreakDays)
                                         else if (dStreak > 0) stringResource(R.string.wrapped_streak_longer, dStreak)
                                         else stringResource(R.string.wrapped_streak_shorter, -dStreak),
                                         color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)

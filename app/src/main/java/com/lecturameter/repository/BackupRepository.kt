@@ -421,27 +421,23 @@ fun importFullBackupFromJson(
         // Lo que SÍ cubre esto es de la 3.0 en adelante: quien se cambia de móvil y restaura
         // por JSON conserva su tema y, si era heredado, su derecho a él.
         backup.themeMode?.let { restoredTheme ->
-            // 1) El derecho. Si el backup viene de una instalación con Aurora o AMOLED
-            //    puestos (gratis hasta la 2.7), se le conceden AQUÍ, antes de que el
-            //    one-shot pueda quemarse en vacío. Es la línea roja: nada que hoy es
-            //    gratis puede pasar a Pro para quien ya lo tenía.
-            //    grandfatherCurrentThemeIfNeeded respeta su propio one-shot, así que a
-            //    quien ya lo tenía resuelto no le cambia nada. Solo concede Aurora/AMOLED,
-            //    nunca Cuero ni Pro: el techo de un JSON manipulado a mano es un tema
-            //    cosmético que además era gratis en la 2.7.
+            // CRÍTICO (auditoría dinero 17-07): el JSON del backup es editable a mano. Antes
+            // este bloque escribía theme_mode=restoredTheme y llamaba a grandfather, que CONCEDÍA
+            // Aurora/AMOLED de forma permanente por lo que pusiera el campo → tema de pago gratis
+            // para cualquiera que editara un fichero de texto. Ya no se concede nada desde aquí.
+            //
+            // El derecho (Pro, código, o grandfather REAL del arranque en sitio) NO viaja en el
+            // JSON y no puede fabricarse con él. El tema restaurado solo se APLICA si el usuario
+            // YA tiene derecho a él; si no, se ignora y se conserva el tema actual. Los backups
+            // de la 2.7 (v2) ni siquiera traen themeMode, así que esto no afecta a esa migración;
+            // la vía normal de la 2.7 es la actualización en sitio, que conserva prefs y tema.
             val previous = prefs.getString("theme_mode", null)
-            prefs.edit().putString("theme_mode", restoredTheme).apply()
-            com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
-            // 2) La apariencia. Restaurar el tema solo si el usuario no había elegido uno
-            //    en ESTA instalación (caso real de la migración: instalar e importar) y si
-            //    tiene derecho a él. Restaurar es un MERGE, no un reemplazo: pisarle a
-            //    alguien el tema que acaba de elegir a mano sería una sorpresa fea, y
-            //    ponerle uno de pago al que no tiene derecho, un regalo que no toca.
             val mode = ThemeMode.entries.firstOrNull { it.value == restoredTheme }
             val keep = previous == null && mode != null &&
                 com.lecturameter.utils.Pro.themeAllowed(prefs, mode)
             if (keep) vm.setThemeMode(mode!!, prefs, context)
-            else prefs.edit().putString("theme_mode", previous ?: "dark").apply()
+            // Si no procede (tema de pago sin derecho, o el usuario ya eligió tema en esta
+            // instalación), no se toca theme_mode: se queda el actual o el de por defecto.
         }
 
         val backupBooks2 = backup.books ?: emptyList()

@@ -240,6 +240,25 @@ object Pro {
         prefs.edit().putBoolean(PREF_KEY, true).putString(SRC_KEY, "play").apply()
     }
 
+    /**
+     * CRÍTICO (auditoría dinero 17-07): un reembolso o cancelación de Play debe retirar Pro.
+     * Antes nada escribía nunca pro_unlocked=false, así que comprar por 2,99, pedir el
+     * reembolso autoservicio de Play y quedarse Pro para siempre era un procedimiento de dos
+     * pasos sin root ni ADB.
+     *
+     * Se llama SOLO cuando Play ha respondido OK y la cuenta NO tiene la compra activa (una
+     * restauración con resultado NONE, no UNAVAILABLE: un servicio caído no debe revocar nada).
+     *
+     * Retira ÚNICAMENTE el Pro que vino de una COMPRA (SRC_KEY=="play"). El Pro de CÓDIGO no se
+     * toca: un usuario de código no tiene compra en Play y su consulta daría NONE siempre, así
+     * que revocarlo aquí le quitaría lo que canjeó. El trial es aparte (no usa PREF_KEY).
+     */
+    fun revokePlayEntitlementIfGone(prefs: SharedPreferences) {
+        if (!prefs.getBoolean(PREF_KEY, false)) return
+        if (prefs.getString(SRC_KEY, null) != "play") return
+        prefs.edit().remove(PREF_KEY).remove(SRC_KEY).apply()
+    }
+
     private fun markCodeRedeemed(prefs: SharedPreferences) {
         // El entitlement va al principal (respaldable); los contadores de canje al local.
         prefs.edit().putBoolean(PREF_KEY, true).putString(SRC_KEY, "code").apply()
@@ -321,6 +340,20 @@ object Pro {
      *  2.7), se le respeta ESE tema para siempre. Cuero es nuevo y no se hereda. */
     fun grandfatherCurrentThemeIfNeeded(prefs: SharedPreferences) {
         if (prefs.getBoolean(GRANDFATHER_DONE_KEY, false)) return
+        // CRÍTICO (auditoría dinero 17-07): un tema solo se HEREDA si venía de ANTES de que
+        // existiera Pro. Un tema de pago puesto durante la prueba de 7 días o con Pro comprado
+        // NO es herencia, es entitlement, y no puede quedarse gratis al caducar.
+        //
+        // El agujero: en instalación limpia, load() sale antes por biblioteca vacía y este
+        // one-shot no se quema en el primer arranque; el usuario nuevo prueba los 7 días, elige
+        // Aurora/AMOLED, mete un libro y en el siguiente arranque el one-shot se quemaba ya con
+        // theme_mode="aurora" → tema de pago gratis para siempre (el 100% de instalaciones de
+        // Play). El usuario legítimo de la 2.7 NO se ve afectado: tiene libros, así que su
+        // primer onCreate quema el one-shot antes de poder siquiera activar la prueba.
+        if (prefs.contains(TRIAL_EXPIRES_KEY) || prefs.getBoolean(PREF_KEY, false)) {
+            prefs.edit().putBoolean(GRANDFATHER_DONE_KEY, true).apply()
+            return
+        }
         val current = prefs.getString("theme_mode", null)
         val edit = prefs.edit().putBoolean(GRANDFATHER_DONE_KEY, true)
         if (current == "aurora" || current == "amoled") edit.putString(GRANDFATHER_KEY, current)
@@ -332,6 +365,10 @@ object Pro {
         object Success : RedeemResult()
         object InvalidCode : RedeemResult()
         object TooManyAttempts : RedeemResult()
+        /** CRÍTICO (auditoría dinero 17-07): código REAL pero ya canjeado en el máximo de
+         *  dispositivos (worker: 409 already_redeemed). Es un comprador legítimo que cambió de
+         *  móvil, NO un código falso: mensaje propio y NO cuenta hacia el bloqueo de 24 h. */
+        object CodeExhausted : RedeemResult()
         data class NetworkError(val httpCode: Int?) : RedeemResult()
     }
 
@@ -356,8 +393,25 @@ object Pro {
             val safeDevice = esc(deviceId)
             conn.outputStream.use { it.write("""{"code":"$safeCode","deviceId":"$safeDevice"}""".toByteArray()) }
             when (conn.responseCode) {
-                200 -> { markCodeRedeemed(prefs); RedeemResult.Success }
-                400, 404, 409 -> { registerFailedAttempt(prefs, now); RedeemResult.InvalidCode }
+                200 -> {
+                    // MAYOR (auditoría dinero 17-07): un 200 NO basta para conceder Pro. Un portal
+                    // cautivo, un interstitial de CDN/Cloudflare o un MITM en red hostil devuelven
+                    // 200 con HTML y regalarían la app. Se exige el cuerpo JSON del worker
+                    // ({"status":"ok"...}); si no cuadra, no es una respuesta suya y no se concede.
+                    val bodyText = try {
+                        conn.inputStream.bufferedReader().use { it.readText() }
+                    } catch (e: Exception) { "" }
+                    val ok = try {
+                        org.json.JSONObject(bodyText).optString("status") == "ok"
+                    } catch (e: Exception) { false }
+                    if (ok) { markCodeRedeemed(prefs); RedeemResult.Success }
+                    else RedeemResult.NetworkError(200)
+                }
+                // 409 = código válido que ya gastó sus dispositivos. NO es inválido y NO gasta
+                // intento hacia el bloqueo: al comprador que cambia de móvil no se le acusa de
+                // usar un código falso ni se le autobloquea 24 h.
+                409 -> RedeemResult.CodeExhausted
+                400, 404 -> { registerFailedAttempt(prefs, now); RedeemResult.InvalidCode }
                 else -> RedeemResult.NetworkError(conn.responseCode)
             }
         } catch (e: Exception) {

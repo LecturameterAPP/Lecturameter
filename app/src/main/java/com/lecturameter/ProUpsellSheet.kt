@@ -252,7 +252,15 @@ fun TrialGiftDialog(
     // ninguno guardado (p. ej. pasó la prueba entera en Oscuro), no preseleccionamos nada
     // y que elija: no se le puede adivinar el gusto.
     val kept = remember { prefs.getString(Pro.THEME_BEFORE_LOCK_KEY, null) }
-    var choice by remember { mutableStateOf(ThemeMode.entries.firstOrNull { it.value == kept }) }
+    // MAYOR (auditoría dinero 17-07): NO ofrecer un tema de pago que el usuario YA tiene
+    // (Aurora/AMOLED heredado de la 2.7). Regalarle algo que ya posee quemaba el one-shot sin
+    // darle nada. Solo se ofrecen los de pago a los que NO tiene derecho (Cuero siempre entra:
+    // no se hereda). El tema que tenía al caducar (kept) va preseleccionado si está en la lista.
+    val offered = remember {
+        listOf(ThemeMode.AURORA, ThemeMode.AMOLED, ThemeMode.CUERO)
+            .filter { !Pro.themeAllowed(prefs, it) }
+    }
+    var choice by remember { mutableStateOf(offered.firstOrNull { it.value == kept } ?: offered.firstOrNull()) }
 
     AlertDialog(
         onDismissRequest = { pending = false },   // se cierra, pero el regalo sigue pendiente
@@ -268,12 +276,13 @@ fun TrialGiftDialog(
             Column {
                 Text(stringResource(R.string.trial_gift_body), color = theme.textMuted, fontSize = 13.sp, lineHeight = 18.sp)
                 Spacer(Modifier.height(14.dp))
-                // Los 3 temas de pago, en el orden del selector de Ajustes
-                listOf(
-                    ThemeMode.AURORA to stringResource(R.string.theme_aurora),
-                    ThemeMode.AMOLED to stringResource(R.string.theme_oled),
-                    ThemeMode.CUERO  to stringResource(R.string.theme_cuero)
-                ).forEach { (mode, label) ->
+                // Los temas de pago que el usuario NO tiene ya, en el orden del selector.
+                offered.forEach { mode ->
+                    val label = when (mode) {
+                        ThemeMode.AURORA -> stringResource(R.string.theme_aurora)
+                        ThemeMode.AMOLED -> stringResource(R.string.theme_oled)
+                        else             -> stringResource(R.string.theme_cuero)
+                    }
                     val sel = choice == mode
                     Surface(
                         onClick = { choice = mode },
@@ -349,6 +358,7 @@ private fun CodeEntry(
     val errInvalid = stringResource(R.string.pro_code_err_invalid)
     val errAttempts = stringResource(R.string.pro_code_err_attempts)
     val errNetwork = stringResource(R.string.pro_code_err_network)
+    val errExhausted = stringResource(R.string.pro_code_err_exhausted)
 
     Text(stringResource(R.string.pro_redeem_title), color = theme.textMain, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     Spacer(Modifier.height(14.dp))
@@ -383,6 +393,7 @@ private fun CodeEntry(
                         is Pro.RedeemResult.Success -> onRedeemed()
                         is Pro.RedeemResult.InvalidCode -> error = errInvalid
                         is Pro.RedeemResult.TooManyAttempts -> error = errAttempts
+                        is Pro.RedeemResult.CodeExhausted -> error = errExhausted
                         is Pro.RedeemResult.NetworkError -> error = errNetwork
                     }
                 }
