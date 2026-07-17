@@ -1222,4 +1222,13 @@
     <!-- P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE) -->
     <string name="msg_update_ready_to_install">Actualización lista para instalar</string>
     <string name="btn_restart_update">Reiniciar</string>
+
+    <!-- B5 idea 1 (mockup 17-07): el "+" pregunta antes de asumir que se añade a mano -->
+    <string name="add_sheet_title">Añadir un libro</string>
+    <string name="add_sheet_subtitle">Elige cómo quieres empezar.</string>
+    <string name="add_sheet_catalog_title">Buscar en el catálogo</string>
+    <string name="add_sheet_catalog_badge">Recomendado</string>
+    <string name="add_sheet_catalog_desc">Portada, páginas e ISBN ya rellenos</string>
+    <string name="add_sheet_manual_title">Añadirlo a mano</string>
+    <string name="add_sheet_manual_desc">Para ediciones que no están en el catálogo</string>
 </resources>
