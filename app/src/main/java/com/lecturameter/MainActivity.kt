@@ -431,6 +431,17 @@ fun onAccentColor(theme: Theme): Color = when {
 // D-015 r3: en Cuero los iconos de rail y acciones van en oro suave FIJO (el azul Material
 // quedaba raro sobre marrón+dorado); en el resto de temas se mantiene el azul de siempre.
 fun actionIconTint(theme: Theme): Color = if (isCueroTheme(theme)) GoldIconCuero else Accent
+
+// Feedback 17-07 (Bloque 2): botones de acción RELLENOS que no son semánticos (hoy solo el
+// círculo de recargar portada) iban en Sky fijo, y ese cian cantaba sobre el marrón del
+// Cuero y el teal de Aurora. Mismo criterio que actionIconTint: cambia en los dos temas que
+// tienen acento propio y en el resto se queda el Sky de siempre (Sky sigue siendo el color
+// SEMÁNTICO del tiempo en chips y pills; eso no se toca en ningún tema).
+fun actionFillColor(theme: Theme): Color = when {
+    theme.bgDark == BgDarkC -> AccentCuero   // Cuero
+    theme.bgDark == BgDarkA -> AccentAurora  // Aurora
+    else                    -> Sky
+}
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)
@@ -685,7 +696,7 @@ fun GenreSelectorSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = if (theme.isDark) Color(0xFF151B31) else theme.bgMid,
+        containerColor = if (isCueroTheme(theme)) theme.bgMid else if (theme.isDark) Color(0xFF151B31) else theme.bgMid,
         contentColor = theme.textMain
     ) {
         // Feedback 11-07: la lista usa weight() dentro del alto acotado del sheet
@@ -713,13 +724,15 @@ fun GenreSelectorSheet(
                 val sel = g in selection
                 Surface(
                     shape = RoundedCornerShape(999.dp),
-                    color = if (sel) Accent else theme.surface,
-                    border = BorderStroke(1.dp, if (sel) Accent else if (isSuggested) Amber.copy(alpha = 0.6f) else theme.border),
+                    color = if (sel) accentForTheme(theme) else theme.surface,
+                    border = BorderStroke(1.dp, if (sel) accentForTheme(theme) else if (isSuggested) Amber.copy(alpha = 0.6f) else theme.border),
                     modifier = Modifier.clip(RoundedCornerShape(999.dp)).clickable { toggle(g) }
                 ) {
                     Text(
                         labels[g] ?: g,
-                        color = if (sel) Color.White else theme.textMain.copy(alpha = 0.85f),
+                        // El chip seleccionado se pinta con el acento del tema: el blanco fijo
+                        // era ilegible sobre el oro de Cuero y el lila de Aurora
+                        color = if (sel) onAccentColor(theme) else theme.textMain.copy(alpha = 0.85f),
                         fontSize = 12.5.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
@@ -758,7 +771,7 @@ fun GenreSelectorSheet(
             if (onRefreshFromApi != null) {
                 Spacer(Modifier.height(6.dp))
                 TextButton(onClick = onRefreshFromApi, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.txt_6fc03171), color = Accent, fontSize = 13.sp)
+                    Text(stringResource(R.string.txt_6fc03171), color = accentForTheme(theme), fontSize = 13.sp)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -770,7 +783,7 @@ fun GenreSelectorSheet(
                 ) { Text(stringResource(R.string.genre_sheet_clear), color = theme.textMuted) }
                 Button(
                     onClick = { onConfirm(selection); onDismiss() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentForTheme(theme), contentColor = onAccentColor(theme)),
                     shape = RoundedCornerShape(11.dp), modifier = Modifier.weight(1f)
                 ) { Text(stringResource(R.string.genre_sheet_accept), fontWeight = FontWeight.SemiBold) }
             }
@@ -1230,7 +1243,7 @@ class MainActivity : ComponentActivity() {
                                 TextButton(onClick = {
                                     showCameraPermDialog.value = false
                                     cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
-                                }) { Text(stringResource(R.string.txt_64b46771), color = Accent, fontWeight = FontWeight.Bold) }
+                                }) { Text(stringResource(R.string.txt_64b46771), color = accentForTheme(theme), fontWeight = FontWeight.Bold) }
                             },
                             dismissButton = {
                                 TextButton(onClick = {
@@ -1399,10 +1412,17 @@ fun themedAccentOr(color: Color): Color {
 
 @Composable
 fun LecturaMeterTheme(theme: Theme, content: @Composable () -> Unit) {
+    // Feedback 17-07 (Bloque 2): el colorScheme de Material llevaba el índigo FIJO como
+    // primary en los 5 temas. Todo control Material que use el color primario por defecto
+    // (cursor y borde enfocado de los campos, Switch, RadioButton, Slider, ripples) salía
+    // azul sobre Cuero y Aurora aunque el call site no nombrara Accent. Ahora primary sigue
+    // al tema y onPrimary usa el contraste correcto (crema oscura en Cuero, morado en Aurora).
+    val primary = accentForTheme(theme)
+    val onPrimary = onAccentColor(theme)
     val cs = if (theme.isDark)
-        darkColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = Accent, onPrimary = Color.White, onBackground = theme.textMain, onSurface = theme.textMain)
+        darkColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = primary, onPrimary = onPrimary, onBackground = theme.textMain, onSurface = theme.textMain)
     else
-        lightColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = Accent, onPrimary = Color.White, onBackground = theme.textMain, onSurface = theme.textMain)
+        lightColorScheme(background = theme.bgDark, surface = theme.bgMid, primary = primary, onPrimary = onPrimary, onBackground = theme.textMain, onSurface = theme.textMain)
     androidx.compose.runtime.CompositionLocalProvider(LocalAppTheme provides theme) {
         MaterialTheme(colorScheme = cs, content = content)
     }
@@ -1729,50 +1749,50 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
 
         AlertDialog(
             onDismissRequest = { /* no se puede cerrar sin completar o omitir */ },
-            containerColor = (if (vm.isDarkMode) Color(0xFF1E2235) else Color(0xFFF5F7FF)),
+            containerColor = theme.bgMid,
             title = {
                 Column {
-                    Text(stringResource(R.string.txt_613a3a29), color = if (vm.isDarkMode) Color.White else Color(0xFF1E2235), fontWeight = FontWeight.Bold)
-                    Text(stringResource(R.string.migration_session_counter, sessionNumber, totalSessions), color = Color(0xFF7B8EC8), fontSize = 12.sp)
+                    Text(stringResource(R.string.txt_613a3a29), color = theme.textMain, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.migration_session_counter, sessionNumber, totalSessions), color = theme.textMuted, fontSize = 12.sp)
                 }
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (book != null) {
-                        Text(book.title, color = if (vm.isDarkMode) Color(0xFFBBCCFF) else Color(0xFF3344AA), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(book.title, color = accentForTheme(theme), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(stringResource(R.string.session_header_timer, sessionNumber, fmtDate(session.date)), color = Color(0xFF7B8EC8), fontSize = 12.sp)
-                    Text(stringResource(R.string.timed_session_pages, session.pages), color = Color(0xFF7B8EC8), fontSize = 11.sp)
+                    Text(stringResource(R.string.session_header_timer, sessionNumber, fmtDate(session.date)), color = theme.textMuted, fontSize = 12.sp)
+                    Text(stringResource(R.string.timed_session_pages, session.pages), color = theme.textMuted, fontSize = 11.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.txt_17724589), color = Color(0xFF7B8EC8), fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+                            Text(stringResource(R.string.txt_17724589), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
                             OutlinedTextField(
                                 value = startText,
                                 onValueChange = { startText = it.filter { c -> c.isDigit() }; migError = "" },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = if (vm.isDarkMode) Color.White else Color(0xFF1E2235),
-                                    unfocusedTextColor = if (vm.isDarkMode) Color.White else Color(0xFF1E2235),
-                                    focusedBorderColor = Color(0xFF6366F1),
-                                    unfocusedBorderColor = Color(0xFF3D4166)
+                                    focusedTextColor = theme.textMain,
+                                    unfocusedTextColor = theme.textMain,
+                                    focusedBorderColor = accentForTheme(theme),
+                                    unfocusedBorderColor = theme.border
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.txt_d532077e), color = Color(0xFF7B8EC8), fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+                            Text(stringResource(R.string.txt_d532077e), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
                             OutlinedTextField(
                                 value = endText,
                                 onValueChange = { endText = it.filter { c -> c.isDigit() }; migError = "" },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = if (vm.isDarkMode) Color.White else Color(0xFF1E2235),
-                                    unfocusedTextColor = if (vm.isDarkMode) Color.White else Color(0xFF1E2235),
-                                    focusedBorderColor = Color(0xFF6366F1),
-                                    unfocusedBorderColor = Color(0xFF3D4166)
+                                    focusedTextColor = theme.textMain,
+                                    unfocusedTextColor = theme.textMain,
+                                    focusedBorderColor = accentForTheme(theme),
+                                    unfocusedBorderColor = theme.border
                                 ),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
@@ -1810,7 +1830,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                             migrationIndex++
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentForTheme(theme), contentColor = onAccentColor(theme)),
                     shape = RoundedCornerShape(10.dp)
                 ) { Text(stringResource(R.string.txt_8487931b)) }
             },

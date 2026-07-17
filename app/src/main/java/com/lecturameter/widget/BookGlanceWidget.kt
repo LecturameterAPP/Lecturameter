@@ -105,6 +105,9 @@ private fun WidgetContent(
 ) {
     val textMain = ColorProvider(Color(theme.textMain))
     val textMuted = ColorProvider(Color(theme.textMuted))
+    // Feedback 17-07 (Bloque 2): acento del widget por tema (oro en Cuero, morado en
+    // Aurora). Antes los overlays y la barra eran índigo/sky fijos y ensuciaban el marrón.
+    val progressColor = ColorProvider(Color(theme.progressColor))
     val openIntent = if (book != null) {
         Intent(Intent.ACTION_VIEW, Uri.parse("lecturameter://book/${book.id}"))
             .setClass(androidx.glance.LocalContext.current, MainActivity::class.java)
@@ -125,7 +128,7 @@ private fun WidgetContent(
             modifier = GlanceModifier
                 .width(if (mini) 44.dp else 64.dp)
                 .height(if (mini) 63.dp else 92.dp)
-                .background(ImageProvider(R.drawable.widget_accent_bg_cover)),
+                .background(ImageProvider(theme.accentCoverDrawable)),
             contentAlignment = Alignment.Center
         ) {
             if (cover != null) {
@@ -177,7 +180,7 @@ private fun WidgetContent(
                                     style = TextStyle(fontSize = if (compact) 10.sp else 12.sp, color = textMain),
                                     maxLines = 1,
                                     modifier = GlanceModifier
-                                        .background(ImageProvider(R.drawable.widget_accent_bg_chip))
+                                        .background(ImageProvider(theme.accentChipDrawable))
                                         .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = 3.dp)
                                 )
                             }
@@ -190,7 +193,7 @@ private fun WidgetContent(
                     LinearProgressIndicator(
                         progress = pct / 100f,
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 5.dp).height(9.dp),
-                        color = ColorProvider(Color(0xFF0EA5E9)),
+                        color = progressColor,
                         backgroundColor = ColorProvider(Color(0x40FFFFFF))
                     )
                 }
@@ -203,7 +206,7 @@ private fun WidgetContent(
                     LinearProgressIndicator(
                         progress = pct / 100f,
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp).height(8.dp),
-                        color = ColorProvider(Color(0xFF0EA5E9)),
+                        color = progressColor,
                         backgroundColor = ColorProvider(Color(0x40FFFFFF))
                     )
                 }

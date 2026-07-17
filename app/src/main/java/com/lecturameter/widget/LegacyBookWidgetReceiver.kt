@@ -113,13 +113,23 @@ private fun buildWidgetViews(
 
     val widgetTheme = resolveWidgetTheme(context)
     views.setInt(R.id.widget_root, "setBackgroundResource", widgetTheme.bgDrawable)
-    views.setInt(R.id.widget_cover_frame, "setBackgroundResource", R.drawable.widget_accent_bg_cover)
+    // Feedback 17-07 (Bloque 2): los overlays de acento y la barra siguen al tema (oro en
+    // Cuero, morado en Aurora). Antes eran índigo fijo y sobre el marrón del cuero se veían
+    // como un "azul sucio". setColorStateList por RemoteViews requiere API 31+; por debajo
+    // la barra se queda con el sky del layout (aceptado: el fondo y los chips ya van a juego).
+    views.setInt(R.id.widget_cover_frame, "setBackgroundResource", widgetTheme.accentCoverDrawable)
+    if (android.os.Build.VERSION.SDK_INT >= 31) {
+        views.setColorStateList(
+            R.id.widget_progress_bar, "setProgressTintList",
+            android.content.res.ColorStateList.valueOf(widgetTheme.progressColor)
+        )
+    }
     views.setTextColor(R.id.widget_title, widgetTheme.textMain)
     views.setTextColor(R.id.widget_cover_placeholder, widgetTheme.textMain)
     views.setTextColor(R.id.widget_author, widgetTheme.textMuted)
     views.setTextColor(R.id.widget_updated, widgetTheme.textMuted)
     for (chipId in listOf(R.id.widget_days_chip, R.id.widget_minutes_chip, R.id.widget_sessions_chip, R.id.widget_pages_chip, R.id.widget_percent_chip)) {
-        views.setInt(chipId, "setBackgroundResource", R.drawable.widget_accent_bg_chip)
+        views.setInt(chipId, "setBackgroundResource", widgetTheme.accentChipDrawable)
         views.setTextColor(chipId, widgetTheme.textMain)
     }
 

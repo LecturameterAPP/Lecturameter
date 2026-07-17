@@ -167,7 +167,7 @@ fun HourlyHeatmapCard(sessions: List<ReadingSession>, theme: Theme) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.adv_hourly_peak, dayLabels.getOrElse(peakDay) { "" }, peakSlot * 3, peakSlot * 3 + 3),
-                        color = Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                        color = accentForTheme(theme), fontSize = 11.sp, fontWeight = FontWeight.SemiBold
                     )
                 }
             }

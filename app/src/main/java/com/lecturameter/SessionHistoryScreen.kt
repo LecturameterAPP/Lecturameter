@@ -56,6 +56,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
     val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
+    val acc = accentForTheme(theme)
 
     var newestFirst by remember { mutableStateOf(vm.savedSessionNewestFirst) }
     var searchQuery by remember { mutableStateOf("") }
@@ -177,7 +178,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(IntrinsicSize.Max)) {
-                    HistoryStat("${sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = Accent)
+                    HistoryStat("${sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = acc)
                     HistoryStat(if (totalMins > 0) fmtMinutes(totalMins) else "—", stringResource(R.string.history_stat_total_time), Modifier.weight(1f), theme, valueColor = Sky)
                     HistoryStat("$totalPages", stringResource(R.string.pill_paginas_totales), Modifier.weight(1f), theme, valueColor = Green)
                     HistoryStat(if (totalMins > 0) String.format("%.1f", totalPages.toDouble() / totalMins) else "—", stringResource(R.string.pill_pags_min), Modifier.weight(1f), theme, valueColor = Green)
@@ -234,11 +235,11 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     ) {
                         Icon(
                             if (newestFirst) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                            null, tint = Accent, modifier = Modifier.size(15.dp)
+                            null, tint = acc, modifier = Modifier.size(15.dp)
                         )
                         Text(
                             if (newestFirst) stringResource(R.string.sort_newest_first) else stringResource(R.string.sort_oldest_first),
-                            color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                            color = acc, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -247,7 +248,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = theme.surface,
-                border = BorderStroke(1.dp, if (searchQuery.isNotBlank()) Accent else theme.border),
+                border = BorderStroke(1.dp, if (searchQuery.isNotBlank()) acc else theme.border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -265,7 +266,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                             fontSize = 13.sp,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Default
                         ),
-                        cursorBrush = SolidColor(Accent),
+                        cursorBrush = SolidColor(acc),
                         modifier = Modifier.weight(1f).padding(vertical = 9.dp),
                         decorationBox = { inner ->
                             if (searchQuery.isEmpty()) Text(
@@ -290,7 +291,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     stringResource(R.string.history_search_other, filteredSessions.size)
                 Text(
                     searchResultText,
-                    color = if (filteredSessions.isEmpty()) Color(0xFFEF4444) else Accent,
+                    color = if (filteredSessions.isEmpty()) Color(0xFFEF4444) else acc,
                     fontSize = 11.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                 )
@@ -370,7 +371,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { showDeleteAllHistory = false }) {
-                                        Text(stringResource(R.string.txt_847607d7), color = Accent)
+                                        Text(stringResource(R.string.txt_847607d7), color = acc)
                                     }
                                 }
                             )
@@ -380,7 +381,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                             onClick = { expanded[expandKey] = !isExpanded },
                             shape = RoundedCornerShape(14.dp),
                             color = if (isExpanded) theme.surface else theme.bgMid,
-                            border = BorderStroke(1.dp, if (isExpanded) Accent.copy(alpha = 0.5f) else theme.border),
+                            border = BorderStroke(1.dp, if (isExpanded) acc.copy(alpha = 0.5f) else theme.border),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                         ) {
                             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -391,7 +392,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                     Icon(
                                         Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Accent,
+                                        tint = acc,
                                         modifier = Modifier.size(18.dp).rotate(if (isExpanded) 0f else -90f).padding(top = 2.dp)
                                     )
                                     Text(langFlag, fontSize = 13.sp, modifier = Modifier.padding(top = 1.dp))
@@ -441,7 +442,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    DrawerStatChipH("📚 ${bookSessions.size} Ses", Accent, Modifier.weight(1f))
+                                    DrawerStatChipH("📚 ${bookSessions.size} Ses", acc, Modifier.weight(1f))
                                     DrawerStatChipH(if (bookTotalMins > 0) "⏱️ ${fmtMinutes(bookTotalMins)}" else "⏱️ —", Sky, Modifier.weight(1f))
                                     DrawerStatChipH("📄 $bookTotalPages Págs", Green, Modifier.weight(1f))
                                 }
@@ -470,7 +471,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                 val cycleSess = cycleGroups[cycleIdx] ?: continue
                                 val cycleKey = "${expandKey}_$cycleIdx"
                                 val isCycleOriginal = cycleIdx == 0
-                                val cycleAccent = if (isCycleOriginal) Accent else Color(0xFF06B6D4)
+                                val cycleAccent = if (isCycleOriginal) acc else Color(0xFF06B6D4)
                                 val isCycleExpanded = cycleExpanded[cycleKey] ?: false
 
                                 item(key = "cycle_header_$cycleKey") {
@@ -498,7 +499,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                                     showDeleteCycle = false
                                                 }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold) }
                                             },
-                                            dismissButton = { TextButton(onClick = { showDeleteCycle = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+                                            dismissButton = { TextButton(onClick = { showDeleteCycle = false }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }
                                         )
                                     }
                                     Spacer(Modifier.height(6.dp))
@@ -691,6 +692,7 @@ fun HistorySessionCard(
     chipWidth: androidx.compose.ui.unit.Dp = 76.dp
 ) {
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     val pagesPerMin = if (session.minutes != null && session.minutes > 0)
         String.format("%.1f", session.pages.toDouble() / session.minutes)
     else null
@@ -711,7 +713,7 @@ fun HistorySessionCard(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Accent)
+                    Text(stringResource(R.string.txt_847607d7), color = acc)
                 }
             },
             containerColor = theme.bgMid
@@ -743,7 +745,7 @@ fun HistorySessionCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = theme.textMain,
                             unfocusedTextColor = theme.textMain,
-                            focusedBorderColor = Accent,
+                            focusedBorderColor = acc,
                             unfocusedBorderColor = theme.border
                         )
                     )
@@ -762,7 +764,7 @@ fun HistorySessionCard(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = theme.textMain,
                                 unfocusedTextColor = theme.textMain,
-                                focusedBorderColor = Accent,
+                                focusedBorderColor = acc,
                                 unfocusedBorderColor = theme.border
                             )
                         )
@@ -777,7 +779,7 @@ fun HistorySessionCard(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = theme.textMain,
                                 unfocusedTextColor = theme.textMain,
-                                focusedBorderColor = Accent,
+                                focusedBorderColor = acc,
                                 unfocusedBorderColor = theme.border
                             )
                         )
@@ -794,7 +796,7 @@ fun HistorySessionCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = theme.textMain,
                             unfocusedTextColor = theme.textMain,
-                            focusedBorderColor = Accent,
+                            focusedBorderColor = acc,
                             unfocusedBorderColor = theme.border
                         )
                     )
@@ -806,7 +808,7 @@ fun HistorySessionCard(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = theme.textMain,
                             unfocusedTextColor = theme.textMain,
-                            focusedBorderColor = Accent,
+                            focusedBorderColor = acc,
                             unfocusedBorderColor = theme.border
                         )
                     )
@@ -835,7 +837,7 @@ fun HistorySessionCard(
                     val mins  = minsText.toIntOrNull()
                     onEdit?.invoke(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
-                }) { Text(stringResource(R.string.txt_d3270bdb), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
             },
             confirmButton = {
                 TextButton(onClick = { showEditDialog = false }) {
@@ -857,7 +859,7 @@ fun HistorySessionCard(
                 if (sessionNumber > 0) {
                     Text(
                         "#$sessionNumber",
-                        color = Accent.copy(alpha = 0.7f),
+                        color = acc.copy(alpha = 0.7f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(end = 6.dp)
@@ -872,7 +874,7 @@ fun HistorySessionCard(
                 )
                 if (onEdit != null) {
                     IconButton(onClick = { showEditDialog = true }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Edit, null, tint = Accent.copy(alpha = 0.7f), modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.Edit, null, tint = acc.copy(alpha = 0.7f), modifier = Modifier.size(15.dp))
                     }
                 }
                 if (onDelete != null) {
@@ -895,7 +897,7 @@ fun HistorySessionCard(
                 if (book.author.isNotBlank()) {
                     Text(
                         book.author,
-                        color = Accent,
+                        color = acc,
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -908,7 +910,7 @@ fun HistorySessionCard(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                DataChipSm("📄 ${session.pages}p", Accent.copy(alpha = 0.15f), Accent, Modifier.width(chipWidth))
+                DataChipSm("📄 ${session.pages}p", acc.copy(alpha = 0.15f), acc, Modifier.width(chipWidth))
                 if (session.minutes != null) {
                     DataChipSm("⏱️ ${fmtMinutes(session.minutes)}", Sky.copy(alpha = 0.15f), Sky, Modifier.width(chipWidth))
                 }
@@ -944,7 +946,7 @@ fun HistorySessionCard(
                         Icon(
                             if (noteExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = if (noteExpanded) stringResource(R.string.cd_collapse_note) else stringResource(R.string.cd_expand_note),
-                            tint = Accent.copy(alpha = 0.7f),
+                            tint = acc.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp).align(Alignment.CenterHorizontally)
                         )
                     }
@@ -999,8 +1001,8 @@ fun SessionChart(sessions: List<ReadingSession>, theme: Theme, reversed: Boolean
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = Color(0x0D6366F1),
-        border = BorderStroke(1.dp, Color(0x1A6366F1)),
+        color = accentForTheme(theme).copy(alpha = 0.05f),
+        border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.1f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp)) {
@@ -1047,6 +1049,7 @@ fun SessionChart(sessions: List<ReadingSession>, theme: Theme, reversed: Boolean
 @OptIn(ExperimentalLayoutApi::class)
 fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, onDelete: () -> Unit, onEdit: (ReadingSession) -> Unit) {
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     var showConfirm by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(true) }
@@ -1059,7 +1062,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
             title = { Text(stringResource(R.string.txt_03f6aff4), color = theme.textMain) },
             text = { Text(stringResource(R.string.dialog_delete_session_date, fmtDate(session.date)), color = theme.textMuted) },
             confirmButton = { TextButton(onClick = { onDelete(); showConfirm = false }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red) } },
-            dismissButton = { TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } },
+            dismissButton = { TextButton(onClick = { showConfirm = false }) { Text(stringResource(R.string.txt_847607d7), color = acc) } },
             containerColor = theme.bgMid
         )
     }
@@ -1082,7 +1085,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                         label = { Text(stringResource(R.string.txt_39464d70), color = theme.textDim, fontSize = 12.sp) },
                         isError = dateError.isNotEmpty(),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = acc, unfocusedBorderColor = theme.border)
                     )
                     if (dateError.isNotEmpty()) Text(dateError, color = Red, fontSize = 12.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1092,7 +1095,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                             singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             isError = pageError.isNotEmpty(),
                             modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border)
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = acc, unfocusedBorderColor = theme.border)
                         )
                         OutlinedTextField(
                             value = endPageText, onValueChange = { endPageText = it.filter { c -> c.isDigit() }; pageError = "" },
@@ -1100,7 +1103,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                             singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             isError = pageError.isNotEmpty(),
                             modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border)
+                            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = acc, unfocusedBorderColor = theme.border)
                         )
                     }
                     if (pageError.isNotEmpty()) Text(pageError, color = Red, fontSize = 12.sp)
@@ -1108,13 +1111,13 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                         value = minsText, onValueChange = { minsText = it.filter { c -> c.isDigit() } },
                         label = { Text(stringResource(R.string.txt_0a43aca4), color = theme.textDim, fontSize = 12.sp) },
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = acc, unfocusedBorderColor = theme.border)
                     )
                     OutlinedTextField(
                         value = noteText, onValueChange = { noteText = it },
                         label = { Text(stringResource(R.string.txt_7cd6ad03), color = theme.textDim, fontSize = 12.sp) },
                         maxLines = 3,
-                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border)
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = acc, unfocusedBorderColor = theme.border)
                     )
                 }
             },
@@ -1141,7 +1144,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                     val mins  = minsText.toIntOrNull()
                     onEdit(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
-                }) { Text(stringResource(R.string.txt_d3270bdb), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
             },
             confirmButton = {
                 TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
@@ -1162,19 +1165,19 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                     modifier = Modifier.weight(1f).clickable { expanded = !expanded }
                 ) {
                     if (sessionNumber > 0) {
-                        Text("#$sessionNumber", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("#$sessionNumber", color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     Text(fmtDate(session.date), color = theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.weight(1f))
                     Icon(
                         if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Accent,
+                        tint = acc,
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 IconButton(onClick = { showEditDialog = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, null, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Edit, null, tint = acc.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                 }
                 IconButton(onClick = { showConfirm = true }, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Delete, null, tint = Red.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
@@ -1185,7 +1188,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                     modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    DataChip("📄 ${session.pages} págs", Accent.copy(alpha = 0.15f), Accent, Modifier.weight(1f))
+                    DataChip("📄 ${session.pages} págs", acc.copy(alpha = 0.15f), acc, Modifier.weight(1f))
                     if (session.minutes != null) {
                         DataChip("⏱️ ${session.minutes} min", Sky.copy(alpha = 0.15f), Sky, Modifier.weight(1f))
                     }
@@ -1213,7 +1216,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                         Icon(
                             if (noteExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
-                            tint = Accent,
+                            tint = acc,
                             modifier = Modifier.size(18.dp).align(Alignment.CenterHorizontally).clickable { noteExpanded = !noteExpanded }
                         )
                     }

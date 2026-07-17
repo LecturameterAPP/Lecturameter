@@ -63,6 +63,9 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     val stats = getStats(book)
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // Theming: acento del tema activo (oro en Cuero, morado en Aurora) y su color de contenido
+    val acc = accentForTheme(theme)
+    val onAcc = onAccentColor(theme)
     fun isOnline(): Boolean {
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
@@ -123,7 +126,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         notifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                     else
                         pendingTimerAction?.invoke().also { pendingTimerAction = null }
-                }) { Text(stringResource(R.string.txt_5fcafeb2), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_5fcafeb2), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -144,7 +147,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
-                TextButton(onClick = { showNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = Accent, fontWeight = FontWeight.Bold) }
+                TextButton(onClick = { showNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
             }
         )
     }
@@ -496,7 +499,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         selectedEditionResult = scannedEd
                         pendingScannedMismatch = null
                     }) {
-                        Text(stringResource(R.string.edition_scan_mismatch_add), color = Accent)
+                        Text(stringResource(R.string.edition_scan_mismatch_add), color = acc)
                     }
                 }
             )
@@ -522,7 +525,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         modifier = Modifier.size(32.dp)
                     ) {
                         // Feedback 2.6: icono de código de barras (como en el resto de la app), no QR
-                        Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = "Scan ISBN", tint = Accent, modifier = Modifier.size(18.dp))
+                        Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = "Scan ISBN", tint = acc, modifier = Modifier.size(18.dp))
                     }
                     IconButton(
                         onClick = {
@@ -541,7 +544,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh editions", tint = if (editionsLoading) theme.textDim else Accent, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh editions", tint = if (editionsLoading) theme.textDim else acc, modifier = Modifier.size(18.dp))
                     }
                 }
             },
@@ -562,9 +565,9 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     if (scannedEditionLanguageUncertain) {
                         Spacer(Modifier.height(10.dp))
                         Surface(
-                            color = Accent.copy(alpha = 0.08f),
+                            color = acc.copy(alpha = 0.08f),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Accent.copy(alpha = 0.3f))
+                            border = BorderStroke(1.dp, acc.copy(alpha = 0.3f))
                         ) {
                             Text(
                                 stringResource(R.string.edition_scan_language_uncertain),
@@ -577,7 +580,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     when {
                         editionsLoading -> {
                             Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = Accent, modifier = Modifier.size(28.dp))
+                                CircularProgressIndicator(color = acc, modifier = Modifier.size(28.dp))
                             }
                         }
                         editionsNetworkError -> {
@@ -615,7 +618,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(if (active) Accent else Color.Transparent)
+                                                .background(if (active) acc else Color.Transparent)
                                                 .clickable {
                                                     showingEs = isEs
                                                     // Limpiar selección si cambia de idioma
@@ -630,7 +633,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                         ) {
                                             Text(
                                                 label,
-                                                color = if (active) Color.White else theme.textDim,
+                                                color = if (active) onAcc else theme.textDim,
                                                 fontSize = 12.sp,
                                                 fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
                                             )
@@ -658,7 +661,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             Surface(
                                                 shape = RoundedCornerShape(12.dp),
                                                 color = if (isSelected) Color(0x207B6EF6) else theme.bgSurf,
-                                                border = BorderStroke(1.dp, if (isSelected) Accent else theme.border),
+                                                border = BorderStroke(1.dp, if (isSelected) acc else theme.border),
                                                 modifier = Modifier.fillMaxWidth().clickable { selectedEditionResult = ed; scannedEditionLanguageUncertain = false }
                                             ) {
                                                 Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -669,7 +672,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                                         if (!ed.isbn.isNullOrBlank()) Text("ISBN: ${ed.isbn}", color = theme.textMuted, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                                                         if (ed.pages > 0) Text(stringResource(R.string.search_pages_count, ed.pages), color = theme.textMuted, fontSize = 11.sp)
                                                     }
-                                                    if (isSelected) Text("✓", color = Accent, fontWeight = FontWeight.Bold)
+                                                    if (isSelected) Text("✓", color = acc, fontWeight = FontWeight.Bold)
                                                 }
                                             }
                                         }
@@ -704,7 +707,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false
                     },
                     enabled = selectedEditionResult != null
-                ) { Text(if (isAdding) stringResource(R.string.txt_d20f652b) else stringResource(R.string.txt_d1bdc329), color = if (selectedEditionResult != null) Accent else theme.textDim) }
+                ) { Text(if (isAdding) stringResource(R.string.txt_d20f652b) else stringResource(R.string.txt_d1bdc329), color = if (selectedEditionResult != null) acc else theme.textDim) }
             },
             confirmButton = {
                 TextButton(onClick = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false }) {
@@ -740,7 +743,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 TextButton(onClick = {
                     orphanSecondsPending = 0L; pendingResumeStart = null
                     startAction?.let { requestNotifPermThenStart(it) }
-                }) { Text(stringResource(R.string.timer_resume_confirm, pretty), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.timer_resume_confirm, pretty), color = acc, fontWeight = FontWeight.Bold) }
             }
         )
     }
@@ -748,7 +751,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     if (showDeleteDialog) {
         AlertDialog(onDismissRequest = { showDeleteDialog = false }, title = { Text(stringResource(R.string.txt_b375487f), color = theme.textMain) }, text = { Text(stringResource(R.string.txt_2750cc8c, book.title), color = theme.textMuted) },
             confirmButton = { TextButton(onClick = { vm.deleteBook(id, prefs); clearWidgetBookIfSelected(context, id); onBack() }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red) } },
-            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }, containerColor = theme.bgMid)
+            dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }, containerColor = theme.bgMid)
     }
 
     // v20.0 (G5): confirmación abandono
@@ -765,7 +768,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     showAbandonDialog = false
                 }) { Text(stringResource(R.string.txt_39e254c6), color = Red, fontWeight = FontWeight.Bold) }
             },
-            dismissButton = { TextButton(onClick = { showAbandonDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+            dismissButton = { TextButton(onClick = { showAbandonDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }
         )
     }
 
@@ -781,7 +784,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             text = { Text(stringResource(R.string.edition_delete_msg, edTitle), color = theme.textMuted, fontSize = 13.sp) },
             dismissButton = {
                 TextButton(onClick = { pendingRemoveEditionId = null }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Accent)
+                    Text(stringResource(R.string.txt_847607d7), color = acc)
                 }
             },
             confirmButton = {
@@ -821,7 +824,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         refreshWidgetForBookIfSelected(context, id, clearCoverCache = true)
                     }
                     showActiveEditionWarning = false; pendingActiveEditionId = null
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc) }
             }
         )
     }
@@ -870,7 +873,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     timerSeconds = 0
                     showSessionDialog = true
                     if (action != null) pendingChangeEditionAction = action
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc) }
             }
         )
     }
@@ -988,10 +991,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     }
                     // Resumen calculado
                     if (totalPages > 0) {
-                        Surface(shape = RoundedCornerShape(8.dp), color = Accent.copy(alpha = 0.1f), border = BorderStroke(1.dp, Accent.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Surface(shape = RoundedCornerShape(8.dp), color = acc.copy(alpha = 0.1f), border = BorderStroke(1.dp, acc.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                             Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("$totalPages", color = Accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text("$totalPages", color = acc, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     Text(stringResource(R.string.txt_47bcdf9a), color = theme.textDim, fontSize = 10.sp)
                                 }
                                 if (ppm != null) {
@@ -1086,7 +1089,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         timerSeconds = 0
                         closeSessionDialog()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                    colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAcc),
                     shape = RoundedCornerShape(10.dp)
                 ) { Text(stringResource(R.string.txt_d3270bdb)) }
             },
@@ -1101,10 +1104,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     Text(stringResource(R.string.txt_aa02a2da), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
                     OutlinedTextField(value = coverUrlInput, onValueChange = { coverUrlInput = it }, placeholder = { Text(stringResource(R.string.txt_14f2b208), color = theme.textDim) }, colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = { imagePicker.launch("image/*"); showCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent)) { Text(stringResource(R.string.txt_5cd0defc)) }
+                    OutlinedButton(onClick = { imagePicker.launch("image/*"); showCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = acc)) { Text(stringResource(R.string.txt_5cd0defc)) }
                 }
             },
-            confirmButton = { TextButton(onClick = { if (coverUrlInput.isNotBlank()) { vm.updateCover(id, coverUrlInput.trim(), prefs); refreshWidgetForBookIfSelected(context, id, clearCoverCache = true) }; showCoverDialog = false }) { Text(stringResource(R.string.txt_f0ed2dc3), color = Accent) } },
+            confirmButton = { TextButton(onClick = { if (coverUrlInput.isNotBlank()) { vm.updateCover(id, coverUrlInput.trim(), prefs); refreshWidgetForBookIfSelected(context, id, clearCoverCache = true) }; showCoverDialog = false }) { Text(stringResource(R.string.txt_f0ed2dc3), color = acc) } },
             dismissButton = { TextButton(onClick = { showCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }, containerColor = theme.bgMid)
     }
 
@@ -1118,10 +1121,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 // Cover + Edit + Refresh
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     BookCover(book.coverUrl, book.title, size = 120, onBroken = { vm.markCoverBroken(id, prefs) }, isbnFallback = book.isbn)
-                    Box(Modifier.align(Alignment.BottomEnd).offset(x = (-32).dp).size(32.dp).clip(CircleShape).background(Accent).clickable { coverUrlInput = book.coverUrl ?: ""; showCoverDialog = true }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Box(Modifier.align(Alignment.BottomEnd).offset(x = (-32).dp).size(32.dp).clip(CircleShape).background(acc).clickable { coverUrlInput = book.coverUrl ?: ""; showCoverDialog = true }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Edit, null, tint = onAcc, modifier = Modifier.size(16.dp))
                     }
-                    Box(Modifier.align(Alignment.BottomStart).offset(x = 32.dp).size(32.dp).clip(CircleShape).background(if (isRefreshingCover) Color(0xFF64748B) else Sky).clickable(enabled = !isRefreshingCover) {
+                    Box(Modifier.align(Alignment.BottomStart).offset(x = 32.dp).size(32.dp).clip(CircleShape).background(if (isRefreshingCover) Color(0xFF64748B) else actionFillColor(theme)).clickable(enabled = !isRefreshingCover) {
                         refreshMsg = ""
                         vm.refreshCover(id, prefs) { coverFound, genreFound ->
                             if (coverFound || genreFound) {
@@ -1144,7 +1147,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         }
                     }, contentAlignment = Alignment.Center) {
                         if (isRefreshingCover) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        else Icon(Icons.Default.Refresh, null, tint = onAccentColor(theme), modifier = Modifier.size(16.dp))
                     }
                     if (book.noCoverFound) {
                         Box(Modifier.align(Alignment.BottomEnd).offset(x = (-72).dp).size(32.dp).clip(CircleShape).background(Amber), contentAlignment = Alignment.Center) {
@@ -1264,12 +1267,12 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         color = when (timerState) {
                             TimerState.RUNNING -> Color(0x1510B981)
                             TimerState.PAUSED  -> Color(0x15F59E0B)
-                            else               -> Color(0x0D6366F1)
+                            else               -> acc.copy(alpha = 0.05f)
                         },
                         border = BorderStroke(1.dp, when (timerState) {
                             TimerState.RUNNING -> Color(0x4010B981)
                             TimerState.PAUSED  -> Color(0x40F59E0B)
-                            else               -> Color(0x206366F1)
+                            else               -> acc.copy(alpha = 0.13f)
                         }),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1397,7 +1400,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     Column(Modifier.weight(1f)) {
                         // v2.4: con la saga restaurada en títulos, truncar a 3 líneas
                         Text(book.title, color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                        if (book.author.isNotBlank()) Text(stringResource(R.string.by_author, book.author), color = Accent, fontSize = 14.sp, modifier = Modifier.clickable { onAuthorClick(book.author) })
+                        if (book.author.isNotBlank()) Text(stringResource(R.string.by_author, book.author), color = acc, fontSize = 14.sp, modifier = Modifier.clickable { onAuthorClick(book.author) })
                         // Género — toca para cambiar; botón swap si hay 2
                         var showGenreMenu by remember { mutableStateOf(false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1405,7 +1408,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                           // "Sin género" y la recarga de la API va como acción propia del sheet.
                           Text(
                               text = if (book.genres.isNotEmpty()) book.genres.map { displayGenre(it) }.joinToString(" · ") else stringResource(R.string.genre_add_button),
-                              color = if (book.genres.isNotEmpty()) theme.textDim else Accent.copy(alpha = 0.7f),
+                              color = if (book.genres.isNotEmpty()) theme.textDim else acc.copy(alpha = 0.7f),
                               fontSize = 12.sp,
                               modifier = Modifier.padding(top = 2.dp).clickable { showGenreMenu = true }
                           )
@@ -1443,7 +1446,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                 Icon(
                                     Icons.Default.SwapHoriz,
                                     contentDescription = stringResource(R.string.cd_swap_genres),
-                                    tint = Accent,
+                                    tint = acc,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -1560,7 +1563,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             if (totalMinsR > 0) StatBox(fmtMinutes(totalMinsR), stringResource(R.string.stat_total_time), Modifier.weight(1f), theme, highlight = true, highlightColor = Sky)
                         }
                         // Feedback 2.6 (estandarización pills): páginas = índigo en toda la app
-                        if (pagesRead > 0) StatBox("${pagesRead}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = Accent)
+                        if (pagesRead > 0) StatBox("${pagesRead}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = acc)
                         val effectiveTotal = when {
                             book.firstFunctionalPage != null && book.lastFunctionalPage != null ->
                                 (book.lastFunctionalPage - book.firstFunctionalPage + 1).coerceAtLeast(1)
@@ -1618,7 +1621,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         onClick = { autoSessionMinutes = null; showSessionDialog = true },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                        colors = ButtonDefaults.buttonColors(containerColor = acc)
                     ) {
                         Text(stringResource(R.string.txt_e810b914), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
@@ -1671,9 +1674,9 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, if (isCurrentWidget) Color(0xFF10B981) else Accent.copy(alpha = 0.6f)),
+                            border = BorderStroke(1.dp, if (isCurrentWidget) Color(0xFF10B981) else acc.copy(alpha = 0.6f)),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = if (isCurrentWidget) Color(0xFF10B981) else Accent
+                                contentColor = if (isCurrentWidget) Color(0xFF10B981) else acc
                             )
                         ) {
                             Text(
@@ -1697,7 +1700,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     if (!editingPages) {
                         Text("${book.pages}", color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.width(6.dp))
-                        val pencilColor = if (book.status == BookStatus.READING || book.status == BookStatus.REREADING) Color(0xFFF59E0B) else Accent
+                        val pencilColor = if (book.status == BookStatus.READING || book.status == BookStatus.REREADING) Color(0xFFF59E0B) else acc
                         IconButton(onClick = { pagesOriginal = book.pages; editingPages = true; pagesInput = book.pages.toString() }, modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Default.Edit, null, tint = pencilColor, modifier = Modifier.size(16.dp))
                         }
@@ -1719,7 +1722,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { val p = pagesInput.toIntOrNull(); if (p != null && p > 0) { vm.updatePages(id, p, prefs); refreshWidgetForBookIfSelected(context, id) }; editingPages = false }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
+                        Button(onClick = { val p = pagesInput.toIntOrNull(); if (p != null && p > 0) { vm.updatePages(id, p, prefs); refreshWidgetForBookIfSelected(context, id) }; editingPages = false }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = acc), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
                         OutlinedButton(onClick = { val orig = pagesOriginal; pagesInput = orig.toString(); if (orig > 0) { vm.updatePages(id, orig, prefs); refreshWidgetForBookIfSelected(context, id) }; editingPages = false }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, Red.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Red), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_847607d7)) }
                     }
                 }
@@ -1744,7 +1747,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             Text(label, color = theme.textMain, fontSize = 13.sp)
                             Spacer(Modifier.width(6.dp))
                             IconButton(onClick = { editingFuncPages = true }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Edit, null, tint = Accent, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Edit, null, tint = acc, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -1779,7 +1782,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                     editingFuncPages = false
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                                colors = ButtonDefaults.buttonColors(containerColor = acc),
                                 modifier = Modifier.weight(1f)
                             ) { Text(stringResource(R.string.txt_d3270bdb)) }
                             OutlinedButton(
@@ -1807,7 +1810,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 // Comment
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                     Text(stringResource(R.string.txt_41f5582a), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    if (!editingComment) IconButton(onClick = { editingComment = true }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Edit, null, tint = Accent, modifier = Modifier.size(16.dp)) }
+                    if (!editingComment) IconButton(onClick = { editingComment = true }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Edit, null, tint = acc, modifier = Modifier.size(16.dp)) }
                 }
                 if (editingComment) {
                     OutlinedTextField(value = commentText, onValueChange = { commentText = it }, placeholder = { Text(stringResource(R.string.txt_ea889da9), color = theme.textDim) }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp), colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), maxLines = 6)
@@ -1821,11 +1824,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                 vm.updateComment(id, trimmed, prefs)
                             }
                             editingComment = false
-                        }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
+                        }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = acc), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
                         OutlinedButton(onClick = { commentText = effectiveComment; editingComment = false }, shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, Red.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Red), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_847607d7)) }
                     }
                 } else {
-                    if (effectiveComment.isNotBlank()) Surface(shape = RoundedCornerShape(10.dp), color = Color(0x0D6366F1), border = BorderStroke(1.dp, Color(0x1A6366F1))) { Text(effectiveComment, color = theme.textMain, fontSize = 13.sp, modifier = Modifier.padding(12.dp)) }
+                    if (effectiveComment.isNotBlank()) Surface(shape = RoundedCornerShape(10.dp), color = acc.copy(alpha = 0.05f), border = BorderStroke(1.dp, acc.copy(alpha = 0.1f))) { Text(effectiveComment, color = theme.textMain, fontSize = 13.sp, modifier = Modifier.padding(12.dp)) }
                     else Text(stringResource(R.string.txt_e33e3006), color = theme.textDim, fontSize = 12.sp)
                 }
                 Spacer(Modifier.height(20.dp))
@@ -1853,7 +1856,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                         Text(stringResource(R.string.txt_5d69fc39), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        if (!editingDates) IconButton(onClick = { editingDates = true; dateError = "" }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Edit, null, tint = Accent, modifier = Modifier.size(16.dp)) }
+                        if (!editingDates) IconButton(onClick = { editingDates = true; dateError = "" }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.Edit, null, tint = acc, modifier = Modifier.size(16.dp)) }
                     }
 
                     if (editingDates) {
@@ -1947,7 +1950,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                         dateToDelete = null
                                     }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold) }
                                 },
-                                dismissButton = { TextButton(onClick = { dateToDelete = null }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+                                dismissButton = { TextButton(onClick = { dateToDelete = null }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }
                             )
                         }
 
@@ -1990,12 +1993,12 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                 refreshWidgetForBookIfSelected(context, id)
                                 editingDates = false
                                 dateError = ""
-                            }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
+                            }, shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = acc), modifier = Modifier.weight(1f)) { Text(stringResource(R.string.txt_d3270bdb)) }
                         }
                     } else {
                         // Vista de lectura: agrupar por sección (lectura original / relectura N)
                         if (effectiveEvents.isNotEmpty()) {
-                            Surface(shape = RoundedCornerShape(10.dp), color = Color(0x0D6366F1), border = BorderStroke(1.dp, Color(0x1A6366F1))) {
+                            Surface(shape = RoundedCornerShape(10.dp), color = acc.copy(alpha = 0.05f), border = BorderStroke(1.dp, acc.copy(alpha = 0.1f))) {
                                 Column(Modifier.padding(12.dp)) {
                                     val dispRereads = effectiveEvents.filter { it.type == "reread" }.sortedBy { it.occurrence }
                                     val dispRereadEnds = effectiveEvents.filter { it.type == "reread_end" }.sortedBy { it.occurrence }
@@ -2043,7 +2046,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             }
                                             else -> ""
                                         }
-                                        val color = if (section == "main") Accent else Color(0xFF06B6D4)
+                                        val color = if (section == "main") acc else Color(0xFF06B6D4)
                                         Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
                                         eventsInSection.forEachIndexed { eIdx, (_, ev) ->
                                             if (eIdx > 0) Spacer(Modifier.height(3.dp))
@@ -2073,7 +2076,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         Text(stringResource(R.string.txt_aa1b8e40), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
                         cycles.forEachIndexed { cIdx, c ->
                             val isOriginal = c.readingIndex == 0
-                            val color = if (isOriginal) Accent else Color(0xFF06B6D4)
+                            val color = if (isOriginal) acc else Color(0xFF06B6D4)
                             // Niveles 2/3/...: cada ciclo tiene su título + pills propios
                             if (cIdx > 0) Spacer(Modifier.height(12.dp))
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -2102,12 +2105,12 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val cyclePct = if (sessPages > 0 && effectiveTotalCycle > 0)
                                 (sessPages * 100 / effectiveTotalCycle).coerceIn(0, 100) else null
                             // Feedback 2.6 (estandarización pills): color por métrica en toda la app —
-                            // páginas=índigo (Accent), tiempo=Sky, velocidad=verde. Antes páginas iba
+                            // páginas=acento del tema, tiempo=Sky, velocidad=verde. Antes páginas iba
                             // en verde y págs/día heredaba el color del ciclo.
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                                 StatBox(daysTxt, daysLabel, Modifier.weight(1f), theme)
                                 if (sessMins > 0) StatBox(fmtMinutes(sessMins), stringResource(R.string.stat_total_time), Modifier.weight(1f), theme, highlight = true, highlightColor = Sky)
-                                if (sessPages > 0) StatBox("${sessPages}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = Accent)
+                                if (sessPages > 0) StatBox("${sessPages}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = acc)
                                 if (cyclePct != null) StatBox("$cyclePct%", stringResource(R.string.pill_porcentaje_leido), Modifier.weight(1f), theme)
                                 if (c.pagesPerDay != null) {
                                     StatBox(String.format("%.1f", c.pagesPerDay), stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, highlight = true, highlightColor = Green)
@@ -2136,7 +2139,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             multipleRereadSections -> stringResource(R.string.sessions_rereading_n, readingIdx)
                             else -> stringResource(R.string.sessions_rereading)
                         }
-                        val sectionAccent = if (isOriginal) Accent else Color(0xFF06B6D4)
+                        val sectionAccent = if (isOriginal) acc else Color(0xFF06B6D4)
                         // Estado expand por sección. La sección 0 hereda el flag legacy `showSessionSummary` para
                         // mantener compat con el LaunchedEffect del heatmap si no hay match explícito.
                         val expanded = sectionExpanded[readingIdx] ?: (isOriginal && showSessionSummary)
@@ -2276,7 +2279,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
                                 StatBox(daysTxt, daysLabel, Modifier.weight(1f), theme)
                                 if (totalSessMins > 0) StatBox(fmtMinutes(totalSessMins), stringResource(R.string.stat_total_time), Modifier.weight(1f), theme, highlight = true, highlightColor = Sky)
-                                if (totalSessPages > 0) StatBox("${totalSessPages}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = Accent)
+                                if (totalSessPages > 0) StatBox("${totalSessPages}p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = acc)
                                 if (pagPerDay != null) StatBox(String.format("%.1f", pagPerDay), stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, highlight = true, highlightColor = Green)
                                 if (avgSessPagesPerMin != null) StatBox(String.format("%.1f", avgSessPagesPerMin), stringResource(R.string.pill_pags_min), Modifier.weight(1f), theme, highlight = true, highlightColor = Green)
                             }
@@ -2326,7 +2329,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             showDeleteAll = false
                                         }) { Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold) }
                                     },
-                                    dismissButton = { TextButton(onClick = { showDeleteAll = false }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+                                    dismissButton = { TextButton(onClick = { showDeleteAll = false }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }
                                 )
                             }
                         }

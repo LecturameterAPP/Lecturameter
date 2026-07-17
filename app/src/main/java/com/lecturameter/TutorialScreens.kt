@@ -138,6 +138,7 @@ fun TipSnackbar(tip: TipSnack, theme: Theme, onGone: () -> Unit, modifier: Modif
 
 @Composable
 fun TutorialBookCardVisual(theme: Theme) {
+    val acc = accentForTheme(theme)
     Surface(
         modifier = Modifier.fillMaxWidth(0.86f),
         shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)
@@ -156,14 +157,14 @@ fun TutorialBookCardVisual(theme: Theme) {
                 )
                 Box(
                     Modifier.size(22.dp).offset(x = (-5).dp, y = 5.dp).clip(CircleShape)
-                        .background(Sky).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomStart),
+                        .background(actionFillColor(theme)).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomStart),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+                ) { Icon(Icons.Default.Refresh, null, tint = onAccentColor(theme), modifier = Modifier.size(13.dp)) }
                 Box(
                     Modifier.size(22.dp).offset(x = 5.dp, y = 5.dp).clip(CircleShape)
-                        .background(Accent).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomEnd),
+                        .background(acc).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomEnd),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+                ) { Icon(Icons.Default.Edit, null, tint = onAccentColor(theme), modifier = Modifier.size(13.dp)) }
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -175,7 +176,7 @@ fun TutorialBookCardVisual(theme: Theme) {
                     ) { Icon(Icons.Default.Delete, null, tint = Red.copy(alpha = 0.7f), modifier = Modifier.size(11.dp)) }
                 }
                 Text(stringResource(R.string.tutorial_mock_book_author), color = theme.textMuted, fontSize = 12.sp)
-                Text(stringResource(R.string.tutorial_mock_genres), color = Accent.copy(alpha = 0.8f), fontSize = 11.sp)
+                Text(stringResource(R.string.tutorial_mock_genres), color = acc.copy(alpha = 0.8f), fontSize = 11.sp)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.tutorial_mock_pages), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.weight(1f, fill = false))
@@ -191,7 +192,7 @@ fun TutorialStatsPillsVisual(theme: Theme) {
     Row(Modifier.fillMaxWidth(0.92f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatBox(stringResource(R.string.tutorial_mock_days_pill), stringResource(R.string.pill_dias_leyendo), Modifier.weight(1f), theme)
         StatBox("3h 30m", stringResource(R.string.stat_total_time), Modifier.weight(1f), theme, highlight = true, highlightColor = Sky)
-        StatBox("136p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = Accent)
+        StatBox("136p", stringResource(R.string.pill_pags_leidas), Modifier.weight(1f), theme, highlight = true, highlightColor = accentForTheme(theme))
         StatBox("20%", stringResource(R.string.pill_porcentaje_leido), Modifier.weight(1f), theme)
         StatBox("17.0", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, highlight = true, highlightColor = Green)
     }
@@ -199,15 +200,16 @@ fun TutorialStatsPillsVisual(theme: Theme) {
 
 @Composable
 fun TutorialHistoryRowVisual(theme: Theme) {
+    val acc = accentForTheme(theme)
     Column(Modifier.fillMaxWidth(0.88f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Fila de libro colapsable
         Surface(
-            shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Default.KeyboardArrowDown, null, tint = Accent, modifier = Modifier.size(18.dp).padding(top = 2.dp))
+                    Icon(Icons.Default.KeyboardArrowDown, null, tint = acc, modifier = Modifier.size(18.dp).padding(top = 2.dp))
                     Text("🇪🇸", fontSize = 13.sp, modifier = Modifier.padding(top = 1.dp))
                     Column(Modifier.weight(1f)) {
                         Text("TEST", color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -220,7 +222,7 @@ fun TutorialHistoryRowVisual(theme: Theme) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DrawerStatChipH(stringResource(R.string.tutorial_mock_ses_chip), Accent, Modifier.weight(1f))
+                    DrawerStatChipH(stringResource(R.string.tutorial_mock_ses_chip), acc, Modifier.weight(1f))
                     DrawerStatChipH("⏱️ 28m", Sky, Modifier.weight(1f))
                     DrawerStatChipH(stringResource(R.string.tutorial_mock_pages_chip), Green, Modifier.weight(1f))
                 }
@@ -230,16 +232,16 @@ fun TutorialHistoryRowVisual(theme: Theme) {
         Surface(shape = RoundedCornerShape(10.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("#1", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("#1", color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.tutorial_mock_date), color = theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    Icon(Icons.Default.Edit, null, tint = Accent.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Edit, null, tint = acc.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(10.dp))
                     Icon(Icons.Default.Delete, null, tint = Red.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.height(5.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    DataChip("📄 25p", Accent.copy(alpha = 0.15f), Accent, Modifier.weight(1f))
+                    DataChip("📄 25p", acc.copy(alpha = 0.15f), acc, Modifier.weight(1f))
                     DataChip("⏱️ 28m", Sky.copy(alpha = 0.15f), Sky, Modifier.weight(1f))
                     DataChip("⚡ 0.9 p/m", Green.copy(alpha = 0.15f), Green, Modifier.weight(1f))
                     DataChip("📖 12-36", Color(0xFFF59E0B).copy(alpha = 0.15f), Color(0xFFF59E0B), Modifier.weight(1f))
@@ -391,6 +393,7 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
     // una frase dentro de la 1. Textos cortos (máx ~2 frases). Capturas reales ES/EN: al
     // final de la Fase 4 (los mocks actuales se mantienen hasta entonces).
     val scope = rememberCoroutineScope()
+    val acc = accentForTheme(theme)
     var showSkipDialog by remember { mutableStateOf(false) }
 
     if (showSkipDialog) {
@@ -400,7 +403,7 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
             title = { Text(stringResource(R.string.txt_145bed95), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_96b976d8), color = theme.textMuted) },
             confirmButton = { TextButton(onClick = { onSkip(); showSkipDialog = false }) { Text(stringResource(R.string.txt_a6e39241), color = Red) } },
-            dismissButton = { TextButton(onClick = { showSkipDialog = false }) { Text(stringResource(R.string.txt_bd23eb60), color = Accent) } }
+            dismissButton = { TextButton(onClick = { showSkipDialog = false }) { Text(stringResource(R.string.txt_bd23eb60), color = acc) } }
         )
     }
 
@@ -526,7 +529,7 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                 repeat(pages.size) { i ->
                     Box(
                         Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(2.dp))
-                            .background(if (i <= pagerState.currentPage) Accent else theme.border)
+                            .background(if (i <= pagerState.currentPage) acc else theme.border)
                     )
                 }
             }
@@ -569,8 +572,8 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                 OutlinedButton(
                     onClick = { showSkipDialog = true },
                     shape = RoundedCornerShape(999.dp),
-                    border = BorderStroke(1.5.dp, Accent.copy(alpha = 0.6f)),
-                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Accent),
+                    border = BorderStroke(1.5.dp, acc.copy(alpha = 0.6f)),
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = acc),
                     modifier = Modifier.height(44.dp)
                 ) {
                     Text(stringResource(R.string.txt_a6e39241), fontSize = 14.sp, maxLines = 1)
@@ -582,14 +585,14 @@ fun TutorialSlideshow(theme: Theme, onComplete: () -> Unit, onSkip: () -> Unit) 
                             else scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                         },
                         shape = RoundedCornerShape(999.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = acc),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                         // Feedback 2.7: anchura mínima compartida con "Atrás" (mismo tamaño)
                         modifier = Modifier.height(44.dp).defaultMinSize(minWidth = 108.dp)
                     ) {
                         Text(
                             stringResource(if (isLastPage) R.string.txt_d4d1809c else R.string.txt_eccc5922),
-                            color = Color.White, fontSize = nextTextSize, fontWeight = FontWeight.Bold,
+                            color = onAccentColor(theme), fontSize = nextTextSize, fontWeight = FontWeight.Bold,
                             maxLines = 1, softWrap = false,
                             onTextLayout = { if (it.hasVisualOverflow && nextTextSize > 10.sp) nextTextSize *= 0.92f }
                         )

@@ -80,8 +80,23 @@ class WidgetConfigActivity : ComponentActivity() {
 
         val appCtx = applicationContext
 
+        // Feedback 17-07 (Bloque 2): esta pantalla iba con una paleta azul FIJA, así que
+        // con Cuero o Aurora aparecía una pantalla azul de la nada. Resuelve el tema real
+        // de la app leyendo la misma pref que el widget (`theme_mode`), con el mismo
+        // respeto al gate de Pro: un tema de pago caducado cae a Oscuro.
+        val savedTheme = appCtx.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
+            .getString("theme_mode", "dark") ?: "dark"
+        val themeMode = com.lecturameter.ThemeMode.values().firstOrNull { it.value == savedTheme }
+            ?.takeIf {
+                com.lecturameter.utils.Pro.themeAllowed(
+                    appCtx.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE), it
+                )
+            } ?: com.lecturameter.ThemeMode.DARK
+        val appTheme = com.lecturameter.buildTheme(themeMode)
+
         setContent {
             WidgetConfigScreen(
+                theme = appTheme,
                 initial = loadWidgetDisplayConfig(appCtx, appWidgetId),
                 onSave = { cfg ->
                     saveWidgetDisplayConfig(appCtx, appWidgetId, cfg)
@@ -101,26 +116,31 @@ class WidgetConfigActivity : ComponentActivity() {
 }
 
 @Composable
-private fun WidgetConfigSwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun WidgetConfigSwitchRow(
+    label: String,
+    checked: Boolean,
+    theme: com.lecturameter.Theme,
+    onChange: (Boolean) -> Unit
+) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = Color(0xFFF0F0F0), fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text(label, color = theme.textMain, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Switch(
             checked = checked,
             onCheckedChange = onChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF6366F1),
-                uncheckedTrackColor = Color(0xFF3D4166)
+                checkedTrackColor = com.lecturameter.accentForTheme(theme),
+                uncheckedTrackColor = theme.border
             )
         )
     }
 }
 
 @Composable
-fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfig) -> Unit) {
+fun WidgetConfigScreen(theme: com.lecturameter.Theme, initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfig) -> Unit) {
     var showEmojis by remember { mutableStateOf(initial.showEmojis) }
     var showDays by remember { mutableStateOf(initial.showDays) }
     var showTime by remember { mutableStateOf(initial.showTime) }
@@ -130,7 +150,7 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
     var showProgressBar by remember { mutableStateOf(initial.showProgressBar) }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E)),
+        modifier = Modifier.fillMaxSize().background(theme.bgDark),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -141,32 +161,32 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
             Spacer(Modifier.height(12.dp))
             Text(
                 stringResource(R.string.widget_config_title),
-                color = Color(0xFFF0F0F0), fontSize = 20.sp, fontWeight = FontWeight.Bold
+                color = theme.textMain, fontSize = 20.sp, fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 stringResource(R.string.widget_choose_book_help),
-                color = Color(0xFF8899AA), fontSize = 13.sp
+                color = theme.textMuted, fontSize = 13.sp
             )
             Spacer(Modifier.height(20.dp))
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF232342),
-                border = BorderStroke(1.dp, Color(0xFF3D4166)),
+                color = theme.bgMid,
+                border = BorderStroke(1.dp, theme.border),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                     // Feedback 14-07 (F2): el toggle de emojis deja de ser "master" (B-011
                     // revertido) — es un toggle independiente: solo controla si los chips
                     // llevan emoji, no qué chips se muestran
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_emojis), showEmojis) { showEmojis = it }
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_days), showDays) { showDays = it }
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_time), showTime) { showTime = it }
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_sessions), showSessions) { showSessions = it }
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_pages), showPages) { showPages = it }
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_percent), showPercent) { showPercent = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_emojis), showEmojis, theme) { showEmojis = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_days), showDays, theme) { showDays = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_time), showTime, theme) { showTime = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_sessions), showSessions, theme) { showSessions = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_pages), showPages, theme) { showPages = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_percent), showPercent, theme) { showPercent = it }
                     // D: toggle de la barra de progreso (gratis para todos)
-                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_progress), showProgressBar) { showProgressBar = it }
+                    WidgetConfigSwitchRow(stringResource(R.string.widget_cfg_progress), showProgressBar, theme) { showProgressBar = it }
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -184,7 +204,10 @@ fun WidgetConfigScreen(initial: WidgetDisplayConfig, onSave: (WidgetDisplayConfi
                         )
                     )
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = com.lecturameter.accentForTheme(theme),
+                    contentColor = com.lecturameter.onAccentColor(theme)
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {

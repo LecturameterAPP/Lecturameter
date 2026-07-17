@@ -76,6 +76,7 @@ fun BulkReloadScreen(
     type: String,     // "genres" | "covers"
     onBack: () -> Unit
 ) {
+    val acc = accentForTheme(theme)
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val screenTitle = if (type == "genres") stringResource(R.string.bulk_refresh_title_genres)
@@ -168,7 +169,7 @@ fun BulkReloadScreen(
                             }
                         )
                     }
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showFinalConfirm = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -187,23 +188,23 @@ fun BulkReloadScreen(
             if (reloading || reloadDone) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (reloadDone) Color(0x1A10B981) else Accent.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, if (reloadDone) Color(0x4D10B981) else Accent.copy(alpha = 0.25f)),
+                    color = if (reloadDone) Color(0x1A10B981) else acc.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, if (reloadDone) Color(0x4D10B981) else acc.copy(alpha = 0.25f)),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         if (reloading) {
                             val pct = if (totalCount > 0) processedCount * 100 / totalCount else 0
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(color = Accent, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(color = acc, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                                 Spacer(Modifier.width(8.dp))
-                                Text(stringResource(R.string.reload_progress_label, reloadProgress, pct), color = Accent, fontSize = 12.sp)
+                                Text(stringResource(R.string.reload_progress_label, reloadProgress, pct), color = acc, fontSize = 12.sp)
                             }
                             Spacer(Modifier.height(8.dp))
                             LinearProgressIndicator(
                                 progress = { if (totalCount > 0) processedCount.toFloat() / totalCount else 0f },
                                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                                color = Accent,
+                                color = acc,
                                 trackColor = theme.border
                             )
                         } else {
@@ -225,7 +226,7 @@ fun BulkReloadScreen(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             textStyle = LocalTextStyle.current.copy(color = theme.textMain, fontSize = 13.sp),
-                            cursorBrush = SolidColor(Accent),
+                            cursorBrush = SolidColor(acc),
                             modifier = Modifier.weight(1f),
                             decorationBox = { inner ->
                                 if (searchQuery.isEmpty()) Text(stringResource(R.string.txt_38fe9f72), color = theme.textDim, fontSize = 13.sp)
@@ -239,25 +240,25 @@ fun BulkReloadScreen(
                 }
                 Box {
                     IconButton(onClick = { showFilterMenu = true }) {
-                        Icon(Icons.Default.FilterList, null, tint = if (filterAuthor != null || filterGenre != null || filterShelf != null) Accent else theme.textDim)
+                        Icon(Icons.Default.FilterList, null, tint = if (filterAuthor != null || filterGenre != null || filterShelf != null) acc else theme.textDim)
                     }
                     DropdownMenu(expanded = showFilterMenu, onDismissRequest = { showFilterMenu = false }, modifier = Modifier.heightIn(max = 420.dp)) {
                         Text(stringResource(R.string.txt_3397e69c), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_b73ecdab), color = if (filterShelf == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterShelf = null; showFilterMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_b73ecdab), color = if (filterShelf == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterShelf = null; showFilterMenu = false })
                         SHELF_ORDER.forEach { s ->
-                            DropdownMenuItem(text = { Text(statusLabel(s), color = if (filterShelf == s) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterShelf = s; showFilterMenu = false })
+                            DropdownMenuItem(text = { Text(statusLabel(s), color = if (filterShelf == s) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterShelf = s; showFilterMenu = false })
                         }
                         HorizontalDivider(color = theme.border)
                         Text(stringResource(R.string.txt_c481b00a), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_426f7ea7), color = if (filterAuthor == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterAuthor = null; showFilterMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_426f7ea7), color = if (filterAuthor == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterAuthor = null; showFilterMenu = false })
                         allBooks.map { it.author }.filter { it.isNotBlank() }.distinct().sorted().forEach { a ->
-                            DropdownMenuItem(text = { Text(a, color = if (filterAuthor == a) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterAuthor = a; showFilterMenu = false })
+                            DropdownMenuItem(text = { Text(a, color = if (filterAuthor == a) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterAuthor = a; showFilterMenu = false })
                         }
                         HorizontalDivider(color = theme.border)
                         Text(stringResource(R.string.txt_98f7ba16), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_8afc8680), color = if (filterGenre == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterGenre = null; showFilterMenu = false })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.txt_8afc8680), color = if (filterGenre == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterGenre = null; showFilterMenu = false })
                         allBooks.flatMap { it.genres }.distinct().sorted().forEach { g ->
-                            DropdownMenuItem(text = { Text(displayGenre(g), color = if (filterGenre == g) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { filterGenre = g; showFilterMenu = false })
+                            DropdownMenuItem(text = { Text(displayGenre(g), color = if (filterGenre == g) acc else theme.textMain, fontSize = 13.sp) }, onClick = { filterGenre = g; showFilterMenu = false })
                         }
                         HorizontalDivider(color = theme.border)
                         DropdownMenuItem(text = { Text(stringResource(R.string.txt_af85d57c), color = Red, fontSize = 13.sp) }, onClick = { filterAuthor = null; filterGenre = null; filterShelf = null; showFilterMenu = false })
@@ -268,7 +269,7 @@ fun BulkReloadScreen(
             // Seleccionar todos / deseleccionar todos
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = { allBooks.forEach { selectedIds[it.id] = true } }) {
-                    Text(stringResource(R.string.txt_bb6b0333), color = Accent, fontSize = 12.sp)
+                    Text(stringResource(R.string.txt_bb6b0333), color = acc, fontSize = 12.sp)
                 }
                 TextButton(onClick = { allBooks.forEach { selectedIds[it.id] = false } }) {
                     Text(stringResource(R.string.txt_a60bc74b), color = theme.textMuted, fontSize = 12.sp)
@@ -288,20 +289,20 @@ fun BulkReloadScreen(
                     Surface(
                         onClick = { selectedIds[book.id] = !isSelected },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) Accent.copy(alpha = 0.07f) else theme.surface,
-                        border = BorderStroke(1.dp, if (isSelected) Accent.copy(alpha = 0.4f) else theme.border),
+                        color = if (isSelected) acc.copy(alpha = 0.07f) else theme.surface,
+                        border = BorderStroke(1.dp, if (isSelected) acc.copy(alpha = 0.4f) else theme.border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Checkbox(
                                 checked = isSelected,
                                 onCheckedChange = { selectedIds[book.id] = it },
-                                colors = CheckboxDefaults.colors(checkedColor = Accent, uncheckedColor = theme.border)
+                                colors = CheckboxDefaults.colors(checkedColor = acc, uncheckedColor = theme.border)
                             )
                             BookCover(book.coverUrl, book.title, size = 44, onBroken = {})
                             Column(Modifier.weight(1f)) {
                                 Text(book.title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (book.author.isNotBlank()) Text(book.author, color = Accent, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (book.author.isNotBlank()) Text(book.author, color = acc, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (book.genres.isNotEmpty()) Text(book.genres.take(2).map { displayGenre(it) }.joinToString(" · "), color = theme.textDim, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
@@ -326,10 +327,10 @@ fun BulkReloadScreen(
                 enabled = selectedCount > 0 && !reloading,
                 modifier = Modifier.fillMaxWidth().padding(16.dp).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent, disabledContainerColor = theme.border)
+                colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme), disabledContainerColor = theme.border)
             ) {
                 if (reloading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = onAccentColor(theme), modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.txt_8b2335bb), fontWeight = FontWeight.Bold)
                 } else {
@@ -386,6 +387,7 @@ private fun scheduleWidgetRefresh(context: android.content.Context, intervalMinu
 fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismiss: () -> Unit, onOpenFeedback: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val acc = accentForTheme(theme)
     val questions = listOf(
         Triple("section", R.string.survey_q_section, listOf(
             "library" to R.string.survey_o_library, "stats" to R.string.survey_o_stats,
@@ -419,13 +421,13 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                     Surface(
                         onClick = { selected = key },
                         shape = RoundedCornerShape(11.dp),
-                        color = if (sel) Accent.copy(alpha = 0.14f) else theme.surface,
-                        border = BorderStroke(1.dp, if (sel) Accent else theme.border),
+                        color = if (sel) acc.copy(alpha = 0.14f) else theme.surface,
+                        border = BorderStroke(1.dp, if (sel) acc else theme.border),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
                     ) {
                         Text(
                             stringResource(res),
-                            color = if (sel) Accent else theme.textMain, fontSize = 13.sp,
+                            color = if (sel) acc else theme.textMain, fontSize = 13.sp,
                             fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                         )
@@ -444,11 +446,11 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain,
-                        focusedBorderColor = Accent, unfocusedBorderColor = theme.border
+                        focusedBorderColor = acc, unfocusedBorderColor = theme.border
                     )
                 )
                 Text(
-                    stringResource(R.string.survey_more_link), color = Accent, fontSize = 11.5.sp,
+                    stringResource(R.string.survey_more_link), color = acc, fontSize = 11.5.sp,
                     modifier = Modifier.clickable(enabled = !sending) { onOpenFeedback() }.padding(top = 4.dp)
                 )
             }
@@ -484,8 +486,8 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                     }
                 }
             }) {
-                if (sending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Accent)
-                else Text(stringResource(R.string.survey_send), color = Accent, fontWeight = FontWeight.Bold)
+                if (sending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = acc)
+                else Text(stringResource(R.string.survey_send), color = acc, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -500,6 +502,7 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
 fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val acc = accentForTheme(theme)
     var feedbackType by remember { mutableStateOf("bug") }
     var description by remember { mutableStateOf("") }
     var includeLogs by remember { mutableStateOf(true) }
@@ -579,7 +582,7 @@ fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {})
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain,
-                        focusedBorderColor = Accent, unfocusedBorderColor = theme.border
+                        focusedBorderColor = acc, unfocusedBorderColor = theme.border
                     ),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences
@@ -604,7 +607,7 @@ fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {})
                     TextButton(
                         enabled = selectedImages.size < 3,
                         onClick = { imagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-                    ) { Text(stringResource(R.string.txt_227430b0), color = if (selectedImages.size < 3) Accent else theme.textDim, fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(R.string.txt_227430b0), color = if (selectedImages.size < 3) acc else theme.textDim, fontWeight = FontWeight.Bold) }
                 }
                 if (selectedImages.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
@@ -679,8 +682,8 @@ fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {})
                     }
                 }
             ) {
-                if (isSending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Accent)
-                else Text(stringResource(R.string.txt_30cc00ae), color = Accent, fontWeight = FontWeight.Bold)
+                if (isSending) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = acc)
+                else Text(stringResource(R.string.txt_30cc00ae), color = acc, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -730,6 +733,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
     val books by vm.books.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val acc = accentForTheme(theme)
 
     var backupIntervalHours by remember { mutableStateOf(prefs.getInt("backup_interval_hours", 2)) }
     var localBackupEnabled by remember { mutableStateOf(prefs.getBoolean("local_backup_enabled", true)) }
@@ -805,7 +809,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     localBackupEnabled = true
                     prefs.edit().putBoolean("local_backup_enabled", true).apply()
                     showActivateLocalDialog = false
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showActivateLocalDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -821,7 +825,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     driveBackupEnabled = true
                     prefs.edit().putBoolean("drive_backup_enabled", true).apply()
                     showActivateDriveDialog = false
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showActivateDriveDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -857,12 +861,12 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                         Surface(
                             onClick = { bulkOptionSelected = key },
                             shape = RoundedCornerShape(10.dp),
-                            color = if (bulkOptionSelected == key) Accent.copy(alpha = 0.12f) else theme.surface,
-                            border = BorderStroke(1.dp, if (bulkOptionSelected == key) Accent else theme.border),
+                            color = if (bulkOptionSelected == key) acc.copy(alpha = 0.12f) else theme.surface,
+                            border = BorderStroke(1.dp, if (bulkOptionSelected == key) acc else theme.border),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(text, color = if (bulkOptionSelected == key) Accent else theme.textMain, fontSize = 13.sp, fontWeight = if (bulkOptionSelected == key) FontWeight.SemiBold else FontWeight.Normal)
+                                Text(text, color = if (bulkOptionSelected == key) acc else theme.textMain, fontSize = 13.sp, fontWeight = if (bulkOptionSelected == key) FontWeight.SemiBold else FontWeight.Normal)
                             }
                         }
                     }
@@ -873,7 +877,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     showBulkOptionDialog = false
                     if (bulkOptionSelected == "all") showBulkAllConfirmDialog = true
                     else onBulkReload(bulkReloadTargetType)
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showBulkOptionDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -909,7 +913,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             onDone = { ok, errors -> bulkCoversRunning = false; bulkProgress = String.format(strBulkDoneCovers, ok, errors) }
                         )
                     }
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showBulkAllConfirmDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -949,8 +953,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             else vm.setThemeMode(mode, prefs, context)
                         },
                         shape = RoundedCornerShape(20.dp),
-                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
-                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border),
                         modifier = Modifier.weight(1f)
                     ) {
                         // Feedback 2.6: Aurora muestra su icono PNG delante del nombre
@@ -976,7 +980,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                 Spacer(Modifier.width(3.dp))
                             }
                             Text(
-                                label, color = if (selected) Accent else theme.textMuted,
+                                label, color = if (selected) acc else theme.textMuted,
                                 fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 // A5: en pantallas pequeñas el nombre del tema se cortaba a media
@@ -1005,12 +1009,12 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             }
                         },
                         shape = RoundedCornerShape(20.dp),
-                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
-                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border),
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            label, color = if (selected) Accent else theme.textMuted,
+                            label, color = if (selected) acc else theme.textMuted,
                             fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp)
@@ -1086,8 +1090,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             android.widget.Toast.makeText(context, iconToastMsg, android.widget.Toast.LENGTH_LONG).show()
                         },
                         shape = RoundedCornerShape(20.dp),
-                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
-                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border),
                         modifier = Modifier.weight(1f)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 8.dp)) {
@@ -1097,7 +1101,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                 modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text(label, color = if (selected) Accent else theme.textMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+                            Text(label, color = if (selected) acc else theme.textMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
                             if (!com.lecturameter.utils.Pro.isPro(prefs) && value == "gold") {
                                 Spacer(Modifier.width(5.dp))
                                 Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(12.dp))
@@ -1133,11 +1137,11 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                                 scheduleBackup(context, h)
                             },
                             shape = RoundedCornerShape(8.dp),
-                            color = if (selected) Accent else theme.surface,
-                            border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                            color = if (selected) acc else theme.surface,
+                            border = BorderStroke(1.dp, if (selected) acc else theme.border),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("${h}h", color = if (selected) Color.White else theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
+                            Text("${h}h", color = if (selected) onAccentColor(theme) else theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp))
                         }
                     }
                 }
@@ -1145,8 +1149,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             HorizontalDivider(color = theme.border, modifier = Modifier.padding(bottom = 12.dp))
             // Backup Local
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x1A6366F1)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.PhoneAndroid, null, tint = Accent, modifier = Modifier.size(20.dp))
+                Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(acc.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.PhoneAndroid, null, tint = acc, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -1159,7 +1163,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                         localBackupEnabled = checked
                         prefs.edit().putBoolean("local_backup_enabled", checked).apply()
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Accent, uncheckedTrackColor = theme.border)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = acc, uncheckedTrackColor = theme.border)
                 )
             }
             Surface(
@@ -1209,7 +1213,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                         driveBackupEnabled = checked
                         prefs.edit().putBoolean("drive_backup_enabled", checked).apply()
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Accent, uncheckedTrackColor = theme.border)
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = acc, uncheckedTrackColor = theme.border)
                 )
             }
             Surface(
@@ -1325,7 +1329,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 onClick = onImportExport
             ) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.SwapVert, null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.SwapVert, null, tint = acc, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.settings_import_export_title), color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -1335,11 +1339,11 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 }
             }
             // Info note
-            Surface(shape = RoundedCornerShape(10.dp), color = Accent.copy(alpha = 0.06f), border = BorderStroke(1.dp, Accent.copy(alpha = 0.25f))) {
+            Surface(shape = RoundedCornerShape(10.dp), color = acc.copy(alpha = 0.06f), border = BorderStroke(1.dp, acc.copy(alpha = 0.25f))) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Info, null, tint = Accent, modifier = Modifier.size(15.dp).padding(top = 1.dp))
+                    Icon(Icons.Default.Info, null, tint = acc, modifier = Modifier.size(15.dp).padding(top = 1.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.txt_2509a87a), color = Accent.copy(alpha = 0.85f), fontSize = 11.sp, lineHeight = 15.sp)
+                    Text(stringResource(R.string.txt_2509a87a), color = acc.copy(alpha = 0.85f), fontSize = 11.sp, lineHeight = 15.sp)
                 }
             }
         }
@@ -1386,11 +1390,11 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             scheduleWidgetRefresh(context, mins)
                         },
                         shape = RoundedCornerShape(8.dp),
-                        color = if (selected) Accent else theme.surface,
-                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                        color = if (selected) acc else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(label, color = if (selected) Color.White else theme.textMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp))
+                        Text(label, color = if (selected) onAccentColor(theme) else theme.textMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp))
                     }
                 }
             }
@@ -1407,8 +1411,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             theme = theme
         ) {
             if (bulkProgress.isNotEmpty()) {
-                Surface(shape = RoundedCornerShape(10.dp), color = if (bulkProgress.startsWith("✅")) Color(0x1A10B981) else Accent.copy(alpha = 0.06f), border = BorderStroke(1.dp, if (bulkProgress.startsWith("✅")) Color(0x4D10B981) else Accent.copy(alpha = 0.25f)), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                    Text(bulkProgress, color = if (bulkProgress.startsWith("✅")) Green else Accent, fontSize = 12.sp, modifier = Modifier.padding(10.dp))
+                Surface(shape = RoundedCornerShape(10.dp), color = if (bulkProgress.startsWith("✅")) Color(0x1A10B981) else acc.copy(alpha = 0.06f), border = BorderStroke(1.dp, if (bulkProgress.startsWith("✅")) Color(0x4D10B981) else acc.copy(alpha = 0.25f)), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                    Text(bulkProgress, color = if (bulkProgress.startsWith("✅")) Green else acc, fontSize = 12.sp, modifier = Modifier.padding(10.dp))
                 }
             }
             SettingsToolRow(
@@ -1490,7 +1494,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.txt_76306812), color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                Text(stringResource(R.string.txt_76306812), color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                 Text(stringResource(R.string.txt_e30acdbb), color = theme.textMuted, fontSize = 11.sp)
                 // C: nota informativa (sin lógica) sobre canjear donaciones por códigos de Pro
                 Spacer(Modifier.height(6.dp))
@@ -1548,13 +1552,13 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         // v21.35: eliminada card exterior (título + subtítulo). Solo el recuadro interior, centrado.
         Surface(
             shape = RoundedCornerShape(14.dp),
-            color = Accent.copy(alpha = 0.06f),
-            border = BorderStroke(1.5.dp, Accent.copy(alpha = 0.3f)),
+            color = acc.copy(alpha = 0.06f),
+            border = BorderStroke(1.5.dp, acc.copy(alpha = 0.3f)),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(56.dp).clip(CircleShape).background(Accent.copy(alpha = 0.15f)).border(2.dp, Accent.copy(alpha = 0.4f), CircleShape),
+                    Modifier.size(56.dp).clip(CircleShape).background(acc.copy(alpha = 0.15f)).border(2.dp, acc.copy(alpha = 0.4f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("📚", fontSize = 28.sp)
@@ -1562,7 +1566,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.txt_4d8b0a6f), color = theme.textMain, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text(stringResource(R.string.app_version_label, com.lecturameter.BuildConfig.VERSION_NAME), color = Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.app_version_label, com.lecturameter.BuildConfig.VERSION_NAME), color = acc, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                     Text(stringResource(R.string.txt_572a06a1), color = theme.textMuted, fontSize = 11.sp, lineHeight = 15.sp)
                 }
@@ -1600,13 +1604,13 @@ fun SettingsSection(
                 )
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(title, color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                    Text(title, color = accentForTheme(theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                     Text(subtitle, color = theme.textMuted, fontSize = 11.sp)
                 }
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     null,
-                    tint = Accent,
+                    tint = accentForTheme(theme),
                     modifier = Modifier.size(20.dp).rotate(if (expanded) 0f else -90f)
                 )
             }
@@ -1628,8 +1632,8 @@ fun SettingsToolRow(icon: String, title: String, subtitle: String, running: Bool
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Accent.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                if (running) CircularProgressIndicator(color = Accent, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(accentForTheme(theme).copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                if (running) CircularProgressIndicator(color = accentForTheme(theme), modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                 else Text(icon, fontSize = 18.sp)
             }
             Spacer(Modifier.width(12.dp))

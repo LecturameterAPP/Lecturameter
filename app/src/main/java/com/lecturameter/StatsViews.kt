@@ -163,6 +163,7 @@ fun ChallengeContributionSheet(
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onHistory: () -> Unit = {}) {
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     var showCreateDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Challenge?>(null) }
     // P-026: reto cuyo desglose de libros está abierto
@@ -214,13 +215,13 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                                     Surface(
                                         onClick = { typeSelected = t },
                                         shape = RoundedCornerShape(20.dp),
-                                        color = if (selected) Accent.copy(alpha = 0.15f) else theme.surface,
-                                        border = BorderStroke(1.dp, if (selected) Accent else theme.border),
+                                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                                        border = BorderStroke(1.dp, if (selected) acc else theme.border),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
                                             challengeTypeLabel(t),
-                                            color = if (selected) Accent else theme.textMuted,
+                                            color = if (selected) acc else theme.textMuted,
                                             fontSize = 11.sp,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                             textAlign = TextAlign.Center,
@@ -301,7 +302,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                         ), prefs
                     )
                     showCreateDialog = false
-                }) { Text(stringResource(R.string.challenge_save), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.challenge_save), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showCreateDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -319,7 +320,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                     Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold)
                 }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.txt_847607d7), color = Accent) } }
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.txt_847607d7), color = acc) } }
         )
     }
 
@@ -447,10 +448,10 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                                 Text(meta, color = theme.textMuted, fontSize = 11.sp)
                             }
                             Spacer(Modifier.width(8.dp))
-                            Surface(shape = RoundedCornerShape(20.dp), color = if (done) Green.copy(alpha = 0.15f) else Accent.copy(alpha = 0.12f)) {
+                            Surface(shape = RoundedCornerShape(20.dp), color = if (done) Green.copy(alpha = 0.15f) else acc.copy(alpha = 0.12f)) {
                                 Text(
                                     stringResource(R.string.challenge_progress, current, target),
-                                    color = if (done) Green else Accent,
+                                    color = if (done) Green else acc,
                                     fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
@@ -463,7 +464,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                         Spacer(Modifier.height(10.dp))
                         // P-027: el porcentaje va junto a la barra (antes solo el absoluto arriba)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            LinearProgressBar(ratio, if (done) Green else Accent, Modifier.weight(1f))
+                            LinearProgressBar(ratio, if (done) Green else acc, Modifier.weight(1f))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "${(ratio * 100).toInt()}%",
@@ -489,7 +490,7 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                                 Modifier
                                     .size(if (i == pagerState.currentPage) 8.dp else 6.dp)
                                     .clip(CircleShape)
-                                    .background(if (i == pagerState.currentPage) Accent else theme.border)
+                                    .background(if (i == pagerState.currentPage) acc else theme.border)
                             )
                         }
                     }
@@ -507,11 +508,11 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
             },
             modifier = Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 0.dp),
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Accent)
+            border = BorderStroke(1.dp, acc)
         ) {
-            Icon(Icons.Default.Add, null, tint = Accent, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Add, null, tint = acc, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.challenge_create_button), color = Accent, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.challenge_create_button), color = acc, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(28.dp))
     }
@@ -797,6 +798,7 @@ fun DailySessionsScreen(
 // ── HeatmapView ─────────────────────────────────────────────────────────────
 @Composable
 fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onNavigateToSession: (Long, String) -> Unit, onNavigateToDailySessions: (String) -> Unit = {}) {
+    val acc = accentForTheme(theme)
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val sessions by vm.sessions.collectAsState()
     // Decisión Víctor 17-07: el mapa de calor horario vuelve a ser GRATIS (sale en el
@@ -877,14 +879,14 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                     color = theme.surface,
                     border = BorderStroke(1.dp, theme.border)
                 ) {
-                    Text("$selYear \u25be", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    Text("$selYear \u25be", color = acc, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                 }
                 DropdownMenu(expanded = showYearMenu, onDismissRequest = { showYearMenu = false },
                     modifier = Modifier.background(Color(0xFF1E293B))) {
                     availableYears.forEach { y ->
                         DropdownMenuItem(
-                            text = { Text(y, color = if (y == selYear) Accent else Color(0xFFF1F5F9), fontSize = 13.sp) },
+                            text = { Text(y, color = if (y == selYear) acc else Color(0xFFF1F5F9), fontSize = 13.sp) },
                             onClick = { selYear = y; showYearMenu = false }
                         )
                     }
@@ -896,8 +898,8 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 Surface(
                     onClick = { showMonthMenu = true },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (selMonth != null) Accent else theme.surface,
-                    border = BorderStroke(1.dp, if (selMonth != null) Accent else theme.border)
+                    color = if (selMonth != null) acc else theme.surface,
+                    border = BorderStroke(1.dp, if (selMonth != null) acc else theme.border)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -905,17 +907,17 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                     ) {
                         Text(
                             selMonth?.let { monthNames[it - 1] } ?: stringResource(R.string.filter_month_placeholder),
-                            color = if (selMonth != null) Color.White else theme.textMuted,
+                            color = if (selMonth != null) onAccentColor(theme) else theme.textMuted,
                             fontSize = 12.sp, fontWeight = FontWeight.SemiBold
                         )
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.txt_f3baf2ca), color = if (selMonth != null) Color.White else theme.textMuted, fontSize = 10.sp)
+                        Text(stringResource(R.string.txt_f3baf2ca), color = if (selMonth != null) onAccentColor(theme) else theme.textMuted, fontSize = 10.sp)
                     }
                 }
                 DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false },
                     modifier = Modifier.background(Color(0xFF1E293B))) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) Accent else Color(0xFFF1F5F9), fontSize = 13.sp) },
+                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) acc else Color(0xFFF1F5F9), fontSize = 13.sp) },
                         onClick = { selMonth = null; showMonthMenu = false }
                     )
                     (1..12).forEach { m ->
@@ -925,7 +927,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(monthNamesFull[m - 1],
-                                        color = if (selMonth == m) Accent else if (hasDat) Color(0xFFF1F5F9) else Color(0xFF64748B),
+                                        color = if (selMonth == m) acc else if (hasDat) Color(0xFFF1F5F9) else Color(0xFF64748B),
                                         fontSize = 13.sp)
                                     if (hasDat) {
                                         Spacer(Modifier.width(6.dp))
@@ -1092,6 +1094,7 @@ fun StatsChartsView(
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     // Base: TODOS los libros aplanados por edición (v18.3) — cada edición cuenta como una entrada.
     // Para libros con varias ediciones, cada una aparece con su título, páginas, idioma y portada
     // propios. Libros sin ediciones múltiples se devuelven como antes.
@@ -1196,8 +1199,8 @@ fun StatsChartsView(
                     Text(stringResource(R.string.txt_26afc116), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.width(60.dp))
                     listOf(false to "↓ Mayor", true to "↑ Menor").forEach { (asc, lbl) ->
                         val sel = ascending == asc
-                        Surface(onClick = { ascending = asc }, shape = RoundedCornerShape(8.dp), color = if (sel) Accent else theme.bgMid, border = BorderStroke(1.dp, if (sel) Accent else theme.border)) {
-                            Text(lbl, color = if (sel) Color.White else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        Surface(onClick = { ascending = asc }, shape = RoundedCornerShape(8.dp), color = if (sel) acc else theme.bgMid, border = BorderStroke(1.dp, if (sel) acc else theme.border)) {
+                            Text(lbl, color = if (sel) onAccentColor(theme) else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                         }
                     }
                 }
@@ -1207,26 +1210,26 @@ fun StatsChartsView(
                     // Dropdown de Año
                     var showYearMenu by remember { mutableStateOf(false) }
                     Box {
-                        Surface(onClick = { showYearMenu = true }, shape = RoundedCornerShape(8.dp), color = if (selYear != null) Accent.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (selYear != null) Accent else theme.border)) {
-                            Text("${selYear ?: stringResource(R.string.filter_year_placeholder)} ▾", color = if (selYear != null) Accent else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        Surface(onClick = { showYearMenu = true }, shape = RoundedCornerShape(8.dp), color = if (selYear != null) acc.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (selYear != null) acc else theme.border)) {
+                            Text("${selYear ?: stringResource(R.string.filter_year_placeholder)} ▾", color = if (selYear != null) acc else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                         }
                         DropdownMenu(expanded = showYearMenu, onDismissRequest = { showYearMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selYear == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = null; showYearMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selYear == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = null; showYearMenu = false })
                             availableYears.forEach { y ->
-                                DropdownMenuItem(text = { Text(y, color = if (selYear == y) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = y; showYearMenu = false })
+                                DropdownMenuItem(text = { Text(y, color = if (selYear == y) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = y; showYearMenu = false })
                             }
                         }
                     }
                     // Dropdown de Mes
                     var showMonthMenu by remember { mutableStateOf(false) }
                     Box {
-                        Surface(onClick = { showMonthMenu = true }, shape = RoundedCornerShape(8.dp), color = if (selMonth != null) Accent.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (selMonth != null) Accent else theme.border)) {
-                            Text("${selMonth?.let { monthNames[it - 1] } ?: stringResource(R.string.filter_month_placeholder)} ▾", color = if (selMonth != null) Accent else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        Surface(onClick = { showMonthMenu = true }, shape = RoundedCornerShape(8.dp), color = if (selMonth != null) acc.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (selMonth != null) acc else theme.border)) {
+                            Text("${selMonth?.let { monthNames[it - 1] } ?: stringResource(R.string.filter_month_placeholder)} ▾", color = if (selMonth != null) acc else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                         }
                         DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selMonth == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = null; showMonthMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = null; showMonthMenu = false })
                             (1..12).forEach { m ->
-                                DropdownMenuItem(text = { Text(monthNames[m - 1], color = if (selMonth == m) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = m; showMonthMenu = false })
+                                DropdownMenuItem(text = { Text(monthNames[m - 1], color = if (selMonth == m) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = m; showMonthMenu = false })
                             }
                         }
                     }
@@ -1238,8 +1241,8 @@ fun StatsChartsView(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Surface(onClick = { statusFilters.clear() }, shape = RoundedCornerShape(8.dp), color = if (statusFilters.isEmpty()) Accent else theme.bgMid, border = BorderStroke(1.dp, if (statusFilters.isEmpty()) Accent else theme.border)) {
-                            Text(stringResource(R.string.txt_32630ca9), color = if (statusFilters.isEmpty()) Color.White else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
+                        Surface(onClick = { statusFilters.clear() }, shape = RoundedCornerShape(8.dp), color = if (statusFilters.isEmpty()) acc else theme.bgMid, border = BorderStroke(1.dp, if (statusFilters.isEmpty()) acc else theme.border)) {
+                            Text(stringResource(R.string.txt_32630ca9), color = if (statusFilters.isEmpty()) onAccentColor(theme) else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                         }
                         SHELF_ORDER.forEach { s ->
                             val sel = s in statusFilters
@@ -1261,7 +1264,7 @@ fun StatsChartsView(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = hideFunctionalless, onCheckedChange = { hideFunctionalless = it }, colors = CheckboxDefaults.colors(checkedColor = Accent, uncheckedColor = theme.border), modifier = Modifier.size(20.dp))
+                    Checkbox(checked = hideFunctionalless, onCheckedChange = { hideFunctionalless = it }, colors = CheckboxDefaults.colors(checkedColor = acc, uncheckedColor = theme.border), modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.txt_73fa4a4d), color = theme.textMuted, fontSize = 12.sp)
                 }
@@ -1270,17 +1273,17 @@ fun StatsChartsView(
                     Text(stringResource(R.string.txt_d086767f), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.width(60.dp))
                     var showGenreMenu by remember { mutableStateOf(false) }
                     Box(Modifier.weight(1f)) {
-                        Surface(onClick = { showGenreMenu = true }, shape = RoundedCornerShape(8.dp), color = if (filterGenre != null) Accent.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (filterGenre != null) Accent else theme.border), modifier = Modifier.fillMaxWidth()) {
+                        Surface(onClick = { showGenreMenu = true }, shape = RoundedCornerShape(8.dp), color = if (filterGenre != null) acc.copy(alpha = 0.15f) else theme.bgMid, border = BorderStroke(1.dp, if (filterGenre != null) acc else theme.border), modifier = Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Category, null, modifier = Modifier.size(13.dp), tint = if (filterGenre != null) Accent else theme.textMuted)
+                                Icon(Icons.Default.Category, null, modifier = Modifier.size(13.dp), tint = if (filterGenre != null) acc else theme.textMuted)
                                 Spacer(Modifier.width(4.dp))
-                                Text("${filterGenre?.let { displayGenre(it) } ?: stringResource(R.string.txt_98f7ba16)} ▾", color = if (filterGenre != null) Accent else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${filterGenre?.let { displayGenre(it) } ?: stringResource(R.string.txt_98f7ba16)} ▾", color = if (filterGenre != null) acc else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         DropdownMenu(expanded = showGenreMenu, onDismissRequest = { showGenreMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_8afc8680), color = if (filterGenre == null) Accent else theme.textMain, fontSize = 13.sp) }, onClick = { onGenreChange(null); showGenreMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_8afc8680), color = if (filterGenre == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { onGenreChange(null); showGenreMenu = false })
                             allGenres.forEach { g ->
-                                DropdownMenuItem(text = { Text(displayGenre(g), color = if (filterGenre == g) Accent else theme.textMain, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }, onClick = { onGenreChange(g); showGenreMenu = false })
+                                DropdownMenuItem(text = { Text(displayGenre(g), color = if (filterGenre == g) acc else theme.textMain, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }, onClick = { onGenreChange(g); showGenreMenu = false })
                             }
                         }
                     }
@@ -1327,7 +1330,7 @@ fun StatsChartsView(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatBox("$streakDays ${stringResource(R.string.word_days)}", stringResource(R.string.pill_racha_maxima), Modifier.weight(1f), theme, highlight = true, highlightColor = Amber)
             if (showRatioFinished) StatBox("${String.format("%.0f%%", ratioFinished * 100)}", stringResource(R.string.pill_libros_terminados), Modifier.weight(1f), theme, highlight = true, highlightColor = Green)
-            StatBox(if (filteredSessions.isNotEmpty()) String.format("%.1f p", avgSessionPages) else "—", stringResource(R.string.pill_media_pags_ses), Modifier.weight(1f), theme, highlight = true, highlightColor = Accent)
+            StatBox(if (filteredSessions.isNotEmpty()) String.format("%.1f p", avgSessionPages) else "—", stringResource(R.string.pill_media_pags_ses), Modifier.weight(1f), theme, highlight = true, highlightColor = acc)
             StatBox(if (avgSessionMins > 0) String.format("%.0f min", avgSessionMins) else "—", stringResource(R.string.pill_media_mins_ses), Modifier.weight(1f), theme, highlight = true, highlightColor = Sky)
         }
 
@@ -1355,7 +1358,7 @@ fun StatsChartsView(
                 }
                 if (genreList.size > 1) {
                     Spacer(Modifier.height(10.dp))
-                    HorizontalBarChart(genreList.map { Triple(displayGenre(it.key), it.value, Accent) }, theme, max = genreList.maxOf { it.value }.coerceAtLeast(1))
+                    HorizontalBarChart(genreList.map { Triple(displayGenre(it.key), it.value, acc) }, theme, max = genreList.maxOf { it.value }.coerceAtLeast(1))
                 }
             }
         }
@@ -1575,6 +1578,7 @@ fun HorizontalBarChart(items: List<Triple<String, Int, Color>>, theme: Theme, ma
 
 @Composable
 fun VerticalBarChart(items: List<Pair<String, Int>>, max: Int, theme: Theme) {
+    val acc = accentForTheme(theme)
     val maxVal = max.coerceAtLeast(1)
     Row(Modifier.fillMaxWidth().height(100.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
         items.forEach { (label, value) ->
@@ -1584,7 +1588,7 @@ fun VerticalBarChart(items: List<Pair<String, Int>>, max: Int, theme: Theme) {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     val fraction = value.toFloat() / maxVal
-                    Box(Modifier.fillMaxWidth().fillMaxHeight(fraction).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(Accent.copy(alpha = 0.75f)))
+                    Box(Modifier.fillMaxWidth().fillMaxHeight(fraction).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(acc.copy(alpha = 0.75f)))
                 }
                 Spacer(Modifier.height(2.dp))
                 Text(label, color = theme.textDim, fontSize = 7.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1595,6 +1599,7 @@ fun VerticalBarChart(items: List<Pair<String, Int>>, max: Int, theme: Theme) {
 
 @Composable
 fun VerticalBarChartWithValues(items: List<Pair<String, Int>>, max: Int, theme: Theme) {
+    val acc = accentForTheme(theme)
     val maxVal = max.coerceAtLeast(1)
     var selectedIdx by remember { mutableStateOf<Int?>(null) }
     Row(Modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
@@ -1605,24 +1610,24 @@ fun VerticalBarChartWithValues(items: List<Pair<String, Int>>, max: Int, theme: 
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
-                Text("$value", color = if (isSelected) Accent else theme.textMuted, fontSize = 7.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("$value", color = if (isSelected) acc else theme.textMuted, fontSize = 7.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(1.dp))
                 Box(
                     Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     val fraction = value.toFloat() / maxVal
-                    Box(Modifier.fillMaxWidth().fillMaxHeight(fraction.coerceAtLeast(0.02f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(if (isSelected) Accent else Accent.copy(alpha = 0.65f)))
+                    Box(Modifier.fillMaxWidth().fillMaxHeight(fraction.coerceAtLeast(0.02f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(if (isSelected) acc else acc.copy(alpha = 0.65f)))
                 }
                 Spacer(Modifier.height(2.dp))
-                Text(label, color = if (isSelected) Accent else theme.textDim, fontSize = 7.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                Text(label, color = if (isSelected) acc else theme.textDim, fontSize = 7.sp, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }
     if (selectedIdx != null && selectedIdx!! < items.size) {
         val (lbl, v) = items[selectedIdx!!]
         Spacer(Modifier.height(4.dp))
-        Text(stringResource(R.string.chart_bar_label, lbl, v), color = Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.chart_bar_label, lbl, v), color = acc, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

@@ -60,6 +60,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
+    val acc = accentForTheme(theme)
     // Fase 6.1 (D-008, T6): registrar que Estadísticas ya se ha abierto
     LaunchedEffect(Unit) { _prefs.edit().putBoolean("stats_opened", true).apply() }
     // Solo FINISHED con fechas distintas (mismo día distorsiona velocidad)
@@ -154,8 +155,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                     Surface(
                         onClick = { setStatsView(mode) },
                         shape = RoundedCornerShape(10.dp),
-                        color = if (active) Accent else theme.surface,
-                        border = BorderStroke(1.dp, if (active) Accent else theme.border)
+                        color = if (active) acc else theme.surface,
+                        border = BorderStroke(1.dp, if (active) acc else theme.border)
                     ) {
                         Text(icon, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp))
                     }
@@ -264,7 +265,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                 item { recapCards() }
                 // Global summary card
                 item {
-                    Surface(shape = RoundedCornerShape(16.dp), color = Color(0x1A6366F1), border = BorderStroke(1.dp, Color(0x336366F1))) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = accentForTheme(theme).copy(alpha = 0.1f), border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.2f))) {
                         Column(Modifier.padding(20.dp)) {
                             Text(stringResource(R.string.txt_316406f4), color = Color(0xFFA5B4FC), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(14.dp))
@@ -391,7 +392,7 @@ fun SpeedBookRow(book: Book, ppd: Double, days: Int, maxPpd: Double, theme: Them
             // Speed bar — muestra la velocidad de este libro respecto al más rápido leído
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(theme.border)) {
-                    Box(Modifier.fillMaxWidth(fraction).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Brush.horizontalGradient(listOf(Accent, Green))))
+                    Box(Modifier.fillMaxWidth(fraction).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Brush.horizontalGradient(listOf(accentForTheme(theme), Green))))
                 }
                 Text(stringResource(R.string.txt_1f750a24), color = theme.textDim, fontSize = 9.sp)
             }
@@ -473,6 +474,7 @@ fun BookCard(
     sessionDays: Int = -1    // días únicos con sesión; -1 = desconocido
 ) {
     val stats = getStats(book)
+    val acc = accentForTheme(theme)
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showCoverDialog by remember { mutableStateOf(false) }
     var coverUrlInput by remember { mutableStateOf("") }
@@ -505,7 +507,7 @@ fun BookCard(
                     Text(stringResource(R.string.txt_aa02a2da), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
                     OutlinedTextField(value = coverUrlInput, onValueChange = { coverUrlInput = it }, placeholder = { Text(stringResource(R.string.txt_14f2b208), color = theme.textDim) }, colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = { coverImagePicker.launch("image/*"); showCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent)) { Text(stringResource(R.string.txt_5cd0defc)) }
+                    OutlinedButton(onClick = { coverImagePicker.launch("image/*"); showCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = acc)) { Text(stringResource(R.string.txt_5cd0defc)) }
                 }
             },
             dismissButton = { TextButton(onClick = { showCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } },
@@ -513,7 +515,7 @@ fun BookCard(
                 TextButton(onClick = {
                     if (coverUrlInput.isNotBlank()) onApplyCoverUrl?.invoke(coverUrlInput.trim())
                     showCoverDialog = false
-                }) { Text(stringResource(R.string.txt_f0ed2dc3), color = Accent) }
+                }) { Text(stringResource(R.string.txt_f0ed2dc3), color = acc) }
             },
             containerColor = theme.bgMid
         )
@@ -532,7 +534,7 @@ fun BookCard(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Accent)
+                    Text(stringResource(R.string.txt_847607d7), color = acc)
                 }
             }
         )
@@ -552,7 +554,7 @@ fun BookCard(
                             .size(22.dp)
                             .offset(x = (-5).dp, y = (-5).dp)
                             .clip(CircleShape)
-                            .background(Accent)
+                            .background(acc)
                             .border(2.dp, theme.surface, CircleShape)
                             .align(Alignment.TopStart),
                         contentAlignment = Alignment.Center
@@ -575,7 +577,7 @@ fun BookCard(
                             .size(22.dp)
                             .offset(x = (-5).dp, y = 5.dp)
                             .clip(CircleShape)
-                            .background(Sky)
+                            .background(actionFillColor(theme))
                             .border(2.dp, theme.surface, CircleShape)
                             .align(Alignment.BottomStart)
                             .clickable(enabled = !isRefreshingCover) { onRefreshCover() },
@@ -584,7 +586,7 @@ fun BookCard(
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "Refresh cover",
-                            tint = Color.White,
+                            tint = onAccentColor(theme),
                             modifier = Modifier
                                 .size(13.dp)
                                 .then(if (isRefreshingCover) Modifier.rotate(rotation) else Modifier)
@@ -615,7 +617,7 @@ fun BookCard(
                             .size(22.dp)
                             .offset(x = 5.dp, y = 5.dp)
                             .clip(CircleShape)
-                            .background(Accent)
+                            .background(acc)
                             .border(2.dp, theme.surface, CircleShape)
                             .align(Alignment.BottomEnd)
                             .clickable {
@@ -774,7 +776,7 @@ fun FooterStats(finished: List<Book>, _theme: Theme) {
     val avg = if (speedBooks.isNotEmpty()) speedBooks.map { b -> b.pages.toDouble() / daysBetween(b.startDate!!, b.endDate!!).coerceAtLeast(1) }.average() else null
     val rated = finished.filter { it.rating > 0 }
     val avgRating = if (rated.isNotEmpty()) rated.map { it.rating }.average() else null
-    Surface(shape = RoundedCornerShape(16.dp), color = Color(0x1A6366F1), border = BorderStroke(1.dp, Color(0x336366F1))) {
+    Surface(shape = RoundedCornerShape(16.dp), color = accentForTheme(_theme).copy(alpha = 0.1f), border = BorderStroke(1.dp, accentForTheme(_theme).copy(alpha = 0.2f))) {
         Column(Modifier.padding(20.dp)) {
             Text(stringResource(R.string.txt_9096e7e0), color = Color(0xFFA5B4FC), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
             Spacer(Modifier.height(14.dp))
@@ -826,7 +828,7 @@ fun AuthorBooksScreen(vm: BooksViewModel, prefs: android.content.SharedPreferenc
                 IconButton(onClick = { showSortMenu = true }) { Icon(Icons.Filled.Sort, null, tint = theme.textMuted) }
                 DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                     SortOrder.entries.forEach { order ->
-                        DropdownMenuItem(text = { Text(sortLabel(order), color = if (sortOrder == order) Accent else theme.textMain) }, onClick = { sortOrder = order; showSortMenu = false })
+                        DropdownMenuItem(text = { Text(sortLabel(order), color = if (sortOrder == order) accentForTheme(theme) else theme.textMain) }, onClick = { sortOrder = order; showSortMenu = false })
                     }
                 }
             }

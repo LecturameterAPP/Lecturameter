@@ -86,10 +86,16 @@ private val widgetUpdateScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 // ── Tema del widget (Bug fix v21.14): el widget no seguía el tema de la app,
 // siempre se veía oscuro. Lee el mismo "theme_mode" que usa MainActivity y
 // aplica fondo + colores de texto a juego, sin tocar el layout XML base. ──
+// Feedback 17-07 (Bloque 2): el acento del widget también sigue al tema — los overlays
+// índigo translúcidos sobre el marrón de Cuero se veían "azul sucio". Cuero va en oro y
+// Aurora en morado; Claro/Oscuro/OLED conservan el índigo y la barra sky de siempre.
 internal data class WidgetThemeColors(
     val bgDrawable: Int,
     val textMain: Int,
-    val textMuted: Int
+    val textMuted: Int,
+    val accentChipDrawable: Int = R.drawable.widget_accent_bg_chip,
+    val accentCoverDrawable: Int = R.drawable.widget_accent_bg_cover,
+    val progressColor: Int = 0xFF0EA5E9.toInt()
 )
 
 internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
@@ -102,11 +108,17 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     return when (effective) {
         "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
-        "aurora" -> WidgetThemeColors(R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt())
+        "aurora" -> WidgetThemeColors(
+            R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt(),
+            R.drawable.widget_accent_bg_chip_aurora, R.drawable.widget_accent_bg_cover_aurora, 0xFFB794F6.toInt()
+        )
         // QA r2 12-07: Dinámico eliminado — "dynamic" residual cae al else (oscuro)
         "amoled" -> WidgetThemeColors(R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
-        // D-015 (Cuero): fondo marrón cuero + textos crema del mockup r3
-        "cuero"  -> WidgetThemeColors(R.drawable.widget_background_cuero, 0xFFFAF3E3.toInt(), 0xFFD6C7A5.toInt())
+        // D-015 (Cuero): fondo marrón cuero + textos crema del mockup r3, acento oro
+        "cuero"  -> WidgetThemeColors(
+            R.drawable.widget_background_cuero, 0xFFFAF3E3.toInt(), 0xFFD6C7A5.toInt(),
+            R.drawable.widget_accent_bg_chip_cuero, R.drawable.widget_accent_bg_cover_cuero, 0xFFD9AC5C.toInt()
+        )
         else     -> WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
     }
 }

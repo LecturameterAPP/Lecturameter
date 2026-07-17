@@ -77,6 +77,8 @@ fun ListScreen(
 ) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val booksAll by vm.books.collectAsState()
+    // Theming: acento propio del tema (oro en Cuero, morado en Aurora)
+    val acc = accentForTheme(theme)
     var searchQuery by rememberSaveable { mutableStateOf(vm.savedSearchQuery) }
     var sortOrderName by rememberSaveable { mutableStateOf(vm.savedSortOrder.name) }
     val sortOrder = SortOrder.entries.firstOrNull { it.name == sortOrderName } ?: SortOrder.DATE_DESC
@@ -462,7 +464,7 @@ fun ListScreen(
                                             )
                                             Spacer(Modifier.width(6.dp))
                                         }
-                                        Text(label, color = if (vm.themeMode == mode) Accent else theme.textMain, fontWeight = if (vm.themeMode == mode) FontWeight.Bold else FontWeight.Normal)
+                                        Text(label, color = if (vm.themeMode == mode) acc else theme.textMain, fontWeight = if (vm.themeMode == mode) FontWeight.Bold else FontWeight.Normal)
                                         // D-013: candado en los temas de pago sin Pro
                                         if (!com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) {
                                             Spacer(Modifier.width(5.dp))
@@ -496,7 +498,7 @@ fun ListScreen(
                     onClick = onAdd,
                     colors = if (isCueroTheme(theme))
                         ButtonDefaults.buttonColors(containerColor = AccentCuero, contentColor = Color(0xFF241608))
-                    else ButtonDefaults.buttonColors(containerColor = Accent),
+                    else ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
@@ -570,17 +572,17 @@ fun ListScreen(
                             }
                             onSearch()
                         }) {
-                            Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = Accent, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
                         }
                         // Sort button inside search row
                         Box {
                             IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.Filled.Sort, null, tint = Accent, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Filled.Sort, null, tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
                             }
                             DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                                 SortOrder.entries.forEach { order ->
                                     DropdownMenuItem(
-                                        text = { Text(sortLabel(order), color = if (sortOrder == order) Accent else theme.textMain) },
+                                        text = { Text(sortLabel(order), color = if (sortOrder == order) acc else theme.textMain) },
                                         onClick = { sortOrderName = order.name; showSortMenu = false }
                                     )
                                 }
@@ -632,7 +634,7 @@ fun ListScreen(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Surface(shape = RoundedCornerShape(8.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
-                                Text(scannedIsbnForDialog, color = Accent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                                Text(scannedIsbnForDialog, color = acc, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
                             }
                             Text(stringResource(R.string.txt_55800f4c), color = theme.textMuted, fontSize = 13.sp)
@@ -649,7 +651,7 @@ fun ListScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                                colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme))
                             ) {
                                 Icon(Icons.Default.Search, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
@@ -663,11 +665,11 @@ fun ListScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, Accent)
+                                border = BorderStroke(1.dp, acc)
                             ) {
-                                Icon(Icons.Default.Add, null, tint = Accent, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Add, null, tint = acc, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.txt_97225860), color = Accent, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.txt_97225860), color = acc, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     },
@@ -679,7 +681,7 @@ fun ListScreen(
             TabRow(
                 selectedTabIndex = activeTab,
                 containerColor = Color.Transparent,
-                contentColor = Accent,
+                contentColor = acc,
                 indicator = { tabPositions ->
                     if (activeTab < tabPositions.size) {
                         TabRowDefaults.SecondaryIndicator(
@@ -808,7 +810,7 @@ fun ListScreen(
                                             searchQuery = ""
                                             onNavigateToBookSearch()
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                                        colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
                                         Icon(Icons.Default.TravelExplore, null, modifier = Modifier.size(16.dp))

@@ -65,6 +65,7 @@ fun BookSearchScreen(
     onScanIsbn: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     var query by remember { mutableStateOf(initialQuery) }
     var results by remember { mutableStateOf<List<OpenLibraryResult>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -157,7 +158,7 @@ fun BookSearchScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Surface(shape = RoundedCornerShape(8.dp), color = theme.surface) {
-                        Text(dialogIsbn, color = Accent, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                        Text(dialogIsbn, color = acc, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
                     }
                     Text(stringResource(R.string.txt_55800f4c), color = theme.textDim, fontSize = 14.sp)
                     Button(
@@ -167,7 +168,7 @@ fun BookSearchScreen(
                             onClearIsbnFromScanner()
                             doSearch()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_69e20782), fontWeight = FontWeight.Bold) }
@@ -178,9 +179,9 @@ fun BookSearchScreen(
                             onAddWithIsbn(dialogIsbn)
                         },
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Accent),
+                        border = BorderStroke(1.dp, acc),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Icon(Icons.Default.Add, null, tint = Accent, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_97225860), color = Accent) }
+                    ) { Icon(Icons.Default.Add, null, tint = acc, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_97225860), color = acc) }
                 }
             },
             confirmButton = {}
@@ -329,7 +330,7 @@ fun BookSearchScreen(
                     // v2.5: aviso de duplicado (antes se añadía sin avisar)
                     if (vm.findDuplicate(toAdd) != null) { duplicateCandidate = toAdd } else { vm.addBook(toAdd, prefs) }
                     selectedResult = null
-                }, colors = ButtonDefaults.buttonColors(containerColor = Accent), shape = RoundedCornerShape(10.dp)) { Text(stringResource(R.string.txt_d20f652b)) }
+                }, colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)), shape = RoundedCornerShape(10.dp)) { Text(stringResource(R.string.txt_d20f652b)) }
             },
             dismissButton = { TextButton(onClick = { selectedResult = null }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -361,7 +362,7 @@ fun BookSearchScreen(
                 modifier = Modifier.weight(1f), colors = fieldColors(theme), shape = RoundedCornerShape(12.dp), singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { doSearch() })
             )
-            Button(onClick = { doSearch() }, colors = ButtonDefaults.buttonColors(containerColor = Accent), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp), enabled = query.isNotBlank() && !isLoading) { Text(stringResource(R.string.txt_113f7428), fontWeight = FontWeight.Bold) }
+            Button(onClick = { doSearch() }, colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)), shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp), enabled = query.isNotBlank() && !isLoading) { Text(stringResource(R.string.txt_113f7428), fontWeight = FontWeight.Bold) }
         }
         // Botón escanear ISBN — fila separada debajo de la barra de búsqueda
         Row(
@@ -375,19 +376,19 @@ fun BookSearchScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = null, tint = Accent, modifier = Modifier.size(22.dp))
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = null, tint = acc, modifier = Modifier.size(22.dp))
             Text(stringResource(R.string.txt_e82171d9), color = theme.textDim, fontSize = 13.sp)
         }
         when {
             // Feedback 2.6: spinner a pantalla completa solo mientras no hay NINGÚN
             // resultado; con parciales se muestra la lista con un indicador pequeño.
-            isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(color = Accent); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_65dc881f), color = theme.textMuted, fontSize = 14.sp) } }
+            isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(color = acc); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_65dc881f), color = theme.textMuted, fontSize = 14.sp) } }
             errorMsg.isNotBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(if (networkError) "📡" else "🔍", fontSize = 40.sp); Spacer(Modifier.height(12.dp)); Text(errorMsg, color = if (networkError) Red else theme.textMuted, fontSize = 14.sp, fontWeight = if (networkError) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)); Text(if (networkError) stringResource(R.string.err_check_wifi_retry) else stringResource(R.string.err_try_other_language), color = if (networkError) Red.copy(alpha = 0.7f) else theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
             !searched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🔎", fontSize = 48.sp); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_af80d2f5), color = theme.textMain, fontSize = 16.sp) } }
             else -> {
                 if (isLoading) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                        CircularProgressIndicator(color = Accent, strokeWidth = 2.dp, modifier = Modifier.size(13.dp))
+                        CircularProgressIndicator(color = acc, strokeWidth = 2.dp, modifier = Modifier.size(13.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.txt_65dc881f), color = theme.textDim, fontSize = 11.sp)
                     }
@@ -405,6 +406,7 @@ fun BookSearchScreen(
 
 @Composable
 fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onAdd: () -> Unit) {
+    val acc = accentForTheme(theme)
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             BookCover(result.coverUrl, result.title, size = 60)
@@ -416,10 +418,10 @@ fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onAdd: () -> Unit)
                     if (result.pages > 0) Text("📄 ${result.pages} págs", color = theme.textDim, fontSize = 11.sp)
                     if (result.publishYear.isNotBlank()) Text("📅 ${result.publishYear}", color = theme.textDim, fontSize = 11.sp)
                 }
-                if (result.genre.isNotBlank()) Text(mapApiGenre(result.genre).joinToString(" · ").ifBlank { result.genre }.take(50), color = Accent.copy(alpha = 0.7f), fontSize = 11.sp)
+                if (result.genre.isNotBlank()) Text(mapApiGenre(result.genre).joinToString(" · ").ifBlank { result.genre }.take(50), color = acc.copy(alpha = 0.7f), fontSize = 11.sp)
             }
             Spacer(Modifier.width(8.dp))
-            IconButton(onClick = onAdd, modifier = Modifier.size(36.dp).clip(CircleShape).background(Accent)) { Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+            IconButton(onClick = onAdd, modifier = Modifier.size(36.dp).clip(CircleShape).background(acc)) { Icon(Icons.Default.Add, null, tint = onAccentColor(theme), modifier = Modifier.size(20.dp)) }
         }
     }
 }
@@ -457,7 +459,9 @@ fun LanguageSelector(
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, if (expanded) Accent else Color.Gray.copy(alpha = 0.3f))
+            // Este composable no recibe `theme`: el acento se remapea con themedAccentOr
+            // (LocalAppTheme), el mecanismo previsto para componentes hoja
+            border = BorderStroke(1.dp, if (expanded) themedAccentOr(Accent) else Color.Gray.copy(alpha = 0.3f))
         ) {
             Text("${selected.third} ${selected.second}", fontSize = 13.sp)
             Spacer(Modifier.width(4.dp))
@@ -466,7 +470,7 @@ fun LanguageSelector(
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             languages.forEach { (code, label, flag) ->
                 DropdownMenuItem(
-                    text = { Text("$flag $label", color = if (code == selectedLanguage) Accent else Color.Unspecified, fontWeight = if (code == selectedLanguage) FontWeight.Bold else FontWeight.Normal) },
+                    text = { Text("$flag $label", color = if (code == selectedLanguage) themedAccentOr(Accent) else Color.Unspecified, fontWeight = if (code == selectedLanguage) FontWeight.Bold else FontWeight.Normal) },
                     onClick = { onLanguageSelected(code, label, flag); expanded = false }
                 )
             }
@@ -487,6 +491,7 @@ fun AddScreen(
     onClearExternalIsbn: () -> Unit = {},
     onScanIsbn: () -> Unit = {}
 ) {
+    val acc = accentForTheme(theme)
     var title by remember { mutableStateOf("") }; var author by remember { mutableStateOf("") }
     var pages by remember { mutableStateOf("") }; var isbn by remember { mutableStateOf("") }
     var genres by remember { mutableStateOf<List<String>>(emptyList()) }; var status by remember { mutableStateOf(BookStatus.READING) }
@@ -566,10 +571,10 @@ fun AddScreen(
                     Text(stringResource(R.string.txt_aa02a2da), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
                     OutlinedTextField(value = addCoverUrlInput, onValueChange = { addCoverUrlInput = it }, placeholder = { Text(stringResource(R.string.txt_14f2b208), color = theme.textDim) }, colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), singleLine = true, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = { addImagePickerReal.launch("image/*"); showAddCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent)) { Text(stringResource(R.string.txt_a8830f9a)) }
+                    OutlinedButton(onClick = { addImagePickerReal.launch("image/*"); showAddCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = acc)) { Text(stringResource(R.string.txt_a8830f9a)) }
                 }
             },
-            confirmButton = { TextButton(onClick = { if (addCoverUrlInput.isNotBlank()) { manualCoverUrl = addCoverUrlInput.trim() }; showAddCoverDialog = false }) { Text(stringResource(R.string.txt_f0ed2dc3), color = Accent) } },
+            confirmButton = { TextButton(onClick = { if (addCoverUrlInput.isNotBlank()) { manualCoverUrl = addCoverUrlInput.trim() }; showAddCoverDialog = false }) { Text(stringResource(R.string.txt_f0ed2dc3), color = acc) } },
             dismissButton = { TextButton(onClick = { showAddCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } },
             containerColor = theme.bgMid
         )
@@ -593,8 +598,8 @@ fun AddScreen(
                         OutlinedButton(
                             onClick = { addCoverUrlInput = manualCoverUrl ?: ""; showAddCoverDialog = true },
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent)
+                            border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = acc)
                         ) {
                             Text(if (manualCoverUrl != null) stringResource(R.string.btn_change_cover) else stringResource(R.string.btn_add_cover), fontSize = 12.sp)
                         }
@@ -677,15 +682,15 @@ fun AddScreen(
                     Spacer(Modifier.width(8.dp))
                     IconButton(
                         onClick = onScanIsbn,
-                        modifier = Modifier.size(48.dp).background(Accent.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+                        modifier = Modifier.size(48.dp).background(acc.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
                     ) {
-                        Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = "Scan ISBN", tint = Accent, modifier = Modifier.size(22.dp))
+                        Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = "Scan ISBN", tint = acc, modifier = Modifier.size(22.dp))
                     }
                 }
                 // v20.9: estado del autorelleno por ISBN
                 if (isbnSearching) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Accent)
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = acc)
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.txt_f01d3d6b), color = theme.textDim, fontSize = 12.sp)
                     }
@@ -726,7 +731,7 @@ fun AddScreen(
                                 val firstEdition = BookEdition(id = newBook.id, language = editionLanguage, languageLabel = editionLanguageLabel, flag = editionFlag, title = newBook.title, pages = newBook.pages, coverUrl = newBook.coverUrl, isbn = newBook.isbn, isActive = true)
                                 val toAdd = newBook.copy(editions = listOf(firstEdition))
                                 if (vm.findDuplicate(toAdd) != null) { duplicateCandidate = toAdd } else { vm.addBook(toAdd, prefs); onBack() }
-                            }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                            }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
                         },
                         dismissButton = { TextButton(onClick = { showOnePage = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
                     )
@@ -752,7 +757,7 @@ fun AddScreen(
                         val toAdd = newBook.copy(editions = listOf(firstEdition))
                         if (vm.findDuplicate(toAdd) != null) { duplicateCandidate = toAdd } else { vm.addBook(toAdd, prefs); onBack() }
                     }
-                }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent)) { Text(stringResource(R.string.txt_e3ea89d7), fontWeight = FontWeight.Bold, fontSize = 15.sp) }
+                }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme))) { Text(stringResource(R.string.txt_e3ea89d7), fontWeight = FontWeight.Bold, fontSize = 15.sp) }
             }
         }
     }
@@ -813,7 +818,7 @@ fun FormField(label: String, value: String, placeholder: String, theme: Theme, k
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun fieldColors(theme: Theme) = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = Accent, unfocusedBorderColor = theme.border, cursorColor = Accent, focusedContainerColor = theme.surface, unfocusedContainerColor = theme.surface)
+fun fieldColors(theme: Theme) = OutlinedTextFieldDefaults.colors(focusedTextColor = theme.textMain, unfocusedTextColor = theme.textMain, focusedBorderColor = accentForTheme(theme), unfocusedBorderColor = theme.border, cursorColor = accentForTheme(theme), focusedContainerColor = theme.surface, unfocusedContainerColor = theme.surface)
 
 // ── DetailScreen ──────────────────────────────────────────────────────────────
 
@@ -832,6 +837,7 @@ fun EditionsSection(
     onRemove: (Long) -> Unit,
     onUpdatePages: (editionId: Long, pages: Int) -> Unit = { _, _ -> }
 ) {
+    val acc = accentForTheme(theme)
     // D-015 (Cuero): filete dorado interior en la tarjeta de ediciones (solo tema Cuero)
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -860,7 +866,7 @@ fun EditionsSection(
                     ) {
                         Text(
                             "${editions.size}",
-                            color = Accent,
+                            color = acc,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -957,7 +963,7 @@ fun EditionsSection(
                                             onUpdatePages(ed.id, p)
                                         }
                                         editingEditionPages = false
-                                    }) { Text("✓", color = Accent) }
+                                    }) { Text("✓", color = acc) }
                                 }
                             } else {
                                 Row(Modifier.padding(horizontal = 11.dp, vertical = 7.dp).clickable { editingEditionPages = true; editionPagesInput = ed.pages.toString().takeIf { ed.pages > 0 } ?: "" }, verticalAlignment = Alignment.CenterVertically) {
@@ -975,10 +981,10 @@ fun EditionsSection(
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
                                 color = Color(0x1A7B6EF6),
-                                border = BorderStroke(1.dp, Accent.copy(alpha = 0.45f)),
+                                border = BorderStroke(1.dp, acc.copy(alpha = 0.45f)),
                                 modifier = Modifier.clickable { onSetActive(ed.id) }
                             ) {
-                                Text(stringResource(R.string.txt_59d90b1a), color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                Text(stringResource(R.string.txt_59d90b1a), color = acc, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
                         }
                         // Change edition button

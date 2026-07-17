@@ -52,6 +52,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
+    val acc = accentForTheme(theme)
     var importMsg by remember { mutableStateOf<String?>(null) }
     var exportMsg by remember { mutableStateOf<String?>(null) }
     var isExporting by remember { mutableStateOf(false) }
@@ -84,7 +85,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 TextButton(onClick = {
                     showStoragePermDialog = false
                     storagePermLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                }) { Text(stringResource(R.string.txt_5fcafeb2), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_5fcafeb2), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showStoragePermDialog = false; pendingStorageAction = null }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -119,7 +120,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     localBackupOn = true
                     prefs.edit().putBoolean("local_backup_enabled", true).apply()
                     showActivateLocalBk = false
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showActivateLocalBk = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -135,7 +136,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     driveBackupOn = true
                     prefs.edit().putBoolean("drive_backup_enabled", true).apply()
                     showActivateDriveBk = false
-                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = Accent, fontWeight = FontWeight.Bold) }
+                }) { Text(stringResource(R.string.txt_d1cdc7bc), color = acc, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showActivateDriveBk = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
         )
@@ -191,7 +192,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
         Surface(shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x1A6366F1)), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accentForTheme(theme).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
                         Text("📚", fontSize = 20.sp)
                     }
                     Spacer(Modifier.width(12.dp))
@@ -208,7 +209,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     onClick = { csvLauncher.launch("text/*"); importMsg = null; exportMsg = null },
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Accent)
+                    colors = ButtonDefaults.buttonColors(containerColor = acc)
                 ) {
                     Icon(Icons.Default.FolderOpen, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -492,7 +493,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 driveSignInLauncher.launch(driveSignInClient.signInIntent)
                             }
                         }) {
-                            Text(stringResource(R.string.txt_d1bdc329), color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.txt_d1bdc329), color = acc, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                         TextButton(onClick = {
                             driveSignInClient.signOut()

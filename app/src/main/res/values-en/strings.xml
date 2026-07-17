@@ -315,7 +315,7 @@
     <string name="txt_db955caf">Local folder</string>
     <string name="txt_dcd9cd29">Drive backup disabled</string>
     <string name="txt_def36a08">📤 Export statistics</string>
-    <string name="txt_df94c6d3">Pgs</string>
+    <string name="txt_df94c6d3">pgs</string>
     <string name="txt_e30acdbb">If you like Lecturameter, you can buy me a coffee. :)</string>
     <string name="txt_e33e3006">No comment. Tap ✏️ to add one.</string>
     <string name="txt_e346618a">IMPORT</string>
@@ -725,7 +725,7 @@
     <string name="tut_goodreads_backup_desc">Do you have any books on Goodreads? Under Settings &gt; Backup &gt; Import/Export/Restore, you can import your library in CSV format. The reverse process is also possible.\n\nIn this same section, you can export and import your Lecturameter backups and adjust the frequency of automatic backups.</string>
     <string name="tut_card_favorites_desc_pre">"Each card displays the book\'s information (author, page count, genre, etc.) and quick-action buttons: reload covers and genres, manually change the cover, and delete the book. Click on the card to view the book\'s details.\n\nSwipe the card left or right to mark or unmark a book as a favorite; you can filter by favorites using the "</string>
     <string name="tut_card_favorites_desc_post">" in the search bar."</string>
-    <string name="tut_stats_detail_desc">Check page-charts by individual book, by month, by genre, and by author; session-specific statistics; annual, monthly, and hourly heat maps; as well as an annual "Wrapped" style summary.</string>
+    <string name="tut_stats_detail_desc">Check page-charts by individual book, by month, by genre, and by author; session-specific statistics; annual, monthly, and hourly heat maps; as well as an annual “Wrapped” style summary.</string>
     <string name="tut_history_stats_title">Expandable history and global statistics</string>
     <string name="tut_history_stats_desc">Clicking the hamburger icon in the upper-left corner opens a complete history of all the books you\'ve read and reread, along with statistics for each one.</string>
     <string name="tut_p1_title">Organize your library</string>

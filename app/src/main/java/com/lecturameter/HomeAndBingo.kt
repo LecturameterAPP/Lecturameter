@@ -269,7 +269,7 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
     }
 }
 
-// v2.5: aviso de libro duplicado (Cancelar rojo / Añadir igualmente Accent)
+// v2.5: aviso de libro duplicado (Cancelar rojo / Añadir igualmente en el acento del tema)
 @Composable
 fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
@@ -277,7 +277,7 @@ fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm
         containerColor = theme.bgMid,
         title = { Text(stringResource(R.string.dup_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
         text = { Text(stringResource(R.string.dup_text, existing.title), color = theme.textMuted, fontSize = 13.sp) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.dup_add_anyway), color = Accent, fontWeight = FontWeight.Bold) } },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.dup_add_anyway), color = accentForTheme(theme), fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
     )
 }
@@ -518,8 +518,8 @@ fun LanguageSelectionScreen(theme: Theme, onLanguageSelected: (String) -> Unit) 
                 Button(
                     onClick = { onLanguageSelected("es") },
                     modifier = Modifier.weight(1f).height(56.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Accent)
-                ) { Text(stringResource(R.string.txt_95b01315), fontSize = 15.sp, color = androidx.compose.ui.graphics.Color.White) }
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accentForTheme(theme), contentColor = onAccentColor(theme))
+                ) { Text(stringResource(R.string.txt_95b01315), fontSize = 15.sp, color = onAccentColor(theme)) }
                 Button(
                     onClick = { onLanguageSelected("en") },
                     modifier = Modifier.weight(1f).height(56.dp),
