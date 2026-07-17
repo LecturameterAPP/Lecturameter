@@ -966,7 +966,22 @@
     <!-- v2.4 rework: wrapped favoritos -->
     <string name="wrapped_favorites_section">Tus 3 favoritos del año</string>
     <string name="wrapped_bestday_title">TU MEJOR DÍA DE CADA MES</string>
-    <string name="wrapped_bestday_breakdown">DESGLOSE DEL %1$s</string>
+    <string name="wrapped_bestday_breakdown">Desglose del %1$s</string>
+    <!-- B3 (17-07): estado vacío unificado de todas las cards del Wrapped -->
+    <string name="wrapped_no_stats_yet">¡Aún no tienes estadísticas de esto, pero vuelve el año que viene! :)</string>
+    <!-- B3 (17-07): 11ª pantalla, género de este año vs el del año pasado -->
+    <string name="wclose_genre_vs">Género de este año vs Género del año pasado</string>
+    <!-- B3 (17-07): narrativización del Wrapped (textos literales de Víctor) -->
+    <string name="wrapped_narr_1">¡Bienvenido a tu resumen anual! Vamos a repasar tu año al completo, ¿quieres?</string>
+    <string name="wrapped_narr_2">¡Cuantas horas has dedicado a leer! En ese tiempo podrías haber hecho cualquier otra cosa, pero decidiste leer, ¡así me gusta!</string>
+    <string name="wrapped_narr_3">A estas personas les debes un agradecimiento por todo el entretenimiento que te han proporcionado este año. ;)</string>
+    <string name="wrapped_narr_4">Con estos seis te lo has pasado pipa, deberías releerlos el año que viene...</string>
+    <string name="wrapped_narr_5">Que tu peor mes no te desanime, has leído tanto como has podido. ¡Estoy seguro!</string>
+    <string name="wrapped_narr_6">En una nota más positiva que antes: estos días lo petaste, enhorabuena, ¡lo estás petando!</string>
+    <string name="wrapped_narr_7">¿Cuándo prefieres perderte entre páginas: al despertar con las primeras luces del día, bajo el sol del mediodía o a la luz de la luna?</string>
+    <string name="wrapped_narr_8">¿Has leído más este año que el anterior? Espero que sí y si no, ¿qué más da?</string>
+    <string name="wrapped_narr_9">¿Que cuantas páginas has leído este año, perdóoon?</string>
+    <string name="wrapped_narr_10">Seguro que te has enamorado de muchos libros este año, pero estos tres tienen un hueco especial en tu corazón.</string>
     <string name="wrapped_bestday_empty">Sin sesiones registradas este año.</string>
     <string name="wrapped_ppm_label">PÁGS/MIN</string>
     <string name="wrapped_timeslot_title">TU FRANJA HORARIA FAVORITA</string>
@@ -996,12 +1011,19 @@
     <string name="settings_section_widget">WIDGET</string>
     <!-- v2.5 -->
     <string name="adv_hourly_empty">Aún sin datos de hora. Las sesiones nuevas registran la hora automáticamente; en unos días verás aquí tu mapa horario.</string>
-    <string name="wrapped_more_books">Más libros</string>
-    <string name="wrapped_less_books">Menos libros</string>
-    <string name="wrapped_same_books">Igual de libros</string>
-    <string name="wrapped_more_pages">Más páginas</string>
-    <string name="wrapped_less_pages">Menos páginas</string>
-    <string name="wrapped_same_pages">Igual de páginas</string>
+    <string name="wrapped_more_books">Más libros leídos</string>
+    <string name="wrapped_less_books">Menos libros leídos</string>
+    <string name="wrapped_same_books">Igual de libros leídos</string>
+    <string name="wrapped_more_pages">Más páginas leídas</string>
+    <string name="wrapped_less_pages">Menos páginas leídas</string>
+    <string name="wrapped_same_pages">Igual de páginas leídas</string>
+    <!-- B3 (17-07): comparativa de sesiones + racha comparativa (8ª pantalla) -->
+    <string name="wrapped_more_sessions">Más sesiones</string>
+    <string name="wrapped_less_sessions">Menos sesiones</string>
+    <string name="wrapped_same_sessions">Igual de sesiones</string>
+    <string name="wrapped_streak_longer">Tu racha de lecturas fue %1$d días más larga</string>
+    <string name="wrapped_streak_shorter">Tu racha de lecturas fue %1$d días más corta</string>
+    <string name="wrapped_streak_equal">Tu racha de lecturas fue igual de larga</string>
     <string name="wrapped_record_line">Récord: %1$d pág. en una sesión</string>
     <string name="settings_widget_customize_sub">Elige qué chips y emojis se muestran</string>
     <string name="history_stat_global_ppd">Media global págs/día</string>

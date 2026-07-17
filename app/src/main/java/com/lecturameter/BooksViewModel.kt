@@ -1839,6 +1839,23 @@ class BooksViewModel : ViewModel() {
     }
     fun wrappedForYear(year: Int): YearWrapped? = _wrappedHistory.value.find { it.year == year }
 
+    // B3 (17-07): racha más larga de días consecutivos con al menos 1 libro terminado.
+    // Mismo criterio que el bloque inline del año en curso (que además necesita
+    // start/end); aquí solo interesa la longitud, para el año anterior.
+    private fun longestFinishStreak(endDates: List<String>): Int {
+        val dates = endDates.toSortedSet().toList()
+        if (dates.isEmpty()) return 0
+        var maxStreak = 1
+        var streak = 1
+        for (i in 1 until dates.size) {
+            if (daysBetween(dates[i - 1], dates[i]) == 1) {
+                streak++
+                if (streak > maxStreak) maxStreak = streak
+            } else streak = 1
+        }
+        return maxStreak
+    }
+
     fun computeWrapped(year: Int): YearWrapped? {
         val finished = booksInternal.filter {
             it.status == BookStatus.FINISHED &&
@@ -1980,8 +1997,20 @@ class BooksViewModel : ViewModel() {
             b.endDate.startsWith((year - 1).toString()) &&
             !b.importedFromGoodreads
         }
-        val previousYearBooks = prevYearFinished.size
-        val previousYearPages = prevYearFinished.sumOf { it.pages }
+        // B3 (17-07): el año en curso ya contaba las relecturas en totalBooks/totalPages
+        // (v19.8) pero el año anterior NO → el Δ de la 8ª pantalla inflaba el año actual.
+        // Mismo criterio a ambos lados: libros terminados + relecturas (reread_end).
+        val prevRereads = booksInternal.filter { !it.importedFromGoodreads }.flatMap { b ->
+            b.dateEvents.filter { it.type == "reread_end" && it.date.startsWith((year - 1).toString()) }
+                .map { b to it }
+        }
+        val previousYearBooks = prevYearFinished.size + prevRereads.size
+        val previousYearPages = prevYearFinished.sumOf { it.pages } + prevRereads.sumOf { (b, _) -> b.pages }
+        // Sesiones y racha del año anterior (mismo criterio que el año en curso)
+        val previousYearSessions = sessionsInternal.count { it.date.startsWith((year - 1).toString()) }
+        val previousYearStreak = longestFinishStreak(prevYearFinished.map { it.endDate!! })
+        val previousYearGenre = prevYearFinished.flatMap { b -> b.genres.map { g -> g to b } }
+            .groupBy({ it.first }, { it.second }).maxByOrNull { it.value.size }?.key ?: ""
 
         // v18.5: distribución por género (género principal de cada libro, top 6 para donut)
         val genreCountsTop6 = finished
@@ -2035,6 +2064,9 @@ class BooksViewModel : ViewModel() {
             booksPerMonth = booksPerMonth.toList(),
             previousYearBooks = previousYearBooks,
             previousYearPages = previousYearPages,
+            previousYearSessions = previousYearSessions,
+            previousYearStreak = previousYearStreak,
+            previousYearGenre = previousYearGenre,
             genreCountsTop6 = genreCountsTop6,
             longestBooksTop3 = longestBooksTop3,
             rereadBooks = rereadCount,

@@ -965,7 +965,22 @@
     <!-- v2.4 rework: wrapped favorites -->
     <string name="wrapped_favorites_section">Your 3 favorites of the year</string>
     <string name="wrapped_bestday_title">YOUR BEST DAY EACH MONTH</string>
-    <string name="wrapped_bestday_breakdown">%1$s BREAKDOWN</string>
+    <string name="wrapped_bestday_breakdown">Breakdown: %1$s</string>
+    <!-- B3 (17-07): estado vacío unificado de todas las cards del Wrapped -->
+    <string name="wrapped_no_stats_yet">You don\'t have any stats on this yet, but come back next year! :)</string>
+    <!-- B3 (17-07): 11ª pantalla, género de este año vs el del año pasado -->
+    <string name="wclose_genre_vs">Genre of the year vs Genre of last year</string>
+    <!-- B3 (17-07): narrativización del Wrapped (textos literales de Víctor) -->
+    <string name="wrapped_narr_1">Welcome to your annual recap! Let\'s take a look back at your whole year, would you like to?</string>
+    <string name="wrapped_narr_2">You\'ve spent so many hours reading! You could have done anything else during that time, but you decided to read, that\'s the spirit!</string>
+    <string name="wrapped_narr_3">You owe these people a big thank you for all the entertainment they\'ve provided you this year. ;)</string>
+    <string name="wrapped_narr_4">You had a blast with these six, you should reread them next year...</string>
+    <string name="wrapped_narr_5">Don\'t let your worst month get you down, you\'ve read as much as you could. I\'m sure of it!</string>
+    <string name="wrapped_narr_6">On a more positive note than before: you\'ve been killing it these days, congratulations, you\'re killing it!</string>
+    <string name="wrapped_narr_7">When do you prefer to lose yourself in a book: when you wake up at first light, under the midday sun, or by moonlight?</string>
+    <string name="wrapped_narr_8">Have you read more this year than last year? I hope so, and if not, who cares anyway?</string>
+    <string name="wrapped_narr_9">How many pages have you read this year? Soooorry?</string>
+    <string name="wrapped_narr_10">I\'m sure you\'ve fallen in love with lots of books this year, but these three hold a special place in your heart.</string>
     <string name="wrapped_bestday_empty">No sessions logged this year.</string>
     <string name="wrapped_ppm_label">PAGES/MIN</string>
     <string name="wrapped_timeslot_title">YOUR FAVORITE TIME OF DAY</string>
@@ -994,12 +1009,19 @@
     <string name="settings_section_widget">WIDGET</string>
     <!-- v2.5 -->
     <string name="adv_hourly_empty">No time data yet. New sessions record their time automatically; your hourly map will appear here in a few days.</string>
-    <string name="wrapped_more_books">More books</string>
-    <string name="wrapped_less_books">Fewer books</string>
-    <string name="wrapped_same_books">Same books</string>
-    <string name="wrapped_more_pages">More pages</string>
-    <string name="wrapped_less_pages">Fewer pages</string>
-    <string name="wrapped_same_pages">Same pages</string>
+    <string name="wrapped_more_books">More books read</string>
+    <string name="wrapped_less_books">Fewer books read</string>
+    <string name="wrapped_same_books">Same books read</string>
+    <string name="wrapped_more_pages">More pages read</string>
+    <string name="wrapped_less_pages">Fewer pages read</string>
+    <string name="wrapped_same_pages">Same pages read</string>
+    <!-- B3 (17-07): comparativa de sesiones + racha comparativa (8ª pantalla) -->
+    <string name="wrapped_more_sessions">More sessions</string>
+    <string name="wrapped_less_sessions">Fewer sessions</string>
+    <string name="wrapped_same_sessions">Same sessions</string>
+    <string name="wrapped_streak_longer">Your reading streak was %1$d days longer</string>
+    <string name="wrapped_streak_shorter">Your reading streak was %1$d days shorter</string>
+    <string name="wrapped_streak_equal">Your reading streak was just as long</string>
     <string name="wrapped_record_line">Record: %1$d pages in one session</string>
     <string name="settings_widget_customize_sub">Choose which chips and emojis are shown</string>
     <string name="history_stat_global_ppd">Global avg pages/day</string>

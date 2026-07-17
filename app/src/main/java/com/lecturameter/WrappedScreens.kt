@@ -227,7 +227,8 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 // ── SLIDE 0: RESUMEN ──────────────────────────────────────────
                 0 -> Column(sm) {
                     // Fondo temático del slide (superpuesto al glow global)
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_1), theme)
                     // Año protagonista con gradiente
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF1E1B4B)))),
@@ -286,6 +287,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 1: TIEMPO ───────────────────────────────────────────
                 1 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_2), theme)
                     // Feedback WhatsApp 10-07: header violeta profundo (antes marrón/ámbar v2.6,
                     // "cambiar el marrón naranja ese por un color más bonito") — on-brand con
                     // Accent2 y distinto del Sky de las tarjetas inferiores.
@@ -354,6 +356,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 2: TOPS ─────────────────────────────────────────────
                 2 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_3), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF4C1D95), Color(0xFF1E1B4B)))),
                         contentAlignment = Alignment.Center) {
@@ -418,6 +421,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 if (wrapped.bestRatedTitle.isNotBlank()) listOf(Triple(wrapped.bestRatedTitle, wrapped.bestRatedScore, "")) else emptyList()
                             }
                     }
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_4), theme)
                     if (top3.isNotEmpty()) {
                         // Hero: libro nº1 — v2.6: card compacta (padding/portada/número reducidos)
                         // + degradado dorado visible, simétrico al verde de Fastest Book
@@ -512,6 +516,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 4: GRÁFICA ──────────────────────────────────────────
                 4 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_5), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF0F2027), Color(0xFF203A43)))),
                         contentAlignment = Alignment.Center) {
@@ -606,6 +611,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 5: TU MEJOR DÍA DE CADA MES (v2.6) ─────────────────
                 5 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_6), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF0F172A)))),
                         contentAlignment = Alignment.Center) {
@@ -617,11 +623,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     Spacer(Modifier.height(14.dp))
                     if (wrapped.bestDayPerMonth.isEmpty()) {
                         Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("📅", fontSize = 44.sp); Spacer(Modifier.height(10.dp))
-                                Text(stringResource(R.string.wrapped_bestday_empty), color = theme.textDim,
-                                    fontSize = 13.sp, textAlign = TextAlign.Center)
-                            }
+                            WrappedEmptyState("📅", theme)
                         }
                     } else {
                         val monthNames = LocalContext.current.resources.getStringArray(R.array.month_names_full).toList()
@@ -706,6 +708,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 6: FRANJA HORARIA FAVORITA (v2.6) ──────────────────
                 6 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_7), theme)
                     val slots = wrapped.pagesPerTimeSlot
                     val slotLabels = listOf("00–03h","03–06h","06–09h","09–12h","12–15h","15–18h","18–21h","21–24h")
                     val totalSlot = slots.sum()
@@ -720,12 +723,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         }
                         Spacer(Modifier.height(40.dp))
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("🕐", fontSize = 44.sp); Spacer(Modifier.height(10.dp))
-                                Text(stringResource(R.string.wrapped_timeslot_empty), color = theme.textDim,
-                                    fontSize = 13.sp, textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 20.dp))
-                            }
+                            WrappedEmptyState("🕐", theme)
                         }
                     } else {
                         val favIdx = slots.indices.maxByOrNull { slots[it] } ?: 0
@@ -783,9 +781,14 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 7: VS AÑO ANTERIOR ──────────────────────────────────
                 7 -> Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_8), theme)
                     if (wrapped.previousYearBooks > 0 || wrapped.previousYearPages > 0) {
+                        // B3 (17-07): ambos lados cuentan ya las relecturas (y sus páginas);
+                        // computeWrapped las suma también al año anterior.
                         val dBooks = wrapped.totalBooks - wrapped.previousYearBooks
                         val dPages = wrapped.totalPages - wrapped.previousYearPages
+                        val dSessions = wrapped.totalSessions - wrapped.previousYearSessions
+                        val dStreak = wrapped.longestStreakDays - wrapped.previousYearStreak
                         // Header VS
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Box(Modifier.weight(1f).clip(RoundedCornerShape(20.dp))
@@ -842,22 +845,42 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                     fontSize = 22.sp, fontWeight = FontWeight.Black)
                             }
                         }
-                        if (wrapped.longestStreakDays > 0) {
+                        // B3 (17-07): sesiones, mismo patrón de pill que libros/páginas
+                        Spacer(Modifier.height(8.dp))
+                        val sessSign = if (dSessions > 0) "+" else ""
+                        Surface(shape = RoundedCornerShape(18.dp),
+                            color = (if (dSessions >= 0) Green else Red).copy(0.12f),
+                            border = BorderStroke(1.dp, (if (dSessions >= 0) Green else Red).copy(0.3f)),
+                            modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(if (dSessions == 0) R.string.wrapped_same_sessions else if (dSessions > 0) R.string.wrapped_more_sessions else R.string.wrapped_less_sessions),
+                                    color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text("$sessSign${dSessions.toLocaleString()}", color = if (dSessions >= 0) Green else Red,
+                                    fontSize = 22.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                        // B3 (17-07): la racha pasa a ser COMPARATIVA (antes: dato suelto del
+                        // año en curso, siempre en rojo). Verde si fue más larga, roja si más
+                        // corta — el verde/rojo aquí es semántico, no del tema.
+                        if (wrapped.longestStreakDays > 0 || wrapped.previousYearStreak > 0) {
                             Spacer(Modifier.height(8.dp))
-                            Surface(shape = RoundedCornerShape(16.dp), color = Red.copy(0.1f),
-                                border = BorderStroke(1.dp, Red.copy(0.3f)), modifier = Modifier.fillMaxWidth()) {
+                            val streakCol = if (dStreak >= 0) Green else Red
+                            Surface(shape = RoundedCornerShape(16.dp), color = streakCol.copy(0.12f),
+                                border = BorderStroke(1.dp, streakCol.copy(0.3f)), modifier = Modifier.fillMaxWidth()) {
                                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text("🔥", fontSize = 24.sp); Spacer(Modifier.width(10.dp))
-                                    Text(stringResource(R.string.wrapped_streak_days, wrapped.longestStreakDays), color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        if (dStreak == 0) stringResource(R.string.wrapped_streak_equal)
+                                        else if (dStreak > 0) stringResource(R.string.wrapped_streak_longer, dStreak)
+                                        else stringResource(R.string.wrapped_streak_shorter, -dStreak),
+                                        color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     } else {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("📊", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
-                                Text(stringResource(R.string.wrapped_no_prev_year), color = theme.textDim, fontSize = 15.sp)
-                            }
+                        Box(Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                            WrappedEmptyState("📊", theme)
                         }
                     }
                     Spacer(Modifier.height(40.dp))
@@ -865,7 +888,8 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
                 // ── SLIDE 8: CIERRE ───────────────────────────────────────────
                 8 -> Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(4.dp))
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_9), theme)
                     // Número enorme: páginas protagonista
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF312E81), Color(0xFF4C1D95), Color(0xFF0F0D2E))))) {
@@ -881,9 +905,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     Spacer(Modifier.height(16.dp))
                     // Logros — Feedback 2.6: de vuelta los emojis (el hero de páginas leídas
                     // se queda sin emoji, a petición)
+                    // B3 (17-07): fuera la racha de días — ya es comparativa en la 8ª pantalla
+                    // y aquí se repetía como dato suelto.
                     val items = buildList {
                         add("📚 " + stringResource(R.string.wcard_books_done, wrapped.totalBooks) to acc)
-                        if (wrapped.longestStreakDays > 0) add("🔥 " + stringResource(R.string.wrapped_streak_days, wrapped.longestStreakDays) to Red)
                         if (wrapped.maxSessionPages > 0) add("⚡ " + stringResource(R.string.wrapped_record_line, wrapped.maxSessionPages) to Amber)
                         if (wrapped.favoriteAuthor.isNotBlank()) add("✍️ " + wrapped.favoriteAuthor to Accent2)
                     }
@@ -920,23 +945,14 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         }
                         Spacer(Modifier.height(8.dp))
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Surface(shape = RoundedCornerShape(16.dp), color = theme.surface,
-                        border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.txt_b7e522e3), color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.CardGiftcard, null, tint = acc, modifier = Modifier.size(14.dp))
-                                Text(" Lecturameter", color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
+                    // B3 (17-07): eliminada la tarjeta "Guardado automáticamente en tu
+                    // historial de Wrapped" del pie de esta slide (petición de Víctor).
                     Spacer(Modifier.height(40.dp))
                 }
 
                 // ── SLIDE 9: TUS 3 FAVORITOS DEL AÑO (v2.4 rework, congelados v2.6) ──
                 9 -> Column(sm) {
+                    WrappedNarrative(stringResource(R.string.wrapped_narr_10), theme)
                     // Cabecera
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF3B0D0D), Color(0xFF1A0808)))),
@@ -953,12 +969,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     if (favBooks.isEmpty()) {
                         Surface(shape = RoundedCornerShape(16.dp), color = theme.surface,
                             border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("❤️", fontSize = 40.sp)
-                                Spacer(Modifier.height(10.dp))
-                                Text(stringResource(R.string.wrapped_favorites_empty),
-                                    color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center)
-                            }
+                            WrappedEmptyState("❤️", theme, Modifier.padding(24.dp))
                         }
                     } else {
                         val favMedals = listOf("\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49")
@@ -1085,7 +1096,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     } else Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
                         // ── P-015: cierre con comparativa vs año anterior ────────
                         Spacer(Modifier.height(12.dp))
-                        Text(stringResource(R.string.wclose_title), fontSize = 26.sp, fontWeight = FontWeight.Black,
+                        // B3 (17-07): el texto grande cierra con un ":(" en la misma letra
+                        // en degradado (narrativización, 11ª pantalla). Lleva un espacio duro U+00A0
+                        // a propósito: con espacio normal el ":(" se va solo a la línea de
+                        // abajo y la carita queda partida.
+                        Text(stringResource(R.string.wclose_title) + " :(", fontSize = 26.sp, fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center, lineHeight = 32.sp,
                             style = androidx.compose.ui.text.TextStyle(
                                 brush = Brush.horizontalGradient(listOf(Color(0xFF818CF8), Color(0xFF22D3EE)))
@@ -1123,10 +1138,38 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             cmpRow(stringResource(R.string.wclose_time), fmtMinutes(wrapped.totalMinutes),
                                 if (prevMinutes > 0) wrapped.totalMinutes - prevMinutes else null)
                         }
-                        if (wrapped.favoriteGenre.isNotBlank()) {
-                            cmpRow(stringResource(R.string.wcard_genre_year), displayGenre(wrapped.favoriteGenre), null)
+                        // B3 (17-07): "GÉNERO DEL AÑO" pasa a ser género de este año vs el del
+                        // año pasado. Si no hay género del año anterior, se muestra solo el de
+                        // este año; si no hay ninguno, el estado vacío unificado.
+                        val genreNow = if (wrapped.favoriteGenre.isNotBlank()) displayGenre(wrapped.favoriteGenre) else ""
+                        val genrePrev = if (wrapped.previousYearGenre.isNotBlank()) displayGenre(wrapped.previousYearGenre) else ""
+                        Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
+                            border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                                Text(stringResource(R.string.wclose_genre_vs), color = theme.textMuted, fontSize = 13.sp)
+                                Spacer(Modifier.height(6.dp))
+                                if (genreNow.isBlank() && genrePrev.isBlank()) {
+                                    Text(stringResource(R.string.wrapped_no_stats_yet), color = theme.textDim,
+                                        fontSize = 12.sp, lineHeight = 17.sp)
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("${wrapped.year}", color = acc.copy(0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text(genreNow.ifBlank { "—" }, color = theme.textMain, fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                        Text("vs", color = theme.textDim, fontSize = 11.sp,
+                                            modifier = Modifier.padding(horizontal = 10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text("${wrapped.year - 1}", color = theme.textDim, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text(genrePrev.ifBlank { "—" }, color = theme.textMuted, fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        Spacer(Modifier.height(14.dp))
+                        Spacer(Modifier.height(21.dp))
                         Text(stringResource(R.string.wclose_quote), color = Color(0xFFA5F3E8), fontSize = 14.sp,
                             fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 22.sp,
                             modifier = Modifier.padding(horizontal = 12.dp))
@@ -1138,6 +1181,28 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
 
         // Flechas de navegación: eliminadas — el pager ya soporta swipe nativo
         // y las flechas superpuestas solapaban el texto de los slides.
+    }
+}
+
+// B3 (17-07): narrativización — texto pequeño en blanco (tono según tema) que
+// encabeza cada slide, por encima de su primera card. Textos literales de Víctor.
+@Composable
+fun WrappedNarrative(text: String, theme: Theme) {
+    Text(text, color = theme.textMain, fontSize = 12.5.sp, lineHeight = 17.sp,
+        fontWeight = FontWeight.Medium, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp))
+}
+
+// B3 (17-07): estado vacío unificado del Wrapped ("aún no tienes estadísticas
+// de esto, pero vuelve el año que viene"). Sustituye a los 4 textos sueltos.
+@Composable
+fun WrappedEmptyState(emoji: String, theme: Theme, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(emoji, fontSize = 44.sp)
+        Spacer(Modifier.height(10.dp))
+        Text(stringResource(R.string.wrapped_no_stats_yet), color = theme.textDim,
+            fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 20.dp))
     }
 }
 

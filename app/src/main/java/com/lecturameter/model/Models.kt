@@ -227,8 +227,12 @@ data class YearWrapped(
     // ── v18.4: gráfico mensual + comparativa año anterior ──────────────────
     val pagesPerMonth: List<Int> = List(12) { 0 },              // páginas leídas por mes (índice 0=ene, 11=dic)
     val booksPerMonth: List<Int> = List(12) { 0 },              // libros terminados por mes
-    val previousYearBooks: Int = 0,                             // libros del año anterior (para Δ)
-    val previousYearPages: Int = 0,                             // páginas del año anterior
+    val previousYearBooks: Int = 0,                             // libros del año anterior (para Δ), relecturas incluidas
+    val previousYearPages: Int = 0,                             // páginas del año anterior, relecturas incluidas
+    // ── B3 (17-07): comparativa año vs año ampliada (8ª y 11ª pantalla) ─────
+    val previousYearSessions: Int = 0,                          // sesiones del año anterior
+    val previousYearStreak: Int = 0,                            // racha más larga del año anterior (días)
+    val previousYearGenre: String = "",                         // género favorito del año anterior ("" si sin datos)
     // ── v18.5: donut género del año ────────────────────────────────────────
     val genreCountsTop6: List<Pair<String, Int>> = emptyList(), // top 6 géneros (género principal) para donut
     // ── v19.3: libro que más tiempo te robó ────────────────────────────────
