@@ -128,7 +128,7 @@ import com.lecturameter.utils.*
 // ── JSON Backup / Restore ─────────────────────────────────────────────────────
 
 data class FullBackup(
-    val version: Int = 4,
+    val version: Int = 5,
     val exportedAt: Long = System.currentTimeMillis(),
     val books: List<Book>? = null,
     val sessions: List<ReadingSession>? = null,
@@ -141,7 +141,12 @@ data class FullBackup(
     val bingoCard: BingoCard? = null,
     val bingoMonthHistory: List<com.lecturameter.utils.BingoMonthSummary>? = null,
     // v4 (D-016): historial de retos archivados. Misma regla de compatibilidad.
-    val challengeHistory: List<ChallengeSnapshot>? = null
+    val challengeHistory: List<ChallengeSnapshot>? = null,
+    // v5 (B4, 2): el cartón 3×3 de Pro. `bingoCard` sigue siendo el 4×4 y NO cambia de
+    // significado, para que un backup v3/v4 restaure exactamente igual que antes. Un
+    // cartón que no se respalda es una regresión, y el 3×3 cuesta de llenar: si no
+    // viajara, reinstalar le borraría a un Pro el reto del mes.
+    val bingoCard3: BingoCard? = null
 )
 
 /**
@@ -178,9 +183,10 @@ fun buildFullBackupFromPrefs(prefs: android.content.SharedPreferences): FullBack
         sessions = sessions,
         wrappedHistory = wrapped,
         challenges = com.lecturameter.repository.ChallengeRepository.loadOrNull(prefs),
-        bingoCard = com.lecturameter.repository.BingoRepository.loadOrNull(prefs),
+        bingoCard = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, BingoManager.SIDE_4),
         bingoMonthHistory = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).ifEmpty { null },
-        challengeHistory = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs).ifEmpty { null }
+        challengeHistory = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs).ifEmpty { null },
+        bingoCard3 = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, BingoManager.SIDE_3)
     )
 }
 
@@ -487,26 +493,45 @@ fun importFullBackupFromJson(
         }
         // Cartón del Bingo: solo si es del MES ACTUAL (uno viejo rotaría igualmente) y
         // solo si trae MÁS progreso que el local — restaurar nunca degrada un cartón.
+        //
+        // B4 (2): mismo criterio para los dos tamaños, cada uno contra el suyo. El 3×3 se
+        // restaura aunque el usuario no sea Pro ahora mismo: si el backup es de cuando lo
+        // era, el dato es suyo y no se tira. Si ya no le toca jugarlo,
+        // reconcileBingo3Entitlement lo archivará en el historial en el siguiente arranque,
+        // que es justo lo que pidió Víctor (conservarlo y poder verlo).
         var bingoRestored = false
-        backup.bingoCard?.let { fromBackup ->
-            if (fromBackup.monthKey == com.lecturameter.utils.BingoManager.currentMonthKey()) {
-                val local = com.lecturameter.repository.BingoRepository.loadOrNull(prefs)
-                val localDone = local?.cells?.count { it.isCompleted } ?: -1
-                val backupDone = fromBackup.cells.count { it.isCompleted }
-                if (backupDone > localDone) {
-                    com.lecturameter.repository.BingoRepository.save(prefs, fromBackup)
-                    vm.reloadBingoCard(prefs)
-                    bingoRestored = true
-                }
+        fun restoreCard(fromBackup: BingoCard?) {
+            if (fromBackup == null) return
+            if (fromBackup.monthKey != com.lecturameter.utils.BingoManager.currentMonthKey()) return
+            val side = com.lecturameter.utils.BingoManager.sideOf(fromBackup.cells.size)
+            if (side < 3) return  // cartón corrupto: nº de celdas que no es un cuadrado
+            val local = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, side)
+            val localDone = local?.cells?.count { it.isCompleted } ?: -1
+            val backupDone = fromBackup.cells.count { it.isCompleted }
+            if (backupDone > localDone) {
+                com.lecturameter.repository.BingoRepository.save(prefs, fromBackup)
+                bingoRestored = true
             }
         }
-        // Historial mensual del Bingo: unión por monthKey (no se duplican meses).
+        restoreCard(backup.bingoCard)
+        restoreCard(backup.bingoCard3)
+        if (bingoRestored) vm.reloadBingoCard(prefs)
+        // Historial mensual del Bingo: unión por IDENTIDAD del resumen, no por mes.
+        //
+        // B4 (2): iba por monthKey, y eso ya perdía datos antes de los dos cartones (un mes
+        // puede archivar dos cartones: completas el 4×4, pides otro y ese también se guarda).
+        // Con el 3×3 conviviendo el fallo es sistemático: un mes normal de Pro tiene un 4×4
+        // Y un 3×3, y el filtro por mes se comía el segundo en cada restauración. summaryKey
+        // distingue mes + plantilla + tamaño + progreso.
         backup.bingoMonthHistory?.let { fromBackup ->
             val local = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs)
-            val localMonths = local.map { it.monthKey }.toSet()
-            val incoming = fromBackup.filter { it.monthKey.isNotBlank() && it.monthKey !in localMonths }
+            val localKeys = local.map { com.lecturameter.utils.BingoManager.summaryKey(it) }.toSet()
+            val incoming = fromBackup.filter {
+                it.monthKey.isNotBlank() && com.lecturameter.utils.BingoManager.summaryKey(it) !in localKeys
+            }
             if (incoming.isNotEmpty()) {
                 com.lecturameter.utils.BingoManager.saveMonthSummaries(prefs, (local + incoming).sortedBy { it.monthKey })
+                vm.loadBingoHistory(prefs)
             }
         }
         // v4 (D-016): historial de retos — unión por contenido (nombre|tipo|objetivo|año),

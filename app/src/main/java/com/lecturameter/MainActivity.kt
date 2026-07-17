@@ -436,6 +436,39 @@ fun accentForTheme(theme: Theme): Color = when {
 
 fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
 
+// B4 (2): el rojo del cartón 3×3 del Bingo, por tema. Mismo patrón que accentForTheme.
+//
+// El 3×3 es el cartón duro, y se distingue del 4×4 tiñéndose de rojo (el 4×4 se queda con
+// el acento de su tema, intacto). Un rojo único no vale para los cinco: medido contra el
+// fondo REAL de la casilla (cardColor), el token Red da 2,60:1 sobre el crema del Claro,
+// o sea ilegible. El crema y el negro puro tiran en direcciones opuestas.
+//
+// Solo Claro y Aurora estrenan color; en los otros tres el token Red ya cumple de sobra.
+// Medido con Python sobre los 5 fondos (celda sin marcar): Claro 5,53 · Oscuro 5,78 ·
+// Aurora 6,53 · AMOLED 6,66 · Cuero 6,55. Todos por encima de 4,5:1 y ninguno pasa de 7,6,
+// que era el otro requisito de Víctor: que no duela a los ojos.
+val RedClaro  = Color(0xFFB91C1C)
+val RedAurora = Color(0xFFFF9494)
+fun redForTheme(theme: Theme): Color = when {
+    !theme.isDark           -> RedClaro   // Claro (único tema claro): el token Red se apaga sobre el papel
+    theme.bgDark == BgDarkA -> RedAurora  // Aurora: el teal se come el Red, hace falta un rosa más claro
+    else                    -> Red        // Oscuro, AMOLED y Cuero: el token de siempre
+}
+
+// Color de CONTENIDO sobre un relleno de redForTheme (el gemelo de onAccentColor, para el rojo).
+//
+// No vale reutilizar onAccentColor: en Oscuro devuelve blanco, y el rojo de Oscuro es el
+// #F87171, que es CLARO. Blanco sobre él da 2,77:1, o sea ilegible. El rojo del Claro es
+// oscuro y pide blanco; los otros cuatro son rojos claros y piden la tinta oscura del tema.
+// Medido: Claro 6,47 · Oscuro 6,45 · Aurora 8,54 · AMOLED 7,59 · Cuero 6,36.
+fun onRedColor(theme: Theme): Color = when {
+    !theme.isDark            -> Color.White       // Claro: su rojo es oscuro
+    theme.bgDark == BgDarkA  -> Color(0xFF1A1030) // Aurora
+    theme.bgDark == BgDarkAm -> Color(0xFF000000) // AMOLED
+    theme.bgDark == BgDarkC  -> Color(0xFF241608) // Cuero
+    else                     -> BgDarkD           // Oscuro: su propio navy
+}
+
 // Decisión de Víctor 18-07: en AMOLED las dos líneas del rail (la vertical que lo separa del
 // contenido y la horizontal entre los iconos fijos y los destinos) quedaban demasiado
 // apagadas sobre el negro puro, porque su borde es blanco al 9%. Solo se aclaran ahí; el
@@ -1928,6 +1961,8 @@ sealed class Screen {
     object PrivacyPolicy : Screen()
     // D-016 (P-011): historial de retos archivados
     object ChallengeHistory : Screen()
+    // B4 (2): historial de bingos (engloba el 4×4 y el 3×3)
+    object BingoHistory : Screen()
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
     object WeeklyRecap : Screen()
     object MonthlyRecap : Screen()
@@ -1954,6 +1989,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.PrivacyPolicy -> "privacy_policy"
     is Screen.Challenges -> "challenges"
     is Screen.ChallengeHistory -> "challenge_history"
+    is Screen.BingoHistory -> "bingo_history"
     is Screen.WeeklyRecap -> "weekly_recap"
     is Screen.MonthlyRecap -> "monthly_recap"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
@@ -2479,7 +2515,8 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }, onHistory = { navigateTo(Screen.ChallengeHistory) }) } }
                 // D-016 (P-011): historial de retos archivados
                 composable("challenge_history") { WideScreenCenter { ChallengeHistoryScreen(vm, prefs, theme, onBack = { goBack() }) } }
-                composable("bingo") { WideScreenCenter { BingoScreen(vm, prefs, theme, onBack = { goBack() }) } }
+                composable("bingo") { WideScreenCenter { BingoScreen(vm, prefs, theme, onBack = { goBack() }, onHistory = { navigateTo(Screen.BingoHistory) }) } }
+                composable("bingo_history") { WideScreenCenter { BingoHistoryScreen(vm, theme, onBack = { goBack() }) } }
                 composable(
                     "detail/{id}?highlightDate={highlightDate}",
                     arguments = listOf(

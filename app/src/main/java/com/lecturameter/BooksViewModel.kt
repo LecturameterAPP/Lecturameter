@@ -337,26 +337,64 @@ class BooksViewModel : ViewModel() {
         }
     }
     // ── Bingo con plantillas rotativas (Fase 5, MD5) ────────────────────────────
-    // Cartón 3×3 mensual. Las celdas se validan solas: al terminar/valorar un libro
+    // Cartón mensual. Las celdas se validan solas: al terminar/valorar un libro
     // (genre, pages, rating, author_new, saga) y al registrar sesión (streak).
+    //
+    // B4 (2): hay DOS cartones vivos, uno por tamaño, y son independientes entre sí.
+    //   · 4×4  → GRATIS para todos, el de siempre. Ni se toca ni se recorta.
+    //   · 3×3  → extra de Pro. Más corto y más duro. Se AÑADE, no sustituye a nada.
+    // Un flow por cartón (antes había uno solo) y los hooks evalúan los dos, porque el
+    // usuario Pro está jugando ambos a la vez y un libro terminado cuenta para los dos.
     private val _bingoCard = kotlinx.coroutines.flow.MutableStateFlow<com.lecturameter.model.BingoCard?>(null)
     val bingoCard: kotlinx.coroutines.flow.StateFlow<com.lecturameter.model.BingoCard?> = _bingoCard
 
-    /** Backup v3: recarga el cartón desde prefs tras una restauración (el import
-     *  escribe vía BingoRepository y este flow es privado). */
-    fun reloadBingoCard(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.BingoRepository.loadOrNull(prefs)?.let { _bingoCard.value = it }
+    private val _bingoCard3 = kotlinx.coroutines.flow.MutableStateFlow<com.lecturameter.model.BingoCard?>(null)
+    val bingoCard3: kotlinx.coroutines.flow.StateFlow<com.lecturameter.model.BingoCard?> = _bingoCard3
+
+    private fun bingoFlow(side: Int) =
+        if (side == com.lecturameter.utils.BingoManager.SIDE_3) _bingoCard3 else _bingoCard
+
+    /** B4 (2): historial de bingos, los DOS tamaños juntos. Vive en la misma clave de prefs
+     *  de siempre (`bingo_month_history`), que ya guardaba un resumen por cartón retirado;
+     *  lo único nuevo es que ahora también caen ahí los 3×3. El tamaño se deduce de
+     *  cellsTotal, así que el dato viejo sigue valiendo sin migrar nada.
+     *
+     *  Es un flow (y no una lectura suelta de prefs como en el recap) porque la pantalla
+     *  tiene que refrescarse cuando un cartón se archiva sin salir de la app. */
+    private val _bingoHistory = kotlinx.coroutines.flow.MutableStateFlow<List<com.lecturameter.utils.BingoMonthSummary>>(emptyList())
+    val bingoHistory: kotlinx.coroutines.flow.StateFlow<List<com.lecturameter.utils.BingoMonthSummary>> = _bingoHistory
+
+    fun loadBingoHistory(prefs: android.content.SharedPreferences) {
+        _bingoHistory.value = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs)
     }
 
-    /** Garantiza que hay cartón y que es del mes actual; con [force] rota ya
+    /** Backup v3: recarga los cartones desde prefs tras una restauración (el import
+     *  escribe vía BingoRepository y estos flows son privados). */
+    fun reloadBingoCard(prefs: android.content.SharedPreferences) {
+        for (side in listOf(com.lecturameter.utils.BingoManager.SIDE_4, com.lecturameter.utils.BingoManager.SIDE_3)) {
+            com.lecturameter.repository.BingoRepository.loadOrNull(prefs, side)?.let { bingoFlow(side).value = it }
+        }
+    }
+
+    /** Garantiza que hay cartón de [side] y que es del mes actual; con [force] rota ya
      *  (botón "Nuevo cartón" al completarlo antes de fin de mes). Las plantillas
-     *  rotan en orden circular según el índice persistido. */
-    fun ensureBingoCard(prefs: android.content.SharedPreferences, force: Boolean = false) {
+     *  rotan en orden circular según el índice persistido, uno por tamaño.
+     *
+     *  B4 (2): el 3×3 NO se crea si el usuario no es Pro. Que exista el cartón es el
+     *  gate real; la UI solo lo refleja. Así un gratis nunca acumula progreso invisible
+     *  en un cartón que no puede ver. */
+    fun ensureBingoCard(
+        prefs: android.content.SharedPreferences,
+        side: Int = com.lecturameter.utils.BingoManager.SIDE_4,
+        force: Boolean = false
+    ) {
         val ctx = appContext ?: return
-        val templates = com.lecturameter.utils.BingoManager.loadTemplates(ctx)
+        if (side == com.lecturameter.utils.BingoManager.SIDE_3 && !com.lecturameter.utils.Pro.isPro(prefs)) return
+        val templates = com.lecturameter.utils.BingoManager.templatesFor(ctx, side)
         if (templates.isEmpty()) return
         val month = com.lecturameter.utils.BingoManager.currentMonthKey()
-        val cur = _bingoCard.value
+        val flow = bingoFlow(side)
+        val cur = flow.value
         // Feedback 13-07 (10): si el cartón guardado ya no casa con el catálogo actual
         // (plantilla desaparecida o nº de celdas distinto, p. ej. migración 3×3 → 4×4),
         // se regenera aunque sea el mismo mes.
@@ -364,42 +402,75 @@ class BooksViewModel : ViewModel() {
             ?.let { it.cells.size != cur.cells.size } ?: true
         if (!force && cur != null && cur.monthKey == month && !stale) return
         // Fase 6.3/6.4: al retirar un cartón con progreso se guarda su resumen mensual
-        // (lo consumen la tarjeta anual del Wrapped y el recap mensual)
-        if (cur != null) com.lecturameter.utils.BingoManager.appendMonthSummary(prefs, cur)
-        val nextIdx = (prefs.getInt("bingo_template_index", -1) + 1).mod(templates.size)
+        // (lo consumen la tarjeta anual del Wrapped, el recap mensual y el historial)
+        if (cur != null) {
+            com.lecturameter.utils.BingoManager.appendMonthSummary(prefs, cur)
+            loadBingoHistory(prefs)
+        }
+        val idxKey = com.lecturameter.repository.BingoRepository.templateIndexKey(side)
+        val nextIdx = (prefs.getInt(idxKey, -1) + 1).mod(templates.size)
         val card = com.lecturameter.utils.BingoManager.newCard(templates[nextIdx], month)
-        _bingoCard.value = card
-        prefs.edit().putInt("bingo_template_index", nextIdx).apply()
+        flow.value = card
+        prefs.edit().putInt(idxKey, nextIdx).apply()
         com.lecturameter.repository.BingoRepository.save(prefs, card)
     }
 
-    /** Hook al terminar (o valorar) un libro: evalúa las celdas de tipo libro. */
+    /** B4 (2, decisión de Víctor): "a los usuarios que prueben una semana, se les permitirá
+     *  conservar el 3×3 del mes que hayan probado (o los dos si hay cambio de mes)".
+     *
+     *  Al caducar el trial el 3×3 vivo se ARCHIVA en el historial en vez de evaporarse, y
+     *  solo entonces se retira como cartón jugable. Lo que ganaste jugando no se te quita:
+     *  es la misma filosofía del grandfathering del tema. El caso "los dos si hay cambio de
+     *  mes" sale solo y sin código extra, porque la rotación mensual ya archivó el cartón
+     *  del mes anterior cuando el trial seguía vivo.
+     *
+     *  Se llama en el arranque (load) y al volver de la hoja de Pro. Idempotente: si no hay
+     *  3×3 vivo, o el usuario sigue siendo Pro, no hace nada. */
+    fun reconcileBingo3Entitlement(prefs: android.content.SharedPreferences) {
+        if (com.lecturameter.utils.Pro.isPro(prefs)) return
+        val live = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
+            ?: return
+        // appendMonthSummary ya ignora los cartones sin ningún progreso, así que un 3×3
+        // que se estrenó y no se tocó no ensucia el historial con una entrada vacía.
+        com.lecturameter.utils.BingoManager.appendMonthSummary(prefs, live)
+        com.lecturameter.repository.BingoRepository.clear(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
+        _bingoCard3.value = null
+        loadBingoHistory(prefs)
+    }
+
+    /** Hook al terminar (o valorar) un libro: evalúa las celdas de tipo libro.
+     *  B4 (2): evalúa los DOS cartones — el mismo libro cuenta para el 4×4 y para el 3×3. */
     private fun bingoOnBookFinished(book: Book, prefs: android.content.SharedPreferences) {
-        // Feedback 13-07 (12): rotar ANTES de evaluar — un libro terminado el día 1 con
-        // la app viva desde el mes anterior no debe marcar el cartón caducado
-        ensureBingoCard(prefs)
-        val card = _bingoCard.value ?: return
-        // Feedback 14-07 (F11): el cartón es MENSUAL — solo cuentan libros terminados en
-        // el mes del cartón. Sin esto, valorar o cambiar el género de un libro terminado
-        // hace meses marcaba el cartón actual. endDate null = terminado ahora mismo (vale).
-        val finishedMonth = book.endDate?.take(7)
-        if (finishedMonth != null && finishedMonth != card.monthKey) return
-        val updated = com.lecturameter.utils.BingoManager.evaluateBookFinished(card, book, booksInternal)
-        if (updated !== card) {
-            _bingoCard.value = updated
-            com.lecturameter.repository.BingoRepository.save(prefs, updated)
+        for (side in listOf(com.lecturameter.utils.BingoManager.SIDE_4, com.lecturameter.utils.BingoManager.SIDE_3)) {
+            // Feedback 13-07 (12): rotar ANTES de evaluar — un libro terminado el día 1 con
+            // la app viva desde el mes anterior no debe marcar el cartón caducado
+            ensureBingoCard(prefs, side)
+            val card = bingoFlow(side).value ?: continue
+            // Feedback 14-07 (F11): el cartón es MENSUAL — solo cuentan libros terminados en
+            // el mes del cartón. Sin esto, valorar o cambiar el género de un libro terminado
+            // hace meses marcaba el cartón actual. endDate null = terminado ahora mismo (vale).
+            val finishedMonth = book.endDate?.take(7)
+            if (finishedMonth != null && finishedMonth != card.monthKey) continue
+            val updated = com.lecturameter.utils.BingoManager.evaluateBookFinished(card, book, booksInternal)
+            if (updated !== card) {
+                bingoFlow(side).value = updated
+                com.lecturameter.repository.BingoRepository.save(prefs, updated)
+            }
         }
     }
 
-    /** Hook al registrar sesión: evalúa las celdas de racha. */
+    /** Hook al registrar sesión: evalúa las celdas de racha en los dos cartones. */
     private fun bingoOnSession(prefs: android.content.SharedPreferences) {
-        // Feedback 13-07 (12): igual que en bingoOnBookFinished — rotar antes de evaluar
-        ensureBingoCard(prefs)
-        val card = _bingoCard.value ?: return
-        val updated = com.lecturameter.utils.BingoManager.evaluateStreak(card, currentReadingStreak())
-        if (updated !== card) {
-            _bingoCard.value = updated
-            com.lecturameter.repository.BingoRepository.save(prefs, updated)
+        val streak = currentReadingStreak()
+        for (side in listOf(com.lecturameter.utils.BingoManager.SIDE_4, com.lecturameter.utils.BingoManager.SIDE_3)) {
+            // Feedback 13-07 (12): igual que en bingoOnBookFinished — rotar antes de evaluar
+            ensureBingoCard(prefs, side)
+            val card = bingoFlow(side).value ?: continue
+            val updated = com.lecturameter.utils.BingoManager.evaluateStreak(card, streak)
+            if (updated !== card) {
+                bingoFlow(side).value = updated
+                com.lecturameter.repository.BingoRepository.save(prefs, updated)
+            }
         }
     }
 
@@ -641,9 +712,14 @@ class BooksViewModel : ViewModel() {
         // v2.4 rework: favoritos y retos se cargan SIEMPRE, antes del early return por libros vacíos
         showFavoritesOnly = prefs.getBoolean("show_favorites_only", false)
         loadChallenges(prefs)
-        // Fase 5 (MD5): cartón de Bingo — cargar el persistido y rotar si cambió el mes
-        com.lecturameter.repository.BingoRepository.loadOrNull(prefs)?.let { _bingoCard.value = it }
-        ensureBingoCard(prefs)
+        // Fase 5 (MD5): cartón de Bingo — cargar el persistido y rotar si cambió el mes.
+        // B4 (2): los dos cartones. reconcile va ANTES de ensure para que un trial recién
+        // caducado archive su 3×3 en el historial en lugar de que ensure lo rote a ciegas.
+        reloadBingoCard(prefs)
+        loadBingoHistory(prefs)
+        reconcileBingo3Entitlement(prefs)
+        ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_4)
+        ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
         // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
         booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
         // B-029 opción B: portadas base64 legacy → ficheros (autocurativa, no bloquea el arranque)

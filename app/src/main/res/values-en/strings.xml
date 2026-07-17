@@ -1048,6 +1048,24 @@
     <string name="bingo_completed">Card completed!&#160;🎉</string>
     <string name="bingo_new_card">New card</string>
     <string name="bingo_hint">Cells check themselves as you finish and rate books or log sessions.</string>
+    <!-- B4 (2): card selector. The 4x4 is the usual one and stays free; the 3x3 is the Pro extra -->
+    <string name="bingo_tab_4">Monthly 4×4</string>
+    <string name="bingo_tab_3">3×3 Challenge</string>
+    <string name="bingo_tab_3_locked">3×3 Challenge 🔒</string>
+    <string name="bingo_3_gate_title">The 3×3 Challenge is a Pro extra</string>
+    <string name="bingo_3_gate_body">A second card, shorter and far tougher: 9 demanding cells running alongside your monthly card.\n\nYour 4×4 bingo stays free and complete, just as it is. The 3×3 adds to it, it doesn\'t replace it.</string>
+    <string name="bingo_3_gate_cta">See Pro</string>
+    <string name="bingo_3_gate_dismiss">Not now</string>
+    <string name="bingo_3_subtitle_hard">9 cells · no mercy</string>
+    <!-- B4 (2): bingo history, covers both sizes -->
+    <string name="bingo_history_title">Bingo history</string>
+    <string name="bingo_history_subtitle">Your retired cards, by month</string>
+    <string name="bingo_history_empty">Your cards will show up here once they retire, on the 1st of each month.</string>
+    <string name="bingo_history_badge_4">4×4</string>
+    <string name="bingo_history_badge_3">3×3</string>
+    <string name="bingo_history_badge_completed">COMPLETED</string>
+    <string name="bingo_history_row">%1$d/%2$d cells · %3$d lines</string>
+    <string name="bingo_history_open">Bingo history</string>
     <!-- D-002/T1: quick session start from the home bar -->
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>

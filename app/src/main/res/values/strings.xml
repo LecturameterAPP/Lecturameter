@@ -1053,6 +1053,24 @@
     <string name="bingo_completed">¡Cartón completado!&#160;🎉</string>
     <string name="bingo_new_card">Nuevo cartón</string>
     <string name="bingo_hint">Las casillas se marcan solas al terminar y valorar libros o al registrar sesiones.</string>
+    <!-- B4 (2): selector de cartón. El 4x4 es el de siempre y es gratis; el 3x3 es el extra de Pro -->
+    <string name="bingo_tab_4">Mensual 4×4</string>
+    <string name="bingo_tab_3">Reto 3×3</string>
+    <string name="bingo_tab_3_locked">Reto 3×3 🔒</string>
+    <string name="bingo_3_gate_title">El Reto 3×3 es de Pro</string>
+    <string name="bingo_3_gate_body">Un segundo cartón, más corto y mucho más duro: 9 casillas exigentes que corren a la vez que tu cartón mensual.\n\nTu bingo 4×4 sigue siendo gratis y entero, como siempre. El 3×3 se suma, no lo sustituye.</string>
+    <string name="bingo_3_gate_cta">Ver Pro</string>
+    <string name="bingo_3_gate_dismiss">Ahora no</string>
+    <string name="bingo_3_subtitle_hard">9 casillas · sin concesiones</string>
+    <!-- B4 (2): historial de bingos, engloba los dos tamaños -->
+    <string name="bingo_history_title">Historial de bingos</string>
+    <string name="bingo_history_subtitle">Tus cartones retirados, por mes</string>
+    <string name="bingo_history_empty">Aquí aparecerán tus cartones cuando se retiren, el día 1 de cada mes.</string>
+    <string name="bingo_history_badge_4">4×4</string>
+    <string name="bingo_history_badge_3">3×3</string>
+    <string name="bingo_history_badge_completed">COMPLETADO</string>
+    <string name="bingo_history_row">%1$d/%2$d casillas · %3$d líneas</string>
+    <string name="bingo_history_open">Historial de bingos</string>
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>

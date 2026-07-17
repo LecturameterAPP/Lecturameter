@@ -10,6 +10,7 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.lecturameter.model.*
+import com.lecturameter.utils.BingoManager
 import com.lecturameter.utils.sanitizeBook
 
 object BookRepository {
@@ -103,17 +104,42 @@ object WrappedRepository {
 }
 
 // ── Bingo (Fase 5, MD5): cartón mensual con plantillas rotativas ──────────────
+//
+// B4 (2): a partir de aquí hay DOS cartones vivos a la vez, uno por tamaño.
+//
+// El 4×4 CONSERVA su clave histórica `bingo_card` tal cual. Eso no es pereza: es lo que
+// hace que no haya migración ninguna. Quien viene de la 2.7 con su cartón de julio a
+// medias lo encuentra intacto, porque nadie ha tocado ni la clave ni el formato. El 3×3
+// estrena claves propias, y si no existen simplemente no hay cartón 3×3 todavía, que es
+// exactamente el estado correcto para quien nunca ha sido Pro.
 object BingoRepository {
     private val gson = Gson()
 
-    /** null = sin cartón aún (primera ejecución o JSON corrupto → se regenera). */
-    fun loadOrNull(prefs: SharedPreferences): BingoCard? {
-        val json = prefs.getString("bingo_card", null) ?: return null
+    /** Clave del cartón de cada tamaño. El 4 se queda con la histórica (cero migración). */
+    private fun cardKey(side: Int): String =
+        if (side == BingoManager.SIDE_4) "bingo_card" else "bingo_card_$side"
+
+    /** Clave del índice de rotación de plantillas. Cada tamaño rota por su cuenta: si
+     *  compartieran índice, estrenar el 3×3 saltaría plantillas del 4×4. */
+    fun templateIndexKey(side: Int): String =
+        if (side == BingoManager.SIDE_4) "bingo_template_index" else "bingo_template_index_$side"
+
+    /** null = sin cartón aún (primera ejecución, JSON corrupto o 3×3 nunca estrenado). */
+    fun loadOrNull(prefs: SharedPreferences, side: Int = BingoManager.SIDE_4): BingoCard? {
+        val json = prefs.getString(cardKey(side), null) ?: return null
         return try { gson.fromJson(json, BingoCard::class.java) } catch (_: Exception) { null }
     }
 
     fun save(prefs: SharedPreferences, card: BingoCard) {
-        prefs.edit().putString("bingo_card", gson.toJson(card)).apply()
+        val side = BingoManager.sideOf(card.cells.size)
+        prefs.edit().putString(cardKey(side), gson.toJson(card)).apply()
+    }
+
+    /** B4 (2): retira el cartón vivo de un tamaño. Se usa al caducar el trial con un 3×3
+     *  en marcha: el cartón se archiva ANTES en el historial, así que esto no pierde nada
+     *  (lo jugado se conserva; lo único que se para es seguir jugándolo). */
+    fun clear(prefs: SharedPreferences, side: Int) {
+        prefs.edit().remove(cardKey(side)).apply()
     }
 }
 

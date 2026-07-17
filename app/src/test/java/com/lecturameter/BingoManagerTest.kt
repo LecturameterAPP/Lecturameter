@@ -7,8 +7,10 @@ import com.lecturameter.model.BingoCell
 import com.lecturameter.model.Book
 import com.lecturameter.model.BookStatus
 import com.lecturameter.utils.BingoManager
+import com.lecturameter.utils.BingoMonthSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -19,6 +21,14 @@ class BingoManagerTest {
 
     private fun card(cells: List<BingoCell>) = BingoCard(
         templateId = "t", templateNameEs = "", templateNameEn = "", monthKey = "2026-07", cells = cells
+    )
+
+    private fun summary(
+        monthKey: String = "2026-07", cellsTotal: Int = 16, name: String = "El clásico",
+        pattern: String = ""
+    ) = BingoMonthSummary(
+        monthKey = monthKey, templateNameEs = name, templateNameEn = name,
+        cellsDone = 1, cellsTotal = cellsTotal, lines = 0, complete = false, pattern = pattern
     )
 
     private fun book(
@@ -124,5 +134,58 @@ class BingoManagerTest {
         val notDone = card(List(9) { cell("genre", "x", done = it != 8) })
         assertTrue(BingoManager.isCardComplete(done))
         assertFalse(BingoManager.isCardComplete(notDone))
+    }
+
+    // ── B4 (2): convivencia del 4×4 y el 3×3 ──────────────────────────────────
+
+    @Test fun lineIndices_diagonales_3x3() {
+        // El 3×3 cierra linea con 3 casillas, no con 4: por eso es mas duro por geometria.
+        assertEquals(listOf(0, 4, 8), BingoManager.lineIndices(3, "diag0"))
+        assertEquals(listOf(2, 4, 6), BingoManager.lineIndices(3, "diag1"))
+        assertEquals(listOf(0, 1, 2), BingoManager.lineIndices(3, "row0"))
+        assertEquals(listOf(0, 3, 6), BingoManager.lineIndices(3, "col0"))
+    }
+
+    @Test fun completar_fila_de_3_registra_linea() {
+        val cells = List(9) {
+            when (it) {
+                0, 1 -> cell("genre", "Fantasía", done = true)
+                2 -> cell("pages_gt", "100")
+                else -> cell("streak", "99")
+            }
+        }
+        val result = BingoManager.evaluateBookFinished(card(cells), book(pages = 300), emptyList())
+        assertTrue("row0" in result.completedLines)
+        // Y la columna 0 NO, que solo tiene una casilla hecha
+        assertFalse("col0" in result.completedLines)
+    }
+
+    @Test fun sideOfSummary_deduce_el_tamano_de_cellsTotal() {
+        // La clave de que el historial englobe los dos bingos sin migrar nada: el tamaño
+        // sale de cellsTotal, que TODOS los resumenes ya guardados tienen.
+        assertEquals(3, BingoManager.sideOfSummary(summary(cellsTotal = 9)))
+        assertEquals(4, BingoManager.sideOfSummary(summary(cellsTotal = 16)))
+    }
+
+    @Test fun summaryKey_distingue_el_3x3_del_4x4_del_mismo_mes() {
+        // El fallo que arregla: el merge del backup iba por monthKey, asi que un mes con
+        // sus dos cartones (lo normal en un Pro) perdia uno al restaurar.
+        val c4 = summary(monthKey = "2026-07", cellsTotal = 16, name = "El clásico")
+        val c3 = summary(monthKey = "2026-07", cellsTotal = 9, name = "El tocho")
+        assertNotEquals(BingoManager.summaryKey(c4), BingoManager.summaryKey(c3))
+    }
+
+    @Test fun summaryKey_distingue_dos_cartones_del_mismo_mes_y_tamano() {
+        // Caso que YA existia antes del 3×3: completas el 4×4, pides otro, y el mes archiva
+        // dos cartones de 16. Se diferencian por plantilla.
+        val a = summary(monthKey = "2026-07", cellsTotal = 16, name = "El clásico")
+        val b = summary(monthKey = "2026-07", cellsTotal = 16, name = "El explorador")
+        assertNotEquals(BingoManager.summaryKey(a), BingoManager.summaryKey(b))
+    }
+
+    @Test fun summaryKey_el_mismo_resumen_dos_veces_es_el_mismo() {
+        val a = summary(monthKey = "2026-07", cellsTotal = 16, name = "El clásico")
+        val b = summary(monthKey = "2026-07", cellsTotal = 16, name = "El clásico")
+        assertEquals(BingoManager.summaryKey(a), BingoManager.summaryKey(b))
     }
 }

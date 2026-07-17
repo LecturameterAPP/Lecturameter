@@ -33,6 +33,13 @@ private data class BingoTemplateFile(val templates: List<BingoTemplate> = emptyL
 
 // Fase 6.3/6.4: resumen de un cartón retirado (uno por cartón; un mes puede tener
 // dos si se completó y se pidió cartón nuevo). Campos default para Gson.
+//
+// B4 (2, historial de los DOS bingos): NO lleva campo de tamaño a propósito. El lado ya
+// se deduce de cellsTotal (9 → 3×3, 16 → 4×4) vía sideOf(), que es la misma fuente de
+// verdad que usa el resto del motor. Añadir un campo `side` habría dejado en 0 todos los
+// resúmenes ya guardados (Gson rellena con el default) y habría obligado a migrar el
+// historial y el backup de los usuarios de la 2.7. Así el dato viejo sigue siendo válido
+// tal cual: los resúmenes de antes tienen cellsTotal=16 y salen como 4×4 solos.
 data class BingoMonthSummary(
     val monthKey: String = "",
     val templateNameEs: String = "",
@@ -49,6 +56,14 @@ data class BingoMonthSummary(
 object BingoManager {
     private val gson = Gson()
     private var cachedTemplates: List<BingoTemplate>? = null
+
+    // ── B4 (2): los DOS tamaños de cartón conviven ────────────────────────────
+    // El 4×4 es el de siempre y es GRATIS para todos: no se toca ni se recorta.
+    // El 3×3 es un cartón APARTE (más corto y más duro) que se añade encima como
+    // extra de Pro. No sustituye a nada: quien no sea Pro sigue teniendo el 4×4
+    // entero, que es la regla de la casa ("nada funcional exclusivo de Pro").
+    const val SIDE_4 = 4
+    const val SIDE_3 = 3
 
     // Feedback 13-07 (10): el cartón ya no es fijo 3×3 — el lado se deduce del nº de
     // celdas (9/16/25) y las líneas (filas, columnas, diagonales) se generan según el lado.
@@ -102,10 +117,28 @@ object BingoManager {
         prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
     }
 
-    /** Backup v3: escritura directa del historial (merge por monthKey en la restauración). */
+    /** Backup v3: escritura directa del historial (merge por identidad en la restauración). */
     fun saveMonthSummaries(prefs: android.content.SharedPreferences, list: List<BingoMonthSummary>) {
         prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
     }
+
+    /** B4 (2): lado del cartón que resume esta entrada (3 o 4). Derivado de cellsTotal. */
+    fun sideOfSummary(s: BingoMonthSummary): Int = sideOf(s.cellsTotal)
+
+    /** B4 (2): identidad de un resumen para deduplicar al restaurar un backup.
+     *
+     *  El merge iba SOLO por monthKey, y eso ya se quedaba corto antes de los dos cartones
+     *  (un mes puede tener dos resúmenes: completas el cartón, pides otro y ese también se
+     *  archiva). Con el 3×3 conviviendo, un mismo mes tiene normalmente un 4×4 Y un 3×3, así
+     *  que deduplicar por mes se comería uno de los dos al restaurar. La identidad real es
+     *  mes + plantilla + tamaño + progreso: dos cartones distintos del mismo mes difieren en
+     *  la plantilla, y el mismo cartón archivado dos veces coincide en todo. */
+    fun summaryKey(s: BingoMonthSummary): String =
+        "${s.monthKey}|${s.templateId()}|${s.cellsTotal}|${s.pattern}"
+
+    /** El resumen no guarda templateId (nunca lo guardó), así que el nombre ES su
+     *  identificador estable dentro del mes. */
+    private fun BingoMonthSummary.templateId(): String = templateNameEs
 
     fun loadTemplates(context: Context): List<BingoTemplate> {
         cachedTemplates?.let { return it }
@@ -118,6 +151,13 @@ object BingoManager {
             parsed
         } catch (_: Exception) { emptyList() }
     }
+
+    /** B4 (2): las plantillas de UN tamaño. Los dos juegos viven en el mismo JSON y se
+     *  separan por el nº de celdas (9 o 16), que es de donde ya salía todo lo demás: así
+     *  no hace falta ni campo nuevo en el asset ni tocar el backup. Cada tamaño rota por
+     *  su cuenta (su propio índice en prefs), por eso se pide la lista ya filtrada. */
+    fun templatesFor(context: Context, side: Int): List<BingoTemplate> =
+        loadTemplates(context).filter { sideOf(it.cells.size) == side }
 
     fun currentMonthKey(): String =
         SimpleDateFormat("yyyy-MM", Locale.US).format(Date())

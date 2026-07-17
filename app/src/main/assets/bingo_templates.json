@@ -251,6 +251,174 @@
         { "type": "streak",     "value": "21",                 "es": "Racha de 21 días",     "en": "21-day streak" },
         { "type": "pages_lt",   "value": "150",                "es": "Menos de 150 páginas", "en": "Under 150 pages" }
       ]
+    },
+    {
+      "id": "reto_tocho", "es": "El tocho", "en": "The doorstopper",
+      "cells": [
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" },
+        { "type": "pages_gt",   "value": "800",                   "es": "Más de 800 páginas",            "en": "Over 800 pages" },
+        { "type": "saga",       "value": "",                      "es": "Un libro de una saga",          "en": "Part of a series" },
+        { "type": "genre",      "value": "Fantasía",              "es": "Un libro de fantasía",          "en": "A fantasy book" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "genre",      "value": "Novela histórica",      "es": "Novela histórica",              "en": "Historical fiction" },
+        { "type": "pages_gt",   "value": "700",                   "es": "Más de 700 páginas",            "en": "Over 700 pages" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" }
+      ]
+    },
+    {
+      "id": "reto_disciplina", "es": "La disciplina", "en": "The discipline",
+      "cells": [
+        { "type": "streak",     "value": "7",                     "es": "Racha de 7 días",               "en": "7-day streak" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "streak",     "value": "21",                    "es": "Racha de 21 días",              "en": "21-day streak" },
+        { "type": "pages_gt",   "value": "500",                   "es": "Más de 500 páginas",            "en": "Over 500 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "genre",      "value": "Ensayo",                "es": "Un ensayo",                     "en": "An essay" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "genre",      "value": "Filosofía",             "es": "Un libro de filosofía",         "en": "A philosophy book" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" }
+      ]
+    },
+    {
+      "id": "reto_sotano", "es": "El sótano", "en": "The basement",
+      "cells": [
+        { "type": "genre",      "value": "Terror",                "es": "Un libro de terror",            "en": "A horror book" },
+        { "type": "genre",      "value": "Novela negra",          "es": "Una novela negra",              "en": "A noir novel" },
+        { "type": "genre",      "value": "Grimdark",              "es": "Un libro grimdark",             "en": "A grimdark book" },
+        { "type": "genre",      "value": "True crime",            "es": "Un libro de true crime",        "en": "A true crime book" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "pages_gt",   "value": "500",                   "es": "Más de 500 páginas",            "en": "Over 500 pages" },
+        { "type": "streak",     "value": "10",                    "es": "Racha de 10 días",              "en": "10-day streak" },
+        { "type": "genre",      "value": "Suspense",              "es": "Un libro de suspense",          "en": "A suspense book" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" }
+      ]
+    },
+    {
+      "id": "reto_erudito", "es": "El erudito", "en": "The scholar",
+      "cells": [
+        { "type": "genre",      "value": "Filosofía",             "es": "Un libro de filosofía",         "en": "A philosophy book" },
+        { "type": "genre",      "value": "Ciencia",               "es": "Un libro de ciencia",           "en": "A science book" },
+        { "type": "genre",      "value": "Historia",              "es": "Un libro de historia",          "en": "A history book" },
+        { "type": "genre",      "value": "Ensayo",                "es": "Un ensayo",                     "en": "An essay" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "genre",      "value": "Divulgación científica", "es": "Divulgación científica",        "en": "Popular science" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" }
+      ]
+    },
+    {
+      "id": "reto_maraton", "es": "El maratón", "en": "The marathon",
+      "cells": [
+        { "type": "pages_gt",   "value": "800",                   "es": "Más de 800 páginas",            "en": "Over 800 pages" },
+        { "type": "streak",     "value": "21",                    "es": "Racha de 21 días",              "en": "21-day streak" },
+        { "type": "saga",       "value": "",                      "es": "Un libro de una saga",          "en": "Part of a series" },
+        { "type": "pages_gt",   "value": "700",                   "es": "Más de 700 páginas",            "en": "Over 700 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "genre",      "value": "Ciencia ficción",       "es": "Ciencia ficción",               "en": "Science fiction" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" }
+      ]
+    },
+    {
+      "id": "reto_viajero", "es": "El viajero", "en": "The traveller",
+      "cells": [
+        { "type": "genre",      "value": "Viajes",                "es": "Un libro de viajes",            "en": "A travel book" },
+        { "type": "genre",      "value": "Naturaleza",            "es": "Un libro de naturaleza",        "en": "A nature book" },
+        { "type": "genre",      "value": "Aventura",              "es": "Un libro de aventura",          "en": "An adventure book" },
+        { "type": "genre",      "value": "Mitología",             "es": "Mitología",                     "en": "Mythology" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "pages_gt",   "value": "500",                   "es": "Más de 500 páginas",            "en": "Over 500 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "streak",     "value": "10",                    "es": "Racha de 10 días",              "en": "10-day streak" },
+        { "type": "genre",      "value": "Western",               "es": "Un western",                    "en": "A western" }
+      ]
+    },
+    {
+      "id": "reto_intimo", "es": "Lo íntimo", "en": "The intimate",
+      "cells": [
+        { "type": "genre",      "value": "Memorias",              "es": "Unas memorias",                 "en": "A memoir" },
+        { "type": "genre",      "value": "Biografía",             "es": "Una biografía",                 "en": "A biography" },
+        { "type": "genre",      "value": "Poesía",                "es": "Un libro de poesía",            "en": "A poetry book" },
+        { "type": "genre",      "value": "Drama",                 "es": "Un drama",                      "en": "A drama" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "genre",      "value": "Teatro",                "es": "Una obra de teatro",            "en": "A play" },
+        { "type": "pages_gt",   "value": "500",                   "es": "Más de 500 páginas",            "en": "Over 500 pages" }
+      ]
+    },
+    {
+      "id": "reto_clasico", "es": "El canon", "en": "The canon",
+      "cells": [
+        { "type": "genre",      "value": "Literatura clásica",    "es": "Un clásico",                    "en": "A classic" },
+        { "type": "pages_gt",   "value": "700",                   "es": "Más de 700 páginas",            "en": "Over 700 pages" },
+        { "type": "genre",      "value": "Teatro",                "es": "Una obra de teatro",            "en": "A play" },
+        { "type": "genre",      "value": "Poesía",                "es": "Un libro de poesía",            "en": "A poetry book" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "streak",     "value": "21",                    "es": "Racha de 21 días",              "en": "21-day streak" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "genre",      "value": "Mitología",             "es": "Mitología",                     "en": "Mythology" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" }
+      ]
+    },
+    {
+      "id": "reto_futuro", "es": "El futuro", "en": "The future",
+      "cells": [
+        { "type": "genre",      "value": "Ciencia ficción",       "es": "Ciencia ficción",               "en": "Science fiction" },
+        { "type": "genre",      "value": "Distopía",              "es": "Una distopía",                  "en": "A dystopia" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" },
+        { "type": "saga",       "value": "",                      "es": "Un libro de una saga",          "en": "Part of a series" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "genre",      "value": "Divulgación científica", "es": "Divulgación científica",        "en": "Popular science" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "genre",      "value": "Ciencia",               "es": "Un libro de ciencia",           "en": "A science book" }
+      ]
+    },
+    {
+      "id": "reto_pulso", "es": "El pulso", "en": "The pulse",
+      "cells": [
+        { "type": "genre",      "value": "Thriller",              "es": "Un thriller",                   "en": "A thriller" },
+        { "type": "genre",      "value": "Crimen",                "es": "Un libro de crimen",            "en": "A crime book" },
+        { "type": "genre",      "value": "Misterio",              "es": "Un libro de misterio",          "en": "A mystery book" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "saga",       "value": "",                      "es": "Un libro de una saga",          "en": "Part of a series" },
+        { "type": "streak",     "value": "10",                    "es": "Racha de 10 días",              "en": "10-day streak" },
+        { "type": "genre",      "value": "Suspense",              "es": "Un libro de suspense",          "en": "A suspense book" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" }
+      ]
+    },
+    {
+      "id": "reto_vineta", "es": "La viñeta", "en": "The panel",
+      "cells": [
+        { "type": "genre",      "value": "Novela gráfica",        "es": "Una novela gráfica",            "en": "A graphic novel" },
+        { "type": "genre",      "value": "Manga",                 "es": "Un manga",                      "en": "A manga" },
+        { "type": "saga",       "value": "",                      "es": "Un libro de una saga",          "en": "Part of a series" },
+        { "type": "genre",      "value": "Humor",                 "es": "Un libro de humor",             "en": "A funny book" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "streak",     "value": "14",                    "es": "Racha de 14 días",              "en": "14-day streak" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "genre",      "value": "Juvenil",               "es": "Un libro juvenil",              "en": "A YA book" },
+        { "type": "pages_gt",   "value": "500",                   "es": "Más de 500 páginas",            "en": "Over 500 pages" }
+      ]
+    },
+    {
+      "id": "reto_mundo", "es": "El mundo real", "en": "The real world",
+      "cells": [
+        { "type": "genre",      "value": "Periodismo",            "es": "Un libro de periodismo",        "en": "A journalism book" },
+        { "type": "genre",      "value": "Política",              "es": "Un libro de política",          "en": "A politics book" },
+        { "type": "genre",      "value": "Psicología",            "es": "Un libro de psicología",        "en": "A psychology book" },
+        { "type": "genre",      "value": "Historia",              "es": "Un libro de historia",          "en": "A history book" },
+        { "type": "pages_gt",   "value": "600",                   "es": "Más de 600 páginas",            "en": "Over 600 pages" },
+        { "type": "rating",     "value": "5",                     "es": "Valorado con 5★",               "en": "Rated 5★" },
+        { "type": "streak",     "value": "21",                    "es": "Racha de 21 días",              "en": "21-day streak" },
+        { "type": "author_new", "value": "",                      "es": "Autor nuevo para ti",           "en": "New-to-you author" },
+        { "type": "genre",      "value": "Ensayo",                "es": "Un ensayo",                     "en": "An essay" }
+      ]
     }
   ]
 }
