@@ -146,7 +146,16 @@ data class FullBackup(
     // significado, para que un backup v3/v4 restaure exactamente igual que antes. Un
     // cartón que no se respalda es una regresión, y el 3×3 cuesta de llenar: si no
     // viajara, reinstalar le borraría a un Pro el reto del mes.
-    val bingoCard3: BingoCard? = null
+    val bingoCard3: BingoCard? = null,
+    // v5 (M5, revisión de lanzamiento 19-07): el tema activo. El backup NO llevaba ningún
+    // ajuste, y eso se volvió un problema de dinero al estrenar el paywall: un usuario de la
+    // 2.7 con Aurora (gratis entonces) que migre por JSON instala con 0 libros, importa el
+    // backup y su tema no vuelve. Al arranque siguiente el grandfathering one-shot mira
+    // theme_mode, ve el "dark" por defecto, se marca como hecho y no concede nada: Aurora
+    // pasa a ser de pago para quien ya lo tenía gratis. Con el tema dentro del backup, el
+    // import concede el heredado ANTES de que el one-shot se queme.
+    // Clave nueva = compatible: los backups v3/v4 y los de la 2.7 la traen a null.
+    val themeMode: String? = null
 )
 
 /**
@@ -186,7 +195,11 @@ fun buildFullBackupFromPrefs(prefs: android.content.SharedPreferences): FullBack
         bingoCard = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, BingoManager.SIDE_4),
         bingoMonthHistory = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).ifEmpty { null },
         challengeHistory = com.lecturameter.repository.ChallengeHistoryRepository.load(prefs).ifEmpty { null },
-        bingoCard3 = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, BingoManager.SIDE_3)
+        bingoCard3 = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, BingoManager.SIDE_3),
+        // M5: el tema tal cual está en prefs (null si nunca se tocó). Solo el tema: esto NO
+        // es la puerta de entrada para meter el resto de ajustes en el backup, que no toca
+        // a dos días del lanzamiento.
+        themeMode = prefs.getString("theme_mode", null)
     )
 }
 
@@ -392,6 +405,44 @@ fun importFullBackupFromJson(
         val type = object : TypeToken<FullBackup>() {}.type
         val backup: FullBackup = gson.fromJson(correctedJson, type)
             ?: return Pair(false, context.getString(R.string.err_backup_format_invalid))
+
+        // ── M5: el tema, ANTES que nada ───────────────────────────────────────
+        // Va lo primero a propósito: el grandfathering es un one-shot que se quema solo
+        // (BooksViewModel.load) y si se quema mirando un theme_mode que aún no ha vuelto
+        // del backup, le quita para siempre el tema heredado a quien lo tenía gratis. La
+        // clave "ya hecho" no se deshace.
+        //
+        // ALCANCE REAL, que conviene no confundirlo: esto NO rescata a un usuario que venga
+        // de la 2.7 por JSON. Los backups de la 2.7 son v2 y NO tienen el campo themeMode
+        // (comprobado contra Backup_Lecturameter_Demo.json: solo books, sessions,
+        // wrappedHistory, version y exportedAt), así que ese dato sencillamente no existe y
+        // no hay nada que restaurar. A esos les salva la actualización en sitio, que es la
+        // vía normal: mismo applicationId, las prefs no se tocan y theme_mode sigue ahí.
+        // Lo que SÍ cubre esto es de la 3.0 en adelante: quien se cambia de móvil y restaura
+        // por JSON conserva su tema y, si era heredado, su derecho a él.
+        backup.themeMode?.let { restoredTheme ->
+            // 1) El derecho. Si el backup viene de una instalación con Aurora o AMOLED
+            //    puestos (gratis hasta la 2.7), se le conceden AQUÍ, antes de que el
+            //    one-shot pueda quemarse en vacío. Es la línea roja: nada que hoy es
+            //    gratis puede pasar a Pro para quien ya lo tenía.
+            //    grandfatherCurrentThemeIfNeeded respeta su propio one-shot, así que a
+            //    quien ya lo tenía resuelto no le cambia nada. Solo concede Aurora/AMOLED,
+            //    nunca Cuero ni Pro: el techo de un JSON manipulado a mano es un tema
+            //    cosmético que además era gratis en la 2.7.
+            val previous = prefs.getString("theme_mode", null)
+            prefs.edit().putString("theme_mode", restoredTheme).apply()
+            com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
+            // 2) La apariencia. Restaurar el tema solo si el usuario no había elegido uno
+            //    en ESTA instalación (caso real de la migración: instalar e importar) y si
+            //    tiene derecho a él. Restaurar es un MERGE, no un reemplazo: pisarle a
+            //    alguien el tema que acaba de elegir a mano sería una sorpresa fea, y
+            //    ponerle uno de pago al que no tiene derecho, un regalo que no toca.
+            val mode = ThemeMode.entries.firstOrNull { it.value == restoredTheme }
+            val keep = previous == null && mode != null &&
+                com.lecturameter.utils.Pro.themeAllowed(prefs, mode)
+            if (keep) vm.setThemeMode(mode!!, prefs, context)
+            else prefs.edit().putString("theme_mode", previous ?: "dark").apply()
+        }
 
         val backupBooks2 = backup.books ?: emptyList()
         val backupSessions2 = backup.sessions ?: emptyList()

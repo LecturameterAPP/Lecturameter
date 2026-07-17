@@ -921,6 +921,10 @@
     <string name="pro_have_code">I have a code</string>
     <string name="pro_restore_button">Restore purchase</string>
     <string name="pro_restore_none">No purchase was found on this Google Play account.</string>
+    <!-- C2: Google Play did not answer. Do NOT claim there is no purchase: we do not know. -->
+    <string name="pro_restore_unavailable">Could not reach Google Play. Check your connection and try again; if you bought Pro, your purchase is still there.</string>
+    <!-- M2: the purchase flow never started (Play service down). -->
+    <string name="pro_buy_error">Could not open Google Play. Check your connection and try again in a few seconds.</string>
     <string name="pro_not_now">Not now</string>
     <string name="pro_close">Close</string>
     <string name="pro_active_title">Lecturameter Pro active</string>

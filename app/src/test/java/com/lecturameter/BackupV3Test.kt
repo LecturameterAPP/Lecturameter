@@ -154,4 +154,44 @@ class BackupV3Test {
         val backup = listOf(ch(100, "Reto original", ChallengeType.PAGES, 500))
         assertTrue(mergeIncoming(local, backup).isEmpty())
     }
+
+    // ── M5: el tema viaja en el backup ────────────────────────────────────────
+    //
+    // El backup no llevaba NINGÚN ajuste, y al estrenar el paywall eso se volvió un
+    // problema de dinero: sin theme_mode, quien restaura en un móvil nuevo se queda en
+    // "dark", el grandfathering one-shot se quema mirando ese "dark" y Aurora/AMOLED pasan
+    // a ser de pago para quien ya los tenía gratis. La clave "ya hecho" no se deshace.
+
+    @Test
+    fun `fullbackup v5 lleva el tema y lo deserializa`() {
+        val json = """{"version":5,"exportedAt":1,"books":[],"sessions":[],"themeMode":"aurora"}"""
+        val backup: FullBackup = gson.fromJson(json, object : TypeToken<FullBackup>() {}.type)
+        assertEquals("aurora", backup.themeMode)
+    }
+
+    @Test
+    fun `el tema sobrevive al viaje de ida y vuelta por gson`() {
+        val original = FullBackup(books = emptyList(), sessions = emptyList(), themeMode = "amoled")
+        val roundTrip: FullBackup = gson.fromJson(gson.toJson(original), object : TypeToken<FullBackup>() {}.type)
+        assertEquals("amoled", roundTrip.themeMode)
+    }
+
+    // Compatibilidad con la 2.7, que es un backup v2 y NO tiene el campo. El fichero real
+    // de Víctor (Backup_Lecturameter_Demo.json, 118 libros) es exactamente esto: v2 con
+    // books/sessions/wrappedHistory y nada más. Tiene que seguir importándose igual.
+    @Test
+    fun `un backup v2 de la 2_7 no trae tema y no rompe`() {
+        val json = """{"version":2,"exportedAt":1,"books":[],"sessions":[],"wrappedHistory":[]}"""
+        val backup: FullBackup = gson.fromJson(json, object : TypeToken<FullBackup>() {}.type)
+        assertNull(backup.themeMode)   // el import lo salta entero: no hay nada que aplicar
+        assertNull(backup.challenges)
+        assertNull(backup.bingoCard3)
+    }
+
+    // El default del campo es null, no "dark": un backup construido sin tema NO puede
+    // acabar escribiendo "dark" en las prefs de nadie ni quemando el grandfathering.
+    @Test
+    fun `sin tema el campo es null y no un dark implicito`() {
+        assertNull(FullBackup(books = emptyList(), sessions = emptyList()).themeMode)
+    }
 }

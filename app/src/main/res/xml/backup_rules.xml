@@ -5,9 +5,14 @@
     Excludes the cache dir (temp CSV/JSON exports).
 -->
 <full-backup-content>
-    <!-- A6: SOLO se respalda lecturameter.xml. El trial y el lockout del canje viven en
-         lecturameter_pro_local.xml, que al no estar incluido aquí NUNCA se respalda
-         (reinstalar no reinicia ni reactiva la prueba gratis). Lint prohíbe un exclude
-         explícito de un path no incluido, por eso se documenta en vez de excluirse. -->
+    <!-- C1 (19-07): SOLO se respalda lecturameter.xml, y ahí dentro viaja AHORA el estado
+         del trial (pro_trial_used y su ventana), que es justo lo que tiene que viajar.
+         El comentario anterior decía que dejar el trial FUERA del backup impedía reiniciar
+         la prueba al reinstalar: era al revés. Sin respaldar, al reinstalar la clave no
+         existe, pro_trial_used vuelve a false y la prueba se regala otra vez, con la
+         biblioteca restaurada y todo. Una marca de "ya gastado" SIEMPRE quiere backup.
+         En lecturameter_pro_local.xml solo quedan los contadores del canje de códigos, que
+         no conceden Pro por sí solos. Lint prohíbe un exclude explícito de un path no
+         incluido, por eso se documenta en vez de excluirse. -->
     <include domain="sharedpref" path="lecturameter.xml" />
 </full-backup-content>

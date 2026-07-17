@@ -923,6 +923,10 @@
     <string name="pro_have_code">Tengo un código</string>
     <string name="pro_restore_button">Restaurar compra</string>
     <string name="pro_restore_none">No se encontró ninguna compra en esta cuenta de Google Play.</string>
+    <!-- C2: Google Play no ha contestado. NO decir que no consta la compra: no se sabe. -->
+    <string name="pro_restore_unavailable">No se ha podido conectar con Google Play. Comprueba tu conexión y vuelve a intentarlo; si compraste Pro, tu compra sigue ahí.</string>
+    <!-- M2: el flujo de compra no llegó a arrancar (servicio de Play caído). -->
+    <string name="pro_buy_error">No se ha podido abrir Google Play. Comprueba tu conexión y vuelve a intentarlo en unos segundos.</string>
     <string name="pro_not_now">Ahora no</string>
     <string name="pro_close">Cerrar</string>
     <string name="pro_active_title">Lecturameter Pro activo</string>
