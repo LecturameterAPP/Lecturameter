@@ -123,6 +123,10 @@ private fun buildWidgetViews(
             R.id.widget_progress_bar, "setProgressTintList",
             android.content.res.ColorStateList.valueOf(widgetTheme.progressColor)
         )
+        views.setColorStateList(
+            R.id.widget_progress_bar, "setProgressBackgroundTintList",
+            android.content.res.ColorStateList.valueOf(widgetTheme.progressTrackColor)
+        )
     }
     views.setTextColor(R.id.widget_title, widgetTheme.textMain)
     views.setTextColor(R.id.widget_cover_placeholder, widgetTheme.textMain)

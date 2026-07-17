@@ -852,8 +852,12 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
     }
 
     // Colores cálidos: vacío → amarillo suave → naranja → rojo intenso
+    // La celda SIN DATO no codifica nada: es fondo, así que sale del tema. Mismo criterio
+    // que el heatmap horario (RecapScreens.kt), que ya lo resolvía así en los 5 temas.
+    // OJO: aquí NO vale theme.surface — en Claro es BLANCO y dejaba la celda invisible
+    // sobre el papel crema, con su texto blanco encima (revisión 18-07).
     fun heatColor(value: Int, max: Int): Color {
-        if (max == 0 || value == 0) return theme.surface
+        if (max == 0 || value == 0) return theme.border.copy(alpha = 0.35f)
         val ratio = (value.toFloat() / max).coerceIn(0f, 1f)
         return when {
             ratio < 0.20f -> Color(0xFF78350F) // marrón oscuro
@@ -886,7 +890,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                     modifier = Modifier.background(theme.bgMid)) {
                     availableYears.forEach { y ->
                         DropdownMenuItem(
-                            text = { Text(y, color = if (y == selYear) acc else theme.textMain, fontSize = 13.sp) },
+                            text = { Text(y, color = if (y == selYear) acc else theme.textMain, fontSize = 13.sp, fontWeight = if (y == selYear) FontWeight.Bold else FontWeight.Normal) },
                             onClick = { selYear = y; showYearMenu = false }
                         )
                     }
@@ -917,7 +921,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false },
                     modifier = Modifier.background(theme.bgMid)) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp) },
+                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp, fontWeight = if (selMonth == null) FontWeight.Bold else FontWeight.Normal) },
                         onClick = { selMonth = null; showMonthMenu = false }
                     )
                     (1..12).forEach { m ->
@@ -928,7 +932,8 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(monthNamesFull[m - 1],
                                         color = if (selMonth == m) acc else if (hasDat) theme.textMain else theme.textDim,
-                                        fontSize = 13.sp)
+                                        fontSize = 13.sp,
+                                        fontWeight = if (selMonth == m) FontWeight.Bold else FontWeight.Normal)
                                     if (hasDat) {
                                         Spacer(Modifier.width(6.dp))
                                         Box(Modifier.size(6.dp).background(Color(0xFFF59E0B), androidx.compose.foundation.shape.CircleShape))
@@ -977,16 +982,18 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                         onClick = { selMonth = idx + 1 },
                         shape = RoundedCornerShape(12.dp),
                         color = heatColor(pages, maxMonthly),
-                        border = BorderStroke(1.dp, Color(0x33FFFFFF))
+                        border = BorderStroke(1.dp, theme.border)
                     ) {
                         Column(
                             Modifier.padding(10.dp).fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(monthNames[idx], color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            // Con dato la celda va en la escala de calor (oscura en todos los temas) y el
+                            // blanco vale. Sin dato es un tinte del tema, asi que el texto sale del tema.
+                            Text(monthNames[idx], color = if (pages > 0) Color.White else theme.textMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(4.dp))
                             Text(if (pages > 0) "$pages" else "\u2014",
-                                color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                color = if (pages > 0) Color.White.copy(alpha = 0.85f) else theme.textDim, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             if (pages > 0) Text(stringResource(R.string.txt_df94c6d3), color = Color.White.copy(alpha = 0.6f), fontSize = 9.sp)
                         }
                     }
@@ -1051,12 +1058,12 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                         },
                         shape = RoundedCornerShape(6.dp),
                         color = heatColor(pages, maxDaily),
-                        border = BorderStroke(0.5.dp, Color(0x22FFFFFF)),
+                        border = BorderStroke(0.5.dp, theme.border),
                         modifier = Modifier.aspectRatio(1f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("$day", color = Color.White.copy(alpha = if (pages > 0) 0.95f else 0.4f),
+                                Text("$day", color = if (pages > 0) Color.White.copy(alpha = 0.95f) else theme.textDim,
                                     fontSize = 10.sp, fontWeight = FontWeight.Medium)
                                 if (pages > 0) Text("$pages", color = Color.White.copy(alpha = 0.75f), fontSize = 8.sp)
                             }
@@ -1227,7 +1234,7 @@ fun StatsChartsView(
                             Text("${selMonth?.let { monthNames[it - 1] } ?: stringResource(R.string.filter_month_placeholder)} ▾", color = if (selMonth != null) acc else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
                         }
                         DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = null; showMonthMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp, fontWeight = if (selMonth == null) FontWeight.Bold else FontWeight.Normal) }, onClick = { selMonth = null; showMonthMenu = false })
                             (1..12).forEach { m ->
                                 DropdownMenuItem(text = { Text(monthNames[m - 1], color = if (selMonth == m) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = m; showMonthMenu = false })
                             }

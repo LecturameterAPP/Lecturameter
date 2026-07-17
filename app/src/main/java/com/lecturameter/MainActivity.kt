@@ -497,7 +497,7 @@ val TextMainD = Color(0xFFF1F5F9); val TextMutedD = Color(0xFF94A3B8); val TextD
 // el crema despegan igual y dan la sensación de papel sobre papel.
 val BgDarkL = Color(0xFFFAF8F2); val BgMidL = Color(0xFFF1EDE3)
 val SurfaceL = Color(0xFFFFFFFF); val BorderL = Color(0xFFE0D9C8)
-val TextMainL = Color(0xFF22201B); val TextMutedL = Color(0xFF5A5648); val TextDimL = Color(0xFF8B8578)
+val TextMainL = Color(0xFF22201B); val TextMutedL = Color(0xFF5A5648); val TextDimL = Color(0xFF6F6A5C)
 
 // Aurora C "Aurora boreal" (Fase 3, mockup aprobado 11-07): degradado teal → púrpura.
 // bgDark→bgMid→bgDeep son los 3 stops del fondo; acento morado; bordes teal al 25%.

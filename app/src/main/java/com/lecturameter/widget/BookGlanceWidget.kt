@@ -108,6 +108,7 @@ private fun WidgetContent(
     // Feedback 17-07 (Bloque 2): acento del widget por tema (oro en Cuero, morado en
     // Aurora). Antes los overlays y la barra eran índigo/sky fijos y ensuciaban el marrón.
     val progressColor = ColorProvider(Color(theme.progressColor))
+    val progressTrack = ColorProvider(Color(theme.progressTrackColor))
     val openIntent = if (book != null) {
         Intent(Intent.ACTION_VIEW, Uri.parse("lecturameter://book/${book.id}"))
             .setClass(androidx.glance.LocalContext.current, MainActivity::class.java)
@@ -194,7 +195,7 @@ private fun WidgetContent(
                         progress = pct / 100f,
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 5.dp).height(9.dp),
                         color = progressColor,
-                        backgroundColor = ColorProvider(Color(0x40FFFFFF))
+                        backgroundColor = progressTrack
                     )
                 }
             }
@@ -207,7 +208,7 @@ private fun WidgetContent(
                         progress = pct / 100f,
                         modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp).height(8.dp),
                         color = progressColor,
-                        backgroundColor = ColorProvider(Color(0x40FFFFFF))
+                        backgroundColor = progressTrack
                     )
                 }
             }

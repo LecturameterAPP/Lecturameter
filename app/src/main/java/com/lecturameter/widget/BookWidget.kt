@@ -95,7 +95,11 @@ internal data class WidgetThemeColors(
     val textMuted: Int,
     val accentChipDrawable: Int = R.drawable.widget_accent_bg_chip,
     val accentCoverDrawable: Int = R.drawable.widget_accent_bg_cover,
-    val progressColor: Int = 0xFF0EA5E9.toInt()
+    val progressColor: Int = 0xFF0EA5E9.toInt(),
+    // El carril de la barra iba en blanco al 25% fijo: sobre los fondos oscuros se ve, pero
+    // sobre el crema del Claro r2 quedaba a 1.02:1 de contraste, o sea invisible, y la barra
+    // parecía un trozo de color flotando sin referencia (revisión 18-07).
+    val progressTrackColor: Int = 0x40FFFFFF
 )
 
 internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
@@ -110,7 +114,9 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
         // con el rediseño del tema (antes: textos azul pizarra y overlays índigo)
         "light"  -> WidgetThemeColors(
             R.drawable.widget_background_light, 0xFF22201B.toInt(), 0xFF5A5648.toInt(),
-            R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF166534.toInt()
+            R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF166534.toInt(),
+            // sobre crema el carril tiene que ser oscuro, no blanco
+            progressTrackColor = 0x22000000
         )
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(
