@@ -112,27 +112,42 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     return when (effective) {
         // Claro r2 "Papel" (18-07): textos en marrón tinta y acento verde botánico, a juego
         // con el rediseño del tema (antes: textos azul pizarra y overlays índigo)
+        // Claro r2 "Papel" (18-07): textos en marrón tinta y acento verde, a juego con el
+        // rediseño del tema (antes: textos azul pizarra y overlays índigo).
+        // QA en dispositivo 18-07: el acento se había quedado en el #166534 botánico ORIGINAL.
+        // Víctor lo ajustó a salvia #41755A el mismo día ("el verde lo haría un poco más
+        // pastel") pero el cambio no llegó aquí: el widget tiene su propia paleta en enteros
+        // y no puede importar AccentLight, así que se queda atrás sin que nada lo avise.
         "light"  -> WidgetThemeColors(
             R.drawable.widget_background_light, 0xFF22201B.toInt(), 0xFF5A5648.toInt(),
-            R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF166534.toInt(),
+            R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF41755A.toInt(),
             // sobre crema el carril tiene que ser oscuro, no blanco
             progressTrackColor = 0x22000000
         )
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(
             R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt(),
-            R.drawable.widget_accent_bg_chip_aurora, R.drawable.widget_accent_bg_cover_aurora, 0xFFB794F6.toInt()
+            R.drawable.widget_accent_bg_chip_aurora, R.drawable.widget_accent_bg_cover_aurora, 0xFFB794F6.toInt(),
+            // el carril en blanco frío rompe el teal, igual que rompía el cuero
+            progressTrackColor = 0x40C8FFF8
         )
         // QA r2 12-07: Dinámico eliminado — "dynamic" residual cae al else (oscuro)
-        // 18-07: en AMOLED los azules pasan a gris (decisión de Víctor)
+        // 18-07: en AMOLED los azules pasan a gris (decisión de Víctor). Mismo caso que el
+        // Claro: se quedó en el #D4D4D8 original y él lo bajó a #A1A1AA ("me parece demasiado
+        // claro en contraste con el negro puro").
         "amoled" -> WidgetThemeColors(
             R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt(),
-            R.drawable.widget_accent_bg_chip_amoled, R.drawable.widget_accent_bg_cover_amoled, 0xFFD4D4D8.toInt()
+            R.drawable.widget_accent_bg_chip_amoled, R.drawable.widget_accent_bg_cover_amoled, 0xFFA1A1AA.toInt()
         )
         // D-015 (Cuero): fondo marrón cuero + textos crema del mockup r3, acento oro
         "cuero"  -> WidgetThemeColors(
             R.drawable.widget_background_cuero, 0xFFFAF3E3.toInt(), 0xFFD6C7A5.toInt(),
-            R.drawable.widget_accent_bg_chip_cuero, R.drawable.widget_accent_bg_cover_cuero, 0xFFD9AC5C.toInt()
+            R.drawable.widget_accent_bg_chip_cuero, R.drawable.widget_accent_bg_cover_cuero, 0xFFD9AC5C.toInt(),
+            // QA en dispositivo 18-07: el carril blanco al 25% sobre el cuero da un GRIS frío,
+            // el único elemento del widget fuera de la familia marrón/oro/crema. Va en crema,
+            // que es la misma decisión que ya se tomó para bgSurf en el tema ("crema
+            // translúcida, no blanco frío, para no romper la calidez del cuero").
+            progressTrackColor = 0x40FAF3E3
         )
         else     -> WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
     }
