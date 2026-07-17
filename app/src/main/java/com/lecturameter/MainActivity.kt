@@ -673,6 +673,22 @@ fun wrappedGraphic(color: Color, theme: Theme, bg: Color = theme.surface): Color
 /** Aplana [fg] (que puede llevar alfa, como `theme.surface` en los temas oscuros) sobre [bg]. */
 private fun flattenOver(fg: Color, bg: Color): Color =
     ContrastUtils.flatten(fg.toRgbInt(), fg.alpha, bg.toRgbInt()).toComposeColor()
+
+/**
+ * Color de TEXTO legible para [color] sobre el fondo SÓLIDO [bg] (4,5:1). Conserva el matiz y
+ * mueve solo la luminosidad, así que el acento se sigue leyendo como el acento.
+ *
+ * Para cuando el color dice algo (un enlace en el acento, que es lo que lo hace parecer pulsable)
+ * y no se puede sustituir por `textMain` sin perder el significado. Si solo hace falta que se lea,
+ * `theme.textMain` es más simple y contrasta más.
+ */
+fun inkOnSolid(color: Color, bg: Color, theme: Theme): Color = ContrastUtils.solidFor(
+    color = color.toRgbInt(),
+    bg = flattenOver(bg, theme.bgDark).toRgbInt(),
+    isDark = theme.isDark,
+    fallback = theme.textMain.toRgbInt(),
+    target = ContrastUtils.AA_TEXT
+).toComposeColor()
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)

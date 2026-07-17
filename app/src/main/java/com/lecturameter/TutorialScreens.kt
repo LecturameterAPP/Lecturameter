@@ -82,7 +82,14 @@ fun TipCard(title: String, body: String, theme: Theme, onDismiss: () -> Unit, mo
     ) {
         Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 2.dp)) {
             Column(Modifier.weight(1f)) {
-                Text(title, color = acc, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                // El título iba en el ACENTO sobre un relleno del propio acento al 12%: 3,54:1 en
+                // Oscuro y 4,32:1 en Claro, con 4,5:1 de mínimo (a 12,5sp no cuela como texto
+                // grande). Afectaba a los 7 tips que ya están en producción.
+                //
+                // Pasa a textMain, que es lo que YA hacía TipSnackbar (más abajo, línea ~112): los
+                // dos formatos de tip eran incoherentes entre sí y el que estaba bien era el otro.
+                // El acento no se pierde: sigue en el relleno y en el borde de la card.
+                Text(title, color = theme.textMain, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                 if (body.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
                     Text(body, color = theme.textMuted, fontSize = 11.5.sp, lineHeight = 15.sp)
@@ -116,8 +123,12 @@ fun TipSnackbar(tip: TipSnack, theme: Theme, onGone: () -> Unit, modifier: Modif
                 }
                 if (tip.actionLabel != null) {
                     Spacer(Modifier.height(4.dp))
+                    // Aquí el acento SÍ significa algo (es lo que hace que parezca pulsable), así
+                    // que no puede pasar a textMain como el título: se corrige la luminosidad y se
+                    // conserva el matiz. Iba a 3,58:1 en Oscuro sobre bgMid, con 4,5:1 de mínimo.
                     Text(
-                        tip.actionLabel, color = acc, fontSize = 11.5.sp, fontWeight = FontWeight.Bold,
+                        tip.actionLabel, color = inkOnSolid(acc, theme.bgMid, theme),
+                        fontSize = 11.5.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable { tip.onAction?.invoke(); onGone() }
                     )
                 }
