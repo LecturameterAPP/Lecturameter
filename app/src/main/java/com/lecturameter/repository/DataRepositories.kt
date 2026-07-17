@@ -54,8 +54,48 @@ object WrappedRepository {
     fun loadOrNull(prefs: SharedPreferences): List<YearWrapped>? {
         val json = prefs.getString("wrapped_history", null) ?: return null
         val type = object : TypeToken<List<YearWrapped>>() {}.type
-        return try { gson.fromJson(json, type) ?: emptyList() } catch (_: Exception) { emptyList() }
+        return try {
+            (gson.fromJson<List<YearWrapped>>(json, type) ?: emptyList()).map { sanitizeWrapped(it) }
+        } catch (_: Exception) { emptyList() }
     }
+
+    /**
+     * B3 fase B: red de seguridad para los snapshots viejos, gemela de sanitizeBook().
+     *
+     * Gson instancia con Unsafe y rellena campo a campo, así que un campo que NO está en el
+     * JSON no recibe el default de Kotlin: recibe el cero de la JVM, y en un String eso es
+     * null aunque el tipo diga `String`. Al abrir el Wrapped de un año guardado con una
+     * versión anterior, cualquier `previousYearGenre.isNotBlank()` revienta con NPE contra
+     * un tipo declarado no-nulo. Cada campo nuevo del cierre-comparativa añade una ocasión
+     * más de que pase, así que se corta aquí, en el único sitio por el que entran.
+     */
+    private fun sanitizeWrapped(w: YearWrapped): YearWrapped = w.copy(
+        favoriteAuthor = w.favoriteAuthor ?: "",
+        favoriteGenre = w.favoriteGenre ?: "",
+        fastestBookTitle = w.fastestBookTitle ?: "",
+        bestRatedTitle = w.bestRatedTitle ?: "",
+        longestStreakStart = w.longestStreakStart ?: "",
+        longestStreakEnd = w.longestStreakEnd ?: "",
+        maxSessionDate = w.maxSessionDate ?: "",
+        mostReadDay = w.mostReadDay ?: "",
+        previousYearGenre = w.previousYearGenre ?: "",
+        previousYearAuthor = w.previousYearAuthor ?: "",
+        previousYearMostReadDay = w.previousYearMostReadDay ?: "",
+        bestWeekStart = w.bestWeekStart ?: "",
+        previousYearBestWeekStart = w.previousYearBestWeekStart ?: "",
+        topAuthorsTop3 = w.topAuthorsTop3 ?: emptyList(),
+        topAuthorsTop3Editions = w.topAuthorsTop3Editions ?: emptyList(),
+        topGenresTop3 = w.topGenresTop3 ?: emptyList(),
+        pagesPerMonth = w.pagesPerMonth ?: List(12) { 0 },
+        booksPerMonth = w.booksPerMonth ?: List(12) { 0 },
+        genreCountsTop6 = w.genreCountsTop6 ?: emptyList(),
+        longestBooksTop3 = w.longestBooksTop3 ?: emptyList(),
+        bestRatedTop3 = w.bestRatedTop3 ?: emptyList(),
+        fastestBooksTop3 = w.fastestBooksTop3 ?: emptyList(),
+        droppedBookTitles = w.droppedBookTitles ?: emptyList(),
+        bestDayPerMonth = w.bestDayPerMonth ?: emptyList(),
+        pagesPerTimeSlot = w.pagesPerTimeSlot ?: List(8) { 0 }
+    )
 
     fun save(prefs: SharedPreferences, history: List<YearWrapped>) {
         prefs.edit().putString("wrapped_history", gson.toJson(history)).apply()

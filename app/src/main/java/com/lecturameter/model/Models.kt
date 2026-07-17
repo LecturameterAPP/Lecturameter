@@ -253,6 +253,28 @@ data class YearWrapped(
     val bestDayPagesPerMin: Double = 0.0,  // páginas/minuto ese día (0 si sin minutos)
     // Páginas por franja horaria de 3h (índice 0 = 00-03h … 7 = 21-24h); requiere startTimestamp
     val pagesPerTimeSlot: List<Int> = List(8) { 0 },
+    // ── B3 fase B (18-07): 11ª pantalla (cierre-comparativa, variante C1) ───
+    // Los tres "quién/qué/cuándo" del año anterior que el cierre compara. Se
+    // calculan con el MISMO criterio que su gemelo del año en curso; si se
+    // separan, el Δ miente (ver el bug de las relecturas, que solo contaban
+    // en el año actual e inflaban la comparativa a su favor).
+    val previousYearAuthor: String = "",         // autor favorito del año anterior ("" si sin datos)
+    val previousYearMostReadDay: String = "",    // día con más páginas del año anterior
+    // Mes con más páginas del año anterior, 1-BASADO (1=ene … 12=dic; 0 = sin datos).
+    // El 1 y no el 0 es a propósito: Gson deserializa los snapshots viejos con Unsafe, así
+    // que los campos que no están en su JSON NO reciben el default de Kotlin, reciben el
+    // cero de la JVM. Con el índice 0-basado de siempre, un Wrapped guardado antes de esta
+    // versión diría que el mejor mes del año pasado fue ENERO, con todo el aplomo. Con el
+    // 1-basado, ese cero cae justo en "sin datos" y la fila se va a su estado vacío sola.
+    val previousYearBestMonth: Int = 0,
+    // Semana NATURAL lunes-domingo con más páginas (el número es ISO-8601).
+    // Dato nuevo del B3 fase B: no existía en el Wrapped, hubo que calcularlo.
+    val bestWeekStart: String = "",              // lunes de esa semana (yyyy-MM-dd)
+    val bestWeekNumber: Int = 0,                 // nº de semana ISO (0 = sin datos)
+    val bestWeekPages: Int = 0,
+    val previousYearBestWeekStart: String = "",
+    val previousYearBestWeekNumber: Int = 0,
+    val previousYearBestWeekPages: Int = 0,
     val savedAt: Long = System.currentTimeMillis()
 )
 

@@ -44,5 +44,7 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson;$androidJar"
     com.lecturameter.ProStateTest `
     com.lecturameter.CoverStoreTest `
     com.lecturameter.ContrastTest `
-    com.lecturameter.WrappedColorLintTest
+    com.lecturameter.WrappedColorLintTest `
+    com.lecturameter.NaturalWeekTest `
+    com.lecturameter.WrappedSnapshotTest
 exit $LASTEXITCODE

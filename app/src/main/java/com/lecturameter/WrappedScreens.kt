@@ -547,22 +547,60 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 // visual es falsa. Para distinguir meses parecidos ya está el número
                                 // encima de cada barra y el resalte del máximo; eso informa sin engañar.
                                 val months = listOf("E","F","M","A","M","J","J","A","S","O","N","D")
-                                Row(Modifier.fillMaxWidth().height(200.dp), verticalAlignment = Alignment.Bottom,
+                                val bestIdx = wrapped.pagesPerMonth.indexOf(maxP)
+                                // B3 fase B (variante B1): el máximo ya iba en cian, pero contra 11
+                                // barras moradas de intensidad idéntica no saltaba — competía con
+                                // todas a la vez. Se resalta con TRES refuerzos que no tocan la
+                                // escala: opacidad por ranking (el podio al 75%, el resto al 45%,
+                                // así el máximo es lo único a plena intensidad), la etiqueta
+                                // "MEJOR MES" sobre su barra, y su letra del eje en cian.
+                                // Ninguno cambia la altura de ninguna barra: sigue siendo lineal
+                                // desde 0 (ver el comentario de arriba; eso no se negocia).
+                                val podium = wrapped.pagesPerMonth.withIndex()
+                                    .filter { it.value > 0 }.sortedByDescending { it.value }
+                                    .take(3).map { it.index }.toSet()
+                                // El alto del hueco de etiquetas se RESERVA fuera del alto de las
+                                // barras: si no, la barra del máximo (que ocupa el 100%) más su
+                                // etiqueta encima se salen de la Row y el número se recorta.
+                                val chartH = 200.dp
+                                val labelH = 26.dp
+                                val barMaxH = chartH - labelH
+                                Row(Modifier.fillMaxWidth().height(chartH), verticalAlignment = Alignment.Bottom,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     wrapped.pagesPerMonth.forEachIndexed { i, p ->
                                         // Mínimo visible del 2% para que un mes con 1-2 págs no
                                         // desaparezca del todo y parezca un mes sin leer.
                                         val ratio = if (p <= 0) 0f
                                                     else (p.toFloat() / maxP).coerceAtLeast(0.02f)
-                                        val isMax = p == maxP
+                                        val isMax = i == bestIdx
+                                        // El desvanecido es SOLO de la barra. El número de encima es
+                                        // texto y no se pinta con alfa (B-037: mezclar el color con el
+                                        // fondo antes de leerlo es la causa raíz de aquello); su
+                                        // jerarquía va por tamaño y peso, que es lo que toca.
+                                        val barAlpha = when {
+                                            isMax -> 1f
+                                            i in podium -> 0.75f
+                                            else -> 0.45f
+                                        }
                                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Bottom) {
+                                            if (isMax)
+                                                Surface(shape = RoundedCornerShape(3.dp), color = Cyan.copy(0.18f)) {
+                                                    Text(stringResource(R.string.wrapped_best_month_tag),
+                                                        color = wrappedInk(Cyan, theme), fontSize = 6.5.sp,
+                                                        fontWeight = FontWeight.Bold, maxLines = 1,
+                                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp))
+                                                }
                                             if (p > 0)
-                                                Text(if (p >= 1000) "${p/1000}k" else "$p", color = if (isMax) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                                                Text(if (p >= 1000) "${p/1000}k" else "$p",
+                                                    color = if (isMax) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
+                                                    fontSize = if (isMax) 9.sp else 7.sp,
+                                                    fontWeight = if (isMax || i in podium) FontWeight.Black else FontWeight.Normal)
                                             Spacer(Modifier.height(2.dp))
                                             Box(Modifier.fillMaxWidth()
-                                                .height((200.dp * ratio.coerceAtLeast(if (p > 0) 0.03f else 0f)))
+                                                .height((barMaxH * ratio.coerceAtLeast(if (p > 0) 0.03f else 0f)))
                                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                                .alpha(barAlpha)
                                                 .background(if (isMax)
                                                     // B-037 r2: las barras son GRÁFICO, no texto (mínimo 3:1). Iban
                                                     // en cian y morado crudos sobre la tarjeta, que en Claro es
@@ -576,10 +614,14 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    months.forEach { m -> Text(m, color = theme.textMuted, fontSize = 9.sp,
-                                        modifier = Modifier.weight(1f), textAlign = TextAlign.Center) }
+                                    months.forEachIndexed { i, m ->
+                                        val isMax = i == bestIdx
+                                        Text(m, color = if (isMax) wrappedInk(Cyan, theme) else theme.textMuted,
+                                            fontSize = 9.sp,
+                                            fontWeight = if (isMax) FontWeight.Bold else FontWeight.Normal,
+                                            modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                                    }
                                 }
-                                val bestIdx = wrapped.pagesPerMonth.indexOf(maxP)
                                 val monthNames = LocalContext.current.resources.getStringArray(R.array.month_names_full).toList()
                                 if (bestIdx >= 0) {
                                     Spacer(Modifier.height(10.dp))
@@ -639,38 +681,62 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         // Feedback 2.6: todos los días son clicables — el desglose de abajo
                         // muestra el día seleccionado (por defecto, el mejor del año).
                         var selectedDay by remember(wrapped) { mutableStateOf(wrapped.mostReadDay) }
-                        wrapped.bestDayPerMonth.forEach { (m, date, pages) ->
-                            val isBest = date == wrapped.mostReadDay
-                            val isSelected = date == selectedDay
-                            // Feedback 2.7: el mes seleccionado destaca más (fondo/borde más
-                            // intensos y texto en cian, tamaño +1sp); el resto de filas queda
-                            // igual de compacto para que los 12 meses sigan siendo legibles.
-                            Surface(
-                                onClick = { selectedDay = date },
-                                shape = RoundedCornerShape(14.dp),
-                                color = when {
-                                    isSelected -> Cyan.copy(0.22f)
-                                    isBest     -> Cyan.copy(0.08f)
-                                    else       -> acc.copy(0.06f)
-                                },
-                                border = BorderStroke(if (isSelected) 2.dp else 1.dp, when {
-                                    isSelected -> wrappedInk(Cyan, theme)
-                                    isBest     -> wrappedInk(Cyan, theme).copy(0.45f)
-                                    else       -> acc.copy(0.18f)
-                                }),
-                                modifier = Modifier.fillMaxWidth()) {
-                                Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(monthNames.getOrElse(m) { "" },
-                                        color = if (isSelected) wrappedInk(Cyan, theme) else theme.textMain,
-                                        fontSize = if (isSelected) 14.sp else 13.sp,
-                                        fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(fmtDate(date), color = if (isSelected) theme.textMain else theme.textMuted, fontSize = 12.sp)
-                                    Spacer(Modifier.width(10.dp))
-                                    Text(stringResource(R.string.wrapped_fav_pages, pages),
-                                        color = if (isBest || isSelected) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
-                                        fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        // B3 fase B (variante A1): los 12 meses pasan de FILAS a REJILLA de 3
+                        // columnas. Motivo duro, medido en el emulador: 12 filas de 48dp ocupaban
+                        // 648dp de los 665 de contenido, o sea que diciembre y el desglose entero
+                        // se iban de pantalla y había que scrollear. La rejilla baja a ~298dp y la
+                        // slide entra de un golpe de vista, que es el objetivo de esta pantalla.
+                        //
+                        // Se conserva todo lo demás: cada mes sigue siendo clicable, el desglose
+                        // de abajo sigue el mes seleccionado y el mejor del año sigue de partida.
+                        // Cae el año de la fecha ("6 jun" en vez de "6 junio 2026"): lo dice la
+                        // cabecera, y repetirlo 12 veces era lo que no dejaba encoger la celda.
+                        //
+                        // Rejilla a mano (Column de Rows) y no LazyVerticalGrid: esta slide vive
+                        // dentro de un verticalScroll y una lazy grid ahí revienta por alto infinito.
+                        wrapped.bestDayPerMonth.chunked(3).forEach { row ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                row.forEach { (m, date, pages) ->
+                                    val isBest = date == wrapped.mostReadDay
+                                    val isSelected = date == selectedDay
+                                    // Feedback 2.7: el mes seleccionado destaca más (fondo/borde
+                                    // más intensos y texto en cian); el resto queda compacto para
+                                    // que los 12 meses sigan siendo legibles.
+                                    Surface(
+                                        onClick = { selectedDay = date },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = when {
+                                            isSelected -> Cyan.copy(0.22f)
+                                            isBest     -> Cyan.copy(0.08f)
+                                            else       -> acc.copy(0.06f)
+                                        },
+                                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, when {
+                                            isSelected -> wrappedInk(Cyan, theme)
+                                            isBest     -> wrappedInk(Cyan, theme).copy(0.45f)
+                                            else       -> acc.copy(0.18f)
+                                        }),
+                                        modifier = Modifier.weight(1f)) {
+                                        Column(Modifier.padding(horizontal = 8.dp, vertical = 7.dp)) {
+                                            Text(monthNames.getOrElse(m) { "" },
+                                                color = if (isSelected) wrappedInk(Cyan, theme) else theme.textMain,
+                                                fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            Text(fmtDateShort(date),
+                                                color = if (isSelected) theme.textMain else theme.textMuted,
+                                                fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            // La maqueta dejaba la celda en un número pelado; se
+                                            // conserva la unidad porque cabe de sobra a este ancho
+                                            // y sin ella "38" no dice de qué es.
+                                            Text(stringResource(R.string.wrapped_fav_pages, pages),
+                                                color = if (isBest || isSelected) wrappedInk(Cyan, theme) else wrappedInk(Accent2, theme),
+                                                fontSize = 12.sp, fontWeight = FontWeight.Black,
+                                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
                                 }
+                                // Última fila incompleta: huecos vacíos para que las celdas que hay
+                                // conserven su ancho en vez de estirarse a media pantalla.
+                                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                             }
                             Spacer(Modifier.height(6.dp))
                         }
@@ -1156,38 +1222,101 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             cmpRow(stringResource(R.string.wclose_time), fmtMinutes(wrapped.totalMinutes),
                                 if (prevMinutes > 0) wrapped.totalMinutes - prevMinutes else null)
                         }
+                        // B3 fase B (C1): sesiones. El Δ sale de previousYearSessions, que se
+                        // calcula fresco en computeWrapped y no depende de que el Wrapped del
+                        // año anterior llegara a guardarse (a diferencia del tiempo de arriba).
+                        if (wrapped.totalSessions > 0 || wrapped.previousYearSessions > 0) {
+                            cmpRow(stringResource(R.string.wclose_sessions), "${wrapped.totalSessions}",
+                                if (hasPrev) wrapped.totalSessions - wrapped.previousYearSessions else null)
+                        }
                         // B3 (17-07): "GÉNERO DEL AÑO" pasa a ser género de este año vs el del
-                        // año pasado. Si no hay género del año anterior, se muestra solo el de
+                        // año pasado. Si no hay dato del año anterior, se muestra solo el de
                         // este año; si no hay ninguno, el estado vacío unificado.
-                        val genreNow = if (wrapped.favoriteGenre.isNotBlank()) displayGenre(wrapped.favoriteGenre) else ""
-                        val genrePrev = if (wrapped.previousYearGenre.isNotBlank()) displayGenre(wrapped.previousYearGenre) else ""
-                        Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
-                            border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
-                                Text(stringResource(R.string.wclose_genre_vs), color = theme.textMuted, fontSize = 13.sp)
-                                Spacer(Modifier.height(6.dp))
-                                if (genreNow.isBlank() && genrePrev.isBlank()) {
-                                    Text(stringResource(R.string.wrapped_no_stats_yet), color = theme.textDim,
-                                        fontSize = 12.sp, lineHeight = 17.sp)
-                                } else {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("${wrapped.year}", color = wrappedInk(acc, theme), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Text(genreNow.ifBlank { "-" }, color = theme.textMain, fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        }
-                                        Text("vs", color = theme.textDim, fontSize = 11.sp,
-                                            modifier = Modifier.padding(horizontal = 10.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text("${wrapped.year - 1}", color = theme.textDim, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Text(genrePrev.ifBlank { "-" }, color = theme.textMuted, fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        //
+                        // B3 fase B (variante C1): el mismo bloque lo usan ya tres comparativas
+                        // (género, autor, libro nº1), así que sale a un composable. Va en COMPACTO
+                        // (padding 8dp, etiqueta 11sp, valor 12sp): a tamaño normal las tres filas
+                        // más los chips se salían 183dp de la pantalla; en compacto entra todo con
+                        // ~40dp de margen. Es un margen fino, y con la fuente del sistema muy
+                        // grande esto se corta: es el precio de C1, decidido a sabiendas.
+                        @Composable
+                        fun vsRow(label: String, valueNow: String, valuePrev: String) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                                    Text(label, color = theme.textMuted, fontSize = 11.sp)
+                                    Spacer(Modifier.height(3.dp))
+                                    if (valueNow.isBlank() && valuePrev.isBlank()) {
+                                        Text(stringResource(R.string.wrapped_no_stats_yet), color = theme.textDim,
+                                            fontSize = 12.sp, lineHeight = 17.sp)
+                                    } else {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text("${wrapped.year}", color = wrappedInk(acc, theme), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                Text(valueNow.ifBlank { "-" }, color = theme.textMain, fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            Text("vs", color = theme.textDim, fontSize = 10.sp,
+                                                modifier = Modifier.padding(horizontal = 10.dp))
+                                            Column(Modifier.weight(1f)) {
+                                                Text("${wrapped.year - 1}", color = theme.textDim, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                Text(valuePrev.ifBlank { "-" }, color = theme.textMuted, fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
                                     }
                                 }
                             }
+                            Spacer(Modifier.height(6.dp))
                         }
-                        Spacer(Modifier.height(21.dp))
+                        vsRow(stringResource(R.string.wclose_genre_vs),
+                            if (wrapped.favoriteGenre.isNotBlank()) displayGenre(wrapped.favoriteGenre) else "",
+                            if (wrapped.previousYearGenre.isNotBlank()) displayGenre(wrapped.previousYearGenre) else "")
+                        vsRow(stringResource(R.string.wclose_author_vs),
+                            wrapped.favoriteAuthor, wrapped.previousYearAuthor)
+                        // El libro nº1 sale de los favoritos CONGELADOS de cada año. Si el Wrapped
+                        // del año anterior nunca se guardó no hay con qué comparar y la fila cae al
+                        // estado vacío: es lo esperable el primer año, no un fallo.
+                        vsRow(stringResource(R.string.wclose_book_vs),
+                            favBooks.firstOrNull()?.title ?: "",
+                            remember(year, books) { vm.wrappedTopFavoriteTitle(year - 1, prefs) })
+                        // Los tres chips: día, mes y semana, este año contra el pasado. Se cuentan
+                        // en otras slides (el mejor día es la 2ª y la 6ª entera; el mejor mes es la
+                        // frase de la 5ª), pero Víctor los quiere también aquí y en formato chip
+                        // caben los tres en una sola fila de 71dp.
+                        val monthNamesClose = LocalContext.current.resources.getStringArray(R.array.month_names_full).toList()
+                        @Composable
+                        fun RowScope.closeChip(label: String, now: String, prev: String) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
+                                border = BorderStroke(1.dp, theme.border), modifier = Modifier.weight(1f)) {
+                                Column(Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(label, color = theme.textMuted, fontSize = 8.5.sp, maxLines = 1)
+                                    Text(now.ifBlank { "-" }, color = theme.textMain, fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(if (prev.isBlank()) "-" else stringResource(R.string.wclose_chip_prev, wrapped.year - 1, prev),
+                                        color = theme.textDim, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                        val bestMonthNow = wrapped.pagesPerMonth.indices
+                            .filter { wrapped.pagesPerMonth[it] > 0 }
+                            .maxByOrNull { wrapped.pagesPerMonth[it] } ?: -1
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            closeChip(stringResource(R.string.wclose_chip_day),
+                                if (wrapped.mostReadDay.isNotBlank()) fmtDateShort(wrapped.mostReadDay) else "",
+                                if (wrapped.previousYearMostReadDay.isNotBlank()) fmtDateShort(wrapped.previousYearMostReadDay) else "")
+                            closeChip(stringResource(R.string.wclose_chip_month),
+                                monthNamesClose.getOrElse(bestMonthNow) { "" },
+                                // previousYearBestMonth es 1-basado y 0 significa "sin datos",
+                                // así que el -1 lo devuelve al índice del array (y el 0 se cae
+                                // solo a getOrElse, que es lo que se busca).
+                                monthNamesClose.getOrElse(wrapped.previousYearBestMonth - 1) { "" })
+                            closeChip(stringResource(R.string.wclose_chip_week),
+                                if (wrapped.bestWeekNumber > 0) stringResource(R.string.wclose_week_short, wrapped.bestWeekNumber) else "",
+                                if (wrapped.previousYearBestWeekNumber > 0) stringResource(R.string.wclose_week_short, wrapped.previousYearBestWeekNumber) else "")
+                        }
+                        Spacer(Modifier.height(16.dp))
                         Text(stringResource(R.string.wclose_quote), color = theme.textMuted, fontSize = 14.sp,
                             fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 22.sp,
                             modifier = Modifier.padding(horizontal = 12.dp))
