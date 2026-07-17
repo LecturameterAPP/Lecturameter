@@ -75,14 +75,41 @@ class ContrastTest {
 
     @Test
     fun `el subtitulo de la losa es legible sobre ella`() {
+        // OJO si este test se pone rojo tras un cambio inocuo: el oro vive EN EL FILO. Gold da
+        // 4,51:1 y el oro del Cuero 4,53:1, contra un minimo de 4,50, o sea 0,01 y 0,03 de
+        // margen. Cualquier retoque de SLAB_DARKEN, del paso del bucle o del redondeo los cruza.
+        // Que se ponga rojo NO significa que se haya roto nada grave: significa que el oro se ha
+        // caido del filo y hay que decidir a mano (bajar el suelo del subtitulo o aclararlo mas).
         for ((nombre, color) in acentos + semanticos) {
             val sub = ContrastUtils.onSlabMutedFor(color)
             val stop1 = ContrastUtils.slabStops(color).first
             val ratio = ContrastUtils.contrast(sub, stop1)
             assertTrue(
-                "el subtitulo de la losa de $nombre da ${"%.2f".format(ratio)}:1",
+                "el subtitulo de la losa de $nombre da ${"%.2f".format(ratio)}:1 (minimo $AA_TEXT)",
                 ratio >= AA_TEXT
             )
+        }
+    }
+
+    @Test
+    fun `todo grafico se distingue de la tarjeta sobre la que se pinta`() {
+        // Los graficos no son texto: WCAG pide 3:1. Se pintan sobre la TARJETA (theme.surface),
+        // que en Claro es BLANCO PURO, no el crema del fondo. Esa diferencia es la que hundia el
+        // cian de las barras a 1,81:1 (revision 18-07).
+        val tarjetas = listOf(
+            Triple("Claro", 0xFFFFFF, false), Triple("Oscuro", 0x1A2233, true),
+            Triple("Aurora", 0x0D3D42, true), Triple("AMOLED", 0x101010, true),
+            Triple("Cuero", 0x291D10, true)
+        )
+        for ((nombreTema, bg, isDark) in tarjetas) {
+            for ((nombreColor, color) in semanticos) {
+                val g = ContrastUtils.solidFor(color, bg, isDark, fallback = 0x000000)
+                val ratio = ContrastUtils.contrast(g, bg)
+                assertTrue(
+                    "$nombreColor sobre la tarjeta de $nombreTema da ${"%.2f".format(ratio)}:1 (minimo ${ContrastUtils.AA_LARGE})",
+                    ratio >= ContrastUtils.AA_LARGE
+                )
+            }
         }
     }
 
@@ -150,10 +177,16 @@ class ContrastTest {
 
     @Test
     fun `el contraste de referencia sale bien`() {
+        // Se cae `contrast(x, x) == 1`: era TAUTOLOGICO. (L+0.05)/(L+0.05) da 1 por algebra, para
+        // cualquier x y hasta con una luminance() rota (revision 18-07). No probaba nada.
         assertEquals(21.0, ContrastUtils.contrast(0x000000, 0xFFFFFF), 0.01)
-        assertEquals(1.0, ContrastUtils.contrast(0x777777, 0x777777), 0.001)
-        // Valor conocido: #767676 sobre blanco es el gris limite de AA (4,54:1).
+        // Valores conocidos: solo estos prueban que luminance() es la de verdad. Los tres primarios
+        // puros valen porque cada uno aisla un coeficiente distinto (0.2126 / 0.7152 / 0.0722), asi
+        // que una luminance() con los pesos cambiados de sitio los falla.
         assertEquals(4.54, ContrastUtils.contrast(0x767676, 0xFFFFFF), 0.02)
+        assertEquals(8.59, ContrastUtils.contrast(0x0000FF, 0xFFFFFF), 0.02)  // azul, el mas oscuro
+        assertEquals(1.37, ContrastUtils.contrast(0x00FF00, 0xFFFFFF), 0.02)  // verde, el mas claro
+        assertEquals(3.99, ContrastUtils.contrast(0xFF0000, 0xFFFFFF), 0.02)  // rojo, en medio
     }
 
     @Test

@@ -387,7 +387,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Spacer(Modifier.height(10.dp))
                     }
                     if (wrapped.topGenresTop3.isNotEmpty()) {
-                        Text(stringResource(R.string.wcard_genres), color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                        Text(stringResource(R.string.wcard_genres), color = wrappedInk(acc, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                         Spacer(Modifier.height(6.dp))
                         wrapped.topGenresTop3.forEachIndexed { i, (name, n) ->
                             WrappedTop3Row(medals[i], displayGenre(name), "$n libros", i == 0, acc, theme)
@@ -501,7 +501,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                         Text(medal, fontSize = 24.sp); Spacer(Modifier.width(10.dp))
                                         Text(title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                                             modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Text("${String.format("%.1f", ppd)} p/d", color = Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                        Text("${String.format("%.1f", ppd)} p/d", color = wrappedInk(Green, theme), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                                 Spacer(Modifier.height(8.dp))
@@ -564,8 +564,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                                 .height((200.dp * ratio.coerceAtLeast(if (p > 0) 0.03f else 0f)))
                                                 .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                                 .background(if (isMax)
-                                                    Brush.verticalGradient(listOf(Cyan, Sky))
-                                                else Brush.verticalGradient(listOf(Accent2, Accent2.copy(0.5f)))))
+                                                    // B-037 r2: las barras son GRÁFICO, no texto (mínimo 3:1). Iban
+                                                    // en cian y morado crudos sobre la tarjeta, que en Claro es
+                                                    // BLANCA: el cian daba 1,81:1. El carril de franjas de abajo ya
+                                                    // estaba arreglado y este no: dos gráficos hermanos, uno sí y
+                                                    // otro no (revisión 18-07).
+                                                    Brush.verticalGradient(listOf(wrappedGraphic(Cyan, theme), wrappedGraphic(Sky, theme)))
+                                                else Brush.verticalGradient(listOf(wrappedGraphic(Accent2, theme), wrappedGraphic(Accent2, theme).copy(0.5f)))))
                                         }
                                     }
                                 }
@@ -587,7 +592,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     Spacer(Modifier.height(14.dp))
                     // Donut géneros
                     if (wrapped.genreCountsTop6.isNotEmpty()) {
-                        val gColors = listOf(Accent, Green, Sky, Amber, Red, Accent2)
+                        // B-037 r2: el donut es GRÁFICO (mínimo 3:1) y se pinta sobre la tarjeta,
+                        // que en Claro es BLANCA. Crudos, cinco de las seis porciones bajaban de
+                        // 3:1 ahí (el ámbar, 2,15:1) y dos en Aurora.
+                        val gColors = listOf(Accent, Green, Sky, Amber, Red, Accent2).map { wrappedGraphic(it, theme) }
                         val totalG = wrapped.genreCountsTop6.sumOf { it.second }
                         Surface(shape = RoundedCornerShape(18.dp), color = theme.surface,
                             border = BorderStroke(1.dp, acc.copy(alpha = 0.2f)), modifier = Modifier.fillMaxWidth()) {
@@ -689,7 +697,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             // Feedback 2.7: dorado (antes cian, idéntico a la pill de págs —
                             // combina con la paleta Wrapped pero ya no se confunde con ella)
                             Text(stringResource(R.string.wrapped_bestday_breakdown, fmtDate(selectedDay)),
-                                color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                                color = wrappedInk(Gold, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(8.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 WrappedMiniCard("$pagesSel", stringResource(R.string.wcard_pages), Cyan, theme, Modifier.weight(1f))
@@ -1004,7 +1012,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                             // precomputar fuera de joinToString (displayGenre es @Composable)
                                             val genreLabel = book.genres.map { displayGenre(it) }.joinToString(" · ")
                                             Text(genreLabel,
-                                                color = Sky, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                color = wrappedInk(Sky, theme), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }
                                         Spacer(Modifier.height(4.dp))
                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1019,9 +1027,9 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 val favStars = kotlin.math.ceil(book.rating / 2.0).toInt().coerceIn(0, 5)
                                                 Text("★".repeat(favStars) + "☆".repeat(5 - favStars),
-                                                    color = Gold, fontSize = 13.sp, letterSpacing = 1.sp)
+                                                    color = wrappedInk(Gold, theme), fontSize = 13.sp, letterSpacing = 1.sp)
                                                 Spacer(Modifier.width(6.dp))
-                                                Text("${book.rating}/10", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                Text("${book.rating}/10", color = wrappedInk(Gold, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                         if (book.comment.isNotBlank()) {
@@ -1053,7 +1061,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.wbingo_title), fontSize = 30.sp, fontWeight = FontWeight.Black,
                             style = androidx.compose.ui.text.TextStyle(
-                                brush = Brush.horizontalGradient(accentGradient(theme))
+                                brush = Brush.horizontalGradient(accentGradientText(theme))
                             ), textAlign = TextAlign.Center)
                         Text(stringResource(R.string.wbingo_best_month, fmtMonthName(best.monthKey)).replaceFirstChar { it.uppercase(appDisplayLocale) },
                             color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
@@ -1098,7 +1106,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             Surface(shape = RoundedCornerShape(999.dp), color = Gold.copy(alpha = 0.14f),
                                 border = BorderStroke(1.dp, Gold.copy(alpha = 0.5f))) {
                                 Text(stringResource(R.string.wbingo_completed_ribbon, fmtMonthName(full.monthKey)),
-                                    color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    color = wrappedInk(Gold, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
                             }
                         }
@@ -1113,7 +1121,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Text(stringResource(R.string.wclose_title) + " :(", fontSize = 26.sp, fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center, lineHeight = 32.sp,
                             style = androidx.compose.ui.text.TextStyle(
-                                brush = Brush.horizontalGradient(accentGradient(theme))
+                                brush = Brush.horizontalGradient(accentGradientText(theme))
                             ))
                         val hasPrev = wrapped.previousYearBooks > 0 || wrapped.previousYearPages > 0
                         Text(
@@ -1164,7 +1172,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 } else {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Column(Modifier.weight(1f)) {
-                                            Text("${wrapped.year}", color = acc.copy(0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            Text("${wrapped.year}", color = wrappedInk(acc, theme), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                             Text(genreNow.ifBlank { "-" }, color = theme.textMain, fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                         }

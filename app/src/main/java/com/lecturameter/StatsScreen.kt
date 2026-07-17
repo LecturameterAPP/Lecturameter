@@ -272,8 +272,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                             Row(Modifier.fillMaxWidth()) {
                                 SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
                                 SummaryCell(totalPages.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f), theme)
-                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "—", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, Green)
-                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "—", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
+                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, Green)
+                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "-", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
                             }
                             if (avgRating != null) {
                                 Spacer(Modifier.height(12.dp))
@@ -786,7 +786,7 @@ fun FooterStats(finished: List<Book>, _theme: Theme) {
             Row(Modifier.fillMaxWidth()) {
                 FooterStat("${finished.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f))
                 FooterStat(total.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f))
-                FooterStat(if (avg != null) String.format("%.1f", avg) else "—", stringResource(R.string.pill_pags_dia), Modifier.weight(1f))
+                FooterStat(if (avg != null) String.format("%.1f", avg) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f))
                 if (avgRating != null) FooterStat(String.format("%.1f", avgRating) + "/10", "Punt.", Modifier.weight(1f))
             }
         }

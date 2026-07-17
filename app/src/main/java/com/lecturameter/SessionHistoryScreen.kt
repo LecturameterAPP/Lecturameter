@@ -179,9 +179,9 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.height(IntrinsicSize.Max)) {
                     HistoryStat("${sessions.size}", stringResource(R.string.history_stat_sessions), Modifier.weight(1f), theme, valueColor = acc)
-                    HistoryStat(if (totalMins > 0) fmtMinutes(totalMins) else "—", stringResource(R.string.history_stat_total_time), Modifier.weight(1f), theme, valueColor = Sky)
+                    HistoryStat(if (totalMins > 0) fmtMinutes(totalMins) else "-", stringResource(R.string.history_stat_total_time), Modifier.weight(1f), theme, valueColor = Sky)
                     HistoryStat("$totalPages", stringResource(R.string.pill_paginas_totales), Modifier.weight(1f), theme, valueColor = Green)
-                    HistoryStat(if (totalMins > 0) String.format("%.1f", totalPages.toDouble() / totalMins) else "—", stringResource(R.string.pill_pags_min), Modifier.weight(1f), theme, valueColor = Green)
+                    HistoryStat(if (totalMins > 0) String.format("%.1f", totalPages.toDouble() / totalMins) else "-", stringResource(R.string.pill_pags_min), Modifier.weight(1f), theme, valueColor = Green)
                     // v2.5: media global de págs/día — en la misma fila
                     val historyGlobalMean = remember(books, sessions) { computeOutliers(books, sessions).first }
                     if (historyGlobalMean > 0.0) {
@@ -443,7 +443,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     DrawerStatChipH("📚 ${bookSessions.size} Ses", acc, Modifier.weight(1f))
-                                    DrawerStatChipH(if (bookTotalMins > 0) "⏱️ ${fmtMinutes(bookTotalMins)}" else "⏱️ —", Sky, Modifier.weight(1f))
+                                    DrawerStatChipH(if (bookTotalMins > 0) "⏱️ ${fmtMinutes(bookTotalMins)}" else "⏱️ -", Sky, Modifier.weight(1f))
                                     DrawerStatChipH("📄 $bookTotalPages Págs", Green, Modifier.weight(1f))
                                 }
                             }

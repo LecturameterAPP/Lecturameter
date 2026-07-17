@@ -668,7 +668,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                                     Text(ed.flag, fontSize = 22.sp)
                                                     Column(Modifier.weight(1f)) {
                                                         Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                        Text("${ed.languageLabel} · ${ed.publisher.ifBlank { "—" }} · ${ed.publishYear.ifBlank { "—" }}", color = theme.textDim, fontSize = 11.sp)
+                                                        Text("${ed.languageLabel} · ${ed.publisher.ifBlank { "-" }} · ${ed.publishYear.ifBlank { "-" }}", color = theme.textDim, fontSize = 11.sp)
                                                         if (!ed.isbn.isNullOrBlank()) Text("ISBN: ${ed.isbn}", color = theme.textMuted, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                                                         if (ed.pages > 0) Text(stringResource(R.string.search_pages_count, ed.pages), color = theme.textMuted, fontSize = 11.sp)
                                                     }
@@ -1742,7 +1742,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                     "${book.firstFunctionalPage}–${book.lastFunctionalPage}  ›  ${book.lastFunctionalPage - book.firstFunctionalPage + 1}p"
                                 book.firstFunctionalPage != null -> context.getString(R.string.func_pages_from, book.firstFunctionalPage)
                                 book.lastFunctionalPage != null  -> context.getString(R.string.func_pages_to, book.lastFunctionalPage)
-                                else -> "—"
+                                else -> "-"
                             }
                             Text(label, color = theme.textMain, fontSize = 13.sp)
                             Spacer(Modifier.width(6.dp))
@@ -2094,7 +2094,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val sessPages = c.sessions.sumOf { it.pages }
                             val sessMins = c.sessions.mapNotNull { it.minutes }.sum()
                             val daysLabel = if (isOriginal) stringResource(R.string.pill_dias_leyendo) else stringResource(R.string.pill_dias_releyendo)
-                            val daysTxt = c.days?.let { "$it ${if (it == 1) stringResource(R.string.word_day) else stringResource(R.string.word_days)}" } ?: "—"
+                            val daysTxt = c.days?.let { "$it ${if (it == 1) stringResource(R.string.word_day) else stringResource(R.string.word_days)}" } ?: "-"
                             // v21.36: % del ciclo = páginas del ciclo / páginas funcionales del libro
                             val effectiveTotalCycle = when {
                                 book.firstFunctionalPage != null && book.lastFunctionalPage != null ->
@@ -2268,7 +2268,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val cycleForSection = sessionCycles.firstOrNull { it.readingIndex == readingIdx }
                             val cycledays = cycleForSection?.days
                             val daysLabel = if (isOriginal) stringResource(R.string.pill_dias_leyendo) else stringResource(R.string.pill_dias_releyendo)
-                            val daysTxt = cycledays?.let { "$it ${if (it == 1) stringResource(R.string.word_day) else stringResource(R.string.word_days)}" } ?: "—"
+                            val daysTxt = cycledays?.let { "$it ${if (it == 1) stringResource(R.string.word_day) else stringResource(R.string.word_days)}" } ?: "-"
                             // v20.4: si CycleStats no da pagesPerDay (en curso o sin funcPages), calcularlo desde sesiones/días
                             val pagPerDay: Double? = cycleForSection?.pagesPerDay
                                 ?: if (cycledays != null && cycledays >= 1 && totalSessPages > 0)

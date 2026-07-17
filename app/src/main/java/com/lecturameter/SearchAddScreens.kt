@@ -968,7 +968,7 @@ fun EditionsSection(
                             } else {
                                 Row(Modifier.padding(horizontal = 11.dp, vertical = 7.dp).clickable { editingEditionPages = true; editionPagesInput = ed.pages.toString().takeIf { ed.pages > 0 } ?: "" }, verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.txt_939f09a3), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                                    Text(if (ed.pages > 0) "${ed.pages}" else "—", color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                    Text(if (ed.pages > 0) "${ed.pages}" else "-", color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                                     Spacer(Modifier.width(6.dp))
                                     Text("✎", color = if (ed.isActive) shelfColor else theme.textDim, fontSize = 13.sp)
                                 }

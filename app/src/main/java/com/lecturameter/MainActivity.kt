@@ -559,7 +559,12 @@ fun onSlab(theme: Theme): Color = Color.White
 /** Texto secundario sobre la losa del tema activo. */
 fun onSlabMuted(theme: Theme): Color = onSlabMutedOf(accentForTheme(theme))
 
-private val wrappedInkCache = HashMap<Long, Color>()
+// La clave era `(color.value shl 1) xor bgDark.value`: el shl tiraba el bit alto del rojo y el
+// xor es lineal, así que dos entradas chocaban si `rgb1 xor rgb2 == (bg1 xor bg2) / 2`. Con los
+// 13 colores reales daba 65 claves únicas de 65, o sea que no mordía, pero era una mina para el
+// siguiente que añadiera un color (la revisión lo demostró: Gold en Claro y un futuro #854CDF en
+// Oscuro dan la misma clave). Un Pair no tiene esa propiedad y cuesta lo mismo.
+private val wrappedInkCache = HashMap<Pair<ULong, ULong>, Color>()
 
 /**
  * Color de TEXTO de una pill del Wrapped, a partir de su color semántico.
@@ -577,7 +582,7 @@ private val wrappedInkCache = HashMap<Long, Color>()
  * los dos en cada paso, no medir contra el tinte original.
  */
 fun wrappedInk(color: Color, theme: Theme): Color {
-    val key = (color.value.toLong() shl 1) xor theme.bgDark.value.toLong()
+    val key = color.value to theme.bgDark.value
     wrappedInkCache[key]?.let { return it }
     val result = ContrastUtils.inkFor(
         color = color.toRgbInt(),
@@ -606,6 +611,48 @@ fun accentGradient(theme: Theme): List<Color> = when {
     !theme.isDark           -> { val a = accentForTheme(theme); listOf(a, darken(a, 0.28f)) }
     else                    -> { val a = accentForTheme(theme); listOf(a, a.copy(alpha = 0.55f)) }
 }
+
+/**
+ * Par de colores para pintar TEXTO en degradado. **No uses [accentGradient] para texto**: es de
+ * FONDO, y su segundo stop va al 55% de alfa. Sobre un fondo eso se desvanece, que es lo que se
+ * busca; sobre TEXTO, el alfa multiplica el trazo y la mitad derecha de la palabra se lee al 55%.
+ * Es exactamente el pecado que B-037 vino a matar (pintar texto con alfa), y lo cometí yo mismo
+ * al arreglarlo: en Aurora el título del bingo caía a 2,63:1 (revisión 18-07).
+ *
+ * Aquí los dos extremos son OPACOS y están medidos: peor caso 4,00:1 (el par histórico de
+ * Oscuro), de sobra para el AA_LARGE (3:1) que aplica a estos títulos de 26-30sp. En Claro el
+ * segundo stop va al negro y no a la luz, por lo mismo que en [accentGradient].
+ */
+fun accentGradientText(theme: Theme): List<Color> = when {
+    theme.bgDark == BgDarkD -> listOf(Accent, Accent2)
+    !theme.isDark           -> { val a = accentForTheme(theme); listOf(a, darken(a, 0.33f)) }
+    else                    -> { val a = accentForTheme(theme); listOf(lighten(a, 0.30f), a) }
+}
+
+/**
+ * Color de un GRÁFICO (barra, porción de donut, carril) para que se distinga del fondo sobre el
+ * que se pinta. Los gráficos no son texto: WCAG pide 3:1, no 4,5:1.
+ *
+ * Existe porque [wrappedInk] resolvió los textos y los gráficos se quedaron fuera: el cian de las
+ * barras mensuales daba 1,81:1 sobre la tarjeta blanca del Claro, y cinco de las seis porciones
+ * del donut bajaban de 3:1 (revisión 18-07). Se mide contra [bg], que para estos casos es la
+ * TARJETA (`theme.surface`), no el fondo del tema: en Claro la tarjeta es blanco puro y el fondo
+ * es crema, y esa diferencia decide.
+ */
+fun wrappedGraphic(color: Color, theme: Theme, bg: Color = theme.surface): Color {
+    val ground = flattenOver(bg, theme.bgDark)
+    return ContrastUtils.inkFor(
+        color = color.toRgbInt(),
+        bg = ground.toRgbInt(),
+        isDark = theme.isDark,
+        fallback = theme.textMain.toRgbInt(),
+        target = ContrastUtils.AA_LARGE
+    ).toComposeColor()
+}
+
+/** Aplana [fg] (que puede llevar alfa, como `theme.surface` en los temas oscuros) sobre [bg]. */
+private fun flattenOver(fg: Color, bg: Color): Color =
+    ContrastUtils.flatten(fg.toRgbInt(), fg.alpha, bg.toRgbInt()).toComposeColor()
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)

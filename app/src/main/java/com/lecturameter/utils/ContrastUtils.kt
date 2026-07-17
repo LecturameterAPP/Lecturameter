@@ -83,13 +83,32 @@ object ContrastUtils {
      * Corrige en las dos direcciones: sobre papel oscurece, sobre negro aclara. Devuelve el
      * color intacto si ya pasa. [fallback] es la salida si ni el negro ni el blanco llegan.
      */
-    fun inkFor(color: Int, bg: Int, isDark: Boolean, fallback: Int, target: Float = AA_TEXT): Int {
-        fun pillOf(c: Int) = flatten(c, PILL_ALPHA, bg)
-        if (contrast(color, pillOf(color)) >= target) return color
+    fun inkFor(color: Int, bg: Int, isDark: Boolean, fallback: Int, target: Float = AA_TEXT): Int =
+        adjust(color, isDark, fallback, target) { c -> flatten(c, PILL_ALPHA, bg) }
+
+    /**
+     * Como [inkFor] pero para un SÓLIDO (una barra, una porción de donut, un carril): se mide
+     * contra [bg] directamente, no contra un tinte del propio color. Usar aquí el modelo de la
+     * pill mentiría, porque una barra no es un tinte de sí misma: es el color entero.
+     */
+    fun solidFor(color: Int, bg: Int, isDark: Boolean, fallback: Int, target: Float = AA_LARGE): Int =
+        adjust(color, isDark, fallback, target) { bg }
+
+    /**
+     * Mueve la luminosidad de [color] (hacia la luz si el fondo es oscuro, hacia la tinta si es
+     * claro) hasta que contrasta [target] con el fondo que devuelva [groundOf], que recibe el
+     * candidato porque en una pill el fondo es un tinte del propio color y se mueve con él.
+     *
+     * Devuelve [fallback] si no llega. Antes devolvía el último candidato SIN comprobarlo, o sea
+     * que podía prometer un color que no pasaba (revisión 18-07). Hoy no es alcanzable con los
+     * colores reales, pero el contrato es "lo que devuelvo pasa", y tiene que ser cierto siempre.
+     */
+    private inline fun adjust(color: Int, isDark: Boolean, fallback: Int, target: Float, groundOf: (Int) -> Int): Int {
+        if (contrast(color, groundOf(color)) >= target) return color
         var f = 0f
         while (f <= 0.98f) {
             val cand = if (isDark) lighten(color, f) else darken(color, f)
-            if (contrast(cand, pillOf(cand)) >= target) return cand
+            if (contrast(cand, groundOf(cand)) >= target) return cand
             f += 0.01f
         }
         return fallback
@@ -108,6 +127,9 @@ object ContrastUtils {
     fun slabStops(color: Int, target: Float = AA_TEXT): Pair<Int, Int> {
         var f = SLAB_DARKEN
         while (f < 0.90f && contrast(WHITE, darken(color, f)) < target) f += 0.01f
+        // Si ni al 90% de negro el blanco contrasta (hoy inalcanzable: el peor real es el oro a
+        // 0.41), se cierra al negro en vez de devolver una losa que no aguanta su propio texto.
+        if (contrast(WHITE, darken(color, f)) < target) return 0x000000 to 0x000000
         return darken(color, f) to darken(color, min(f + 0.22f, 0.95f))
     }
 
@@ -117,6 +139,9 @@ object ContrastUtils {
         val top = slabStops(color, target).first
         var f = 0.85f
         while (f < 0.99f && contrast(lighten(color, f), top) < target) f += 0.01f
-        return lighten(color, f)
+        // Igual que arriba: el bucle salía por agotamiento y devolvía el último candidato SIN
+        // medirlo, o sea prometiendo un contraste que podía no cumplir (revisión 18-07).
+        val cand = lighten(color, f)
+        return if (contrast(cand, top) >= target) cand else WHITE
     }
 }
