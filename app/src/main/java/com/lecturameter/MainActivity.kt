@@ -409,38 +409,53 @@ val Accent  = Color(0xFF6366F1); val Accent2 = Color(0xFF8B5CF6)
 // (#B794F6, mockup aprobado) — el turquesa deja de ser necesario porque ya es el fondo.
 val AccentAurora = Color(0xFFB794F6)
 val AccentLight  = Color(0xFF4338CA)
+// Decisión de Víctor 18-07: "en amoled los azules pueden pasar a grises". Gris claro sobre
+// negro puro: destaca sin meter color en un tema cuyo argumento es el píxel apagado. Se
+// elige un gris NEUTRO (zinc), no de la familia slate de sus textos, para que el acento no
+// se confunda con textMain (#F1F5F9) ni con textMuted (#94A3B8).
+val AccentAmoled = Color(0xFFD4D4D8)
 fun accentForTheme(theme: Theme): Color = when {
     theme.accent != null                               -> theme.accent  // Dinámico (Material You)
     !theme.isDark                                      -> AccentLight   // Claro (único tema claro)
     theme.bgDark == BgDarkA                            -> AccentAurora  // Aurora
     theme.bgDark == BgDarkC                            -> AccentCuero   // Cuero (D-015)
+    theme.bgDark == BgDarkAm                           -> AccentAmoled  // AMOLED (18-07)
     else -> Accent
 }
 
 fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
 
 // A4: color de CONTENIDO (texto/icono) sobre un fondo pintado con accentForTheme. El blanco
-// fijo era ilegible en Aurora (acento lila claro). Devuelve blanco en Oscuro/Claro/OLED, un
-// marrón muy oscuro en Cuero y un morado muy oscuro en Aurora.
+// fijo era ilegible en Aurora (acento lila claro). Devuelve blanco en Oscuro y Claro, y el
+// tono más oscuro de cada tema con acento propio (marrón en Cuero, morado en Aurora, negro
+// puro en AMOLED, que es justo su razón de ser).
 fun onAccentColor(theme: Theme): Color = when {
-    theme.bgDark == BgDarkC -> Color(0xFF241608)  // Cuero
-    theme.bgDark == BgDarkA -> Color(0xFF1A1030)  // Aurora
-    else                    -> Color.White
+    theme.bgDark == BgDarkC  -> Color(0xFF241608)  // Cuero
+    theme.bgDark == BgDarkA  -> Color(0xFF1A1030)  // Aurora
+    theme.bgDark == BgDarkAm -> Color(0xFF000000)  // AMOLED (18-07)
+    else                     -> Color.White
 }
 
-// D-015 r3: en Cuero los iconos de rail y acciones van en oro suave FIJO (el azul Material
-// quedaba raro sobre marrón+dorado); en el resto de temas se mantiene el azul de siempre.
-fun actionIconTint(theme: Theme): Color = if (isCueroTheme(theme)) GoldIconCuero else Accent
+// D-015 r3 + decisiones de Víctor 18-07: los iconos de rail y de la barra siguen al tema en
+// los tres temas con acento propio (oro suave en Cuero, morado en Aurora, gris en AMOLED).
+// Claro y Oscuro conservan el azul Material de siempre.
+fun actionIconTint(theme: Theme): Color = when {
+    theme.bgDark == BgDarkC  -> GoldIconCuero
+    theme.bgDark == BgDarkA  -> AccentAurora   // "pasar los iconos material a morado"
+    theme.bgDark == BgDarkAm -> AccentAmoled   // "en amoled los azules pueden pasar a grises"
+    else                     -> Accent
+}
 
-// Feedback 17-07 (Bloque 2): botones de acción RELLENOS que no son semánticos (hoy solo el
-// círculo de recargar portada) iban en Sky fijo, y ese cian cantaba sobre el marrón del
-// Cuero y el teal de Aurora. Mismo criterio que actionIconTint: cambia en los dos temas que
-// tienen acento propio y en el resto se queda el Sky de siempre (Sky sigue siendo el color
-// SEMÁNTICO del tiempo en chips y pills; eso no se toca en ningún tema).
+// Feedback 17-07 (Bloque 2): botones de acción RELLENOS que no son semánticos (hoy los
+// círculos de recargar y editar portada) iban en Sky fijo, y ese cian cantaba sobre el
+// marrón del Cuero y el teal de Aurora. Mismo criterio que actionIconTint: cambia en los
+// temas con acento propio y en Claro/Oscuro se queda el Sky de siempre (Sky sigue siendo el
+// color SEMÁNTICO del tiempo en chips y pills; eso no se toca en ningún tema).
 fun actionFillColor(theme: Theme): Color = when {
-    theme.bgDark == BgDarkC -> AccentCuero   // Cuero
-    theme.bgDark == BgDarkA -> AccentAurora  // Aurora
-    else                    -> Sky
+    theme.bgDark == BgDarkC  -> AccentCuero   // Cuero
+    theme.bgDark == BgDarkA  -> AccentAurora  // Aurora
+    theme.bgDark == BgDarkAm -> AccentAmoled  // AMOLED (18-07)
+    else                     -> Sky
 }
 
 // Feedback 17-07 (Bloque 2): los degradados decorativos índigo→violeta (barras del
@@ -449,7 +464,7 @@ fun actionFillColor(theme: Theme): Color = when {
 // degradando a su propia versión translúcida; el resto de temas conservan el par de
 // siempre para no cambiar su aspecto.
 fun accentGradient(theme: Theme): List<Color> = when {
-    theme.bgDark == BgDarkC || theme.bgDark == BgDarkA -> {
+    theme.bgDark == BgDarkC || theme.bgDark == BgDarkA || theme.bgDark == BgDarkAm -> {
         val a = accentForTheme(theme); listOf(a, a.copy(alpha = 0.55f))
     }
     else -> listOf(Accent, Accent2)

@@ -113,7 +113,11 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
             R.drawable.widget_accent_bg_chip_aurora, R.drawable.widget_accent_bg_cover_aurora, 0xFFB794F6.toInt()
         )
         // QA r2 12-07: Dinámico eliminado — "dynamic" residual cae al else (oscuro)
-        "amoled" -> WidgetThemeColors(R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
+        // 18-07: en AMOLED los azules pasan a gris (decisión de Víctor)
+        "amoled" -> WidgetThemeColors(
+            R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt(),
+            R.drawable.widget_accent_bg_chip_amoled, R.drawable.widget_accent_bg_cover_amoled, 0xFFD4D4D8.toInt()
+        )
         // D-015 (Cuero): fondo marrón cuero + textos crema del mockup r3, acento oro
         "cuero"  -> WidgetThemeColors(
             R.drawable.widget_background_cuero, 0xFFFAF3E3.toInt(), 0xFFD6C7A5.toInt(),
