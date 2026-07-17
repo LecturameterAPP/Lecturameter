@@ -538,7 +538,7 @@ fun ListScreen(
                 onRailClose = { railManuallyHidden = true; railVisible = false },
             )
             }
-            Box(Modifier.fillMaxHeight().width(1.dp).background(theme.border))
+            Box(Modifier.fillMaxHeight().width(1.dp).background(railLineColor(theme)))
             }
             Box(Modifier.weight(1f)) {
             Column(Modifier.fillMaxSize()) {

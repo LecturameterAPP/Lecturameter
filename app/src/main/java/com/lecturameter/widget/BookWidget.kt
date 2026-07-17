@@ -106,7 +106,12 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     val mode = com.lecturameter.ThemeMode.values().firstOrNull { it.value == saved }
     val effective = if (mode != null && !com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) "dark" else saved
     return when (effective) {
-        "light"  -> WidgetThemeColors(R.drawable.widget_background_light, 0xFF1E293B.toInt(), 0xFF475569.toInt())
+        // Claro r2 "Papel" (18-07): textos en marrón tinta y acento verde botánico, a juego
+        // con el rediseño del tema (antes: textos azul pizarra y overlays índigo)
+        "light"  -> WidgetThemeColors(
+            R.drawable.widget_background_light, 0xFF22201B.toInt(), 0xFF5A5648.toInt(),
+            R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF166534.toInt()
+        )
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(
             R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt(),

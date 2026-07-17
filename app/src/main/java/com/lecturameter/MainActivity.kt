@@ -408,7 +408,12 @@ val Accent  = Color(0xFF6366F1); val Accent2 = Color(0xFF8B5CF6)
 // Fase 3 (Aurora C): el fondo pasa a teal→púrpura y el acento de Aurora pasa a MORADO
 // (#B794F6, mockup aprobado) — el turquesa deja de ser necesario porque ya es el fondo.
 val AccentAurora = Color(0xFFB794F6)
-val AccentLight  = Color(0xFF4338CA)
+// Tema Claro r2 (18-07, mockup L1 "verde botánico" elegido por Víctor): el Claro era el
+// único tema sin color propio — llevaba el mismo índigo del Oscuro, solo que apagado. Verde
+// bosque: se aleja del azul y no pisa ningún color que ya signifique algo (el esmeralda de
+// "leído" es mucho más brillante, así que no se confunden). La familia queda repartida:
+// índigo (Oscuro) · morado (Aurora) · gris (AMOLED) · oro (Cuero) · verde (Claro).
+val AccentLight  = Color(0xFF166534)
 // Decisión de Víctor 18-07: "en amoled los azules pueden pasar a grises". Gris claro sobre
 // negro puro: destaca sin meter color en un tema cuyo argumento es el píxel apagado. Se
 // elige un gris NEUTRO (zinc), no de la familia slate de sus textos, para que el acento no
@@ -425,6 +430,13 @@ fun accentForTheme(theme: Theme): Color = when {
 
 fun isCueroTheme(theme: Theme): Boolean = theme.bgDark == BgDarkC
 
+// Decisión de Víctor 18-07: en AMOLED las dos líneas del rail (la vertical que lo separa del
+// contenido y la horizontal entre los iconos fijos y los destinos) quedaban demasiado
+// apagadas sobre el negro puro, porque su borde es blanco al 9%. Solo se aclaran ahí; el
+// resto de temas conservan su theme.border.
+fun railLineColor(theme: Theme): Color =
+    if (theme.bgDark == BgDarkAm) Color(0x33FFFFFF) else theme.border
+
 // A4: color de CONTENIDO (texto/icono) sobre un fondo pintado con accentForTheme. El blanco
 // fijo era ilegible en Aurora (acento lila claro). Devuelve blanco en Oscuro y Claro, y el
 // tono más oscuro de cada tema con acento propio (marrón en Cuero, morado en Aurora, negro
@@ -436,27 +448,24 @@ fun onAccentColor(theme: Theme): Color = when {
     else                     -> Color.White
 }
 
-// D-015 r3 + decisiones de Víctor 18-07: los iconos de rail y de la barra siguen al tema en
-// los tres temas con acento propio (oro suave en Cuero, morado en Aurora, gris en AMOLED).
-// Claro y Oscuro conservan el azul Material de siempre.
-fun actionIconTint(theme: Theme): Color = when {
-    theme.bgDark == BgDarkC  -> GoldIconCuero
-    theme.bgDark == BgDarkA  -> AccentAurora   // "pasar los iconos material a morado"
-    theme.bgDark == BgDarkAm -> AccentAmoled   // "en amoled los azules pueden pasar a grises"
-    else                     -> Accent
-}
+// D-015 r3 + decisiones de Víctor 18-07 ("pasar los iconos material a morado", "en amoled
+// los azules pueden pasar a grises"): ya no hay un "azul Material" genérico — los iconos del
+// rail y de la barra van SIEMPRE en el acento del tema. Única excepción, Cuero: usa su oro
+// suave, un paso por debajo del acento, para mantener la jerarquía con los numerales (D-015 r3).
+// En Oscuro el acento ES el índigo, así que no cambia nada allí.
+fun actionIconTint(theme: Theme): Color =
+    if (theme.bgDark == BgDarkC) GoldIconCuero else accentForTheme(theme)
 
 // Feedback 17-07 (Bloque 2): botones de acción RELLENOS que no son semánticos (hoy los
 // círculos de recargar y editar portada) iban en Sky fijo, y ese cian cantaba sobre el
 // marrón del Cuero y el teal de Aurora. Mismo criterio que actionIconTint: cambia en los
 // temas con acento propio y en Claro/Oscuro se queda el Sky de siempre (Sky sigue siendo el
 // color SEMÁNTICO del tiempo en chips y pills; eso no se toca en ningún tema).
-fun actionFillColor(theme: Theme): Color = when {
-    theme.bgDark == BgDarkC  -> AccentCuero   // Cuero
-    theme.bgDark == BgDarkA  -> AccentAurora  // Aurora
-    theme.bgDark == BgDarkAm -> AccentAmoled  // AMOLED (18-07)
-    else                     -> Sky
-}
+// 18-07: con los 5 temas ya con acento propio, estos círculos van en el acento de cada uno.
+// Oscuro es la única excepción: conserva el cian de siempre porque es el único tema que no
+// ha cambiado de identidad y nadie se ha quejado de él.
+fun actionFillColor(theme: Theme): Color =
+    if (theme.bgDark == BgDarkD) Sky else accentForTheme(theme)
 
 // Feedback 17-07 (Bloque 2): los degradados decorativos índigo→violeta (barras del
 // histograma de sesiones, portada sin imagen, badge del historial de Wrapped) también
@@ -479,11 +488,16 @@ val BgDarkD = Color(0xFF0F172A); val BgMidD = Color(0xFF1E1B4B)
 val SurfaceD = Color(0x0DFFFFFF); val BorderD = Color(0x2BFFFFFF)
 val TextMainD = Color(0xFFF1F5F9); val TextMutedD = Color(0xFF94A3B8); val TextDimD = Color(0xFF64748B)
 
-// Fase 3 (Claro C2 "Híbrido", mockup aprobado 14-07): fondo frío menos gris que el anterior
-// (#DDE3EC → #F4F4FB) y la mejora clave tomada de REX: tarjetas BLANCAS que despegan del fondo.
-val BgDarkL = Color(0xFFF4F4FB); val BgMidL = Color(0xFFE8EAF6)
-val SurfaceL = Color(0xFFFFFFFF); val BorderL = Color(0xFFCBD0E4)
-val TextMainL = Color(0xFF1A2030); val TextMutedL = Color(0xFF485868); val TextDimL = Color(0xFF7A90A4)
+// Tema Claro r2 "Papel" (18-07, mockup aprobado por Víctor: "me gusta que en vez de tan
+// blanco sea color papel... el tema claro es realmente malo"). El diagnóstico: el Claro era
+// el tema Oscuro invertido (fondo lavanda FRÍO #F4F4FB→#E8EAF6, bordes y textos azulados),
+// y por eso parecía la ausencia de un tema. Ahora imita una página en vez de una pantalla:
+// crema cálido, bordes color hueso y textos en marrón tinta en lugar de azul pizarra.
+// Se conservan de la r1 (C2 Híbrido) las tarjetas BLANCAS, que es lo que funcionaba: sobre
+// el crema despegan igual y dan la sensación de papel sobre papel.
+val BgDarkL = Color(0xFFFAF8F2); val BgMidL = Color(0xFFF1EDE3)
+val SurfaceL = Color(0xFFFFFFFF); val BorderL = Color(0xFFE0D9C8)
+val TextMainL = Color(0xFF22201B); val TextMutedL = Color(0xFF5A5648); val TextDimL = Color(0xFF8B8578)
 
 // Aurora C "Aurora boreal" (Fase 3, mockup aprobado 11-07): degradado teal → púrpura.
 // bgDark→bgMid→bgDeep son los 3 stops del fondo; acento morado; bordes teal al 25%.
@@ -519,7 +533,7 @@ enum class ThemeMode(val value: String) {
 data class Theme(val bgDark: Color, val bgMid: Color, val surface: Color, val border: Color, val textMain: Color, val textMuted: Color, val textDim: Color, val isDark: Boolean, val bgSurf: Color = Color.Transparent, val bgSurf2: Color = Color.Transparent, val bgDeep: Color = Color.Transparent, val accent: Color? = null)
 
 fun buildTheme(mode: ThemeMode) = when (mode) {
-    ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFFFFFFF), bgSurf2 = Color(0xFFE8EAF6))
+    ThemeMode.LIGHT  -> Theme(BgDarkL,  BgMidL,  SurfaceL,  BorderL,  TextMainL,  TextMutedL,  TextDimL,  false, bgSurf = Color(0xFFFFFFFF), bgSurf2 = BgMidL)
     ThemeMode.DARK   -> Theme(BgDarkD,  BgMidD,  SurfaceD,  BorderD,  TextMainD,  TextMutedD,  TextDimD,  true,  bgSurf = Color(0x1AFFFFFF), bgSurf2 = Color(0x0DFFFFFF))
     ThemeMode.AURORA -> Theme(BgDarkA,  BgMidA,  SurfaceA,  BorderA,  TextMainA,  TextMutedA,  TextDimA,  true,  bgSurf = Color(0x12FFFFFF), bgSurf2 = Color(0x08FFFFFF), bgDeep = BgDeepA)
     ThemeMode.AMOLED -> Theme(BgDarkAm, BgMidAm, SurfaceAm, BorderAm, TextMainAm, TextMutedAm, TextDimAm, true,  bgSurf = Color(0x0FFFFFFF), bgSurf2 = Color(0x06FFFFFF))

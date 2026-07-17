@@ -395,7 +395,7 @@ fun HomeRail(
             RailItem("📜", theme, enabled = !editMode, onClick = onHistory)
         }
         RailItem("📚", theme, enabled = !editMode, onClick = onLibrary)
-        HorizontalDivider(color = theme.border, thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
+        HorizontalDivider(color = railLineColor(theme), thickness = 1.dp, modifier = Modifier.width(22.dp).padding(vertical = 3.dp))
         Box(Modifier.height(46.dp * order.size).fillMaxWidth()) {
         RAIL_DEFAULT_ORDER.forEach { dest ->
             val idx = order.indexOf(dest)
