@@ -559,7 +559,7 @@ fun ListScreen(
                                 }
                             }
                             if (timerActiveHere) {
-                                // Reloj vivo (mm:ss, ámbar; gris si está en pausa)
+                                // Reloj vivo (mm:ss, en el acento del tema; gris si está en pausa)
                                 val hh = timerSecondsHome / 3600
                                 val mm = (timerSecondsHome % 3600) / 60
                                 val ss = timerSecondsHome % 60

@@ -49,7 +49,8 @@ android {
             def pr = new Properties()
             if (lpr.exists()) lpr.withInputStream { pr.load(it) }
             if (pr.getProperty('RELEASE_STORE_FILE')) signingConfig signingConfigs.release
-            // B-031: experimentos en curso 16-07 — minify reactivado para bisecar en emulador
+            // B-031 RESUELTO: minify+shrink+ofuscacion DEFINITIVO para release (keep rules de
+            // Compose en proguard-rules.pro + enableR8.fullMode=false). NO desactivar.
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
