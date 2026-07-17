@@ -487,20 +487,131 @@ fun darken(color: Color, factor: Float): Color = Color(
     alpha = color.alpha
 )
 
+/** Mezcla [color] con blanco en [factor] (0 = igual, 1 = blanco). El espejo de [darken]. */
+fun lighten(color: Color, factor: Float): Color = Color(
+    red = color.red + (1f - color.red) * factor,
+    green = color.green + (1f - color.green) * factor,
+    blue = color.blue + (1f - color.blue) * factor,
+    alpha = color.alpha
+)
+
+// ── B-037: contraste medido, no a ojo ────────────────────────────────────────
+// La matemática vive en utils/ContrastUtils, sobre enteros y sin Compose, para que se pueda
+// probar con tests (ver ContrastTest). Aquí solo está el puente desde Compose.
+
+/** [Color] → 0xRRGGBB, descartando el alfa. */
+private fun Color.toRgbInt(): Int = ((red * 255).toInt() shl 16) or
+    ((green * 255).toInt() shl 8) or (blue * 255).toInt()
+
+/** 0xRRGGBB → [Color] opaco. */
+private fun Int.toComposeColor(): Color = Color(this or (0xFF shl 24))
+
+/** Ratio de contraste WCAG entre dos colores OPACOS: de 1:1 a 21:1. Mínimo legible 4,5:1. */
+fun contrastRatio(a: Color, b: Color): Float =
+    ContrastUtils.contrast(a.toRgbInt(), b.toRgbInt()).toFloat()
+
+// ── B-037: el Wrapped sobre el papel ─────────────────────────────────────────
+// El Wrapped se diseñó cuando los cinco temas eran oscuros, así que da por hecho un fondo
+// negro por los dos lados: las losas (año, horas, meses) iban en degradados navy OPACOS y
+// fijos, y las pills escriben con el color semántico a saturación plena. Con el Claro "Papel"
+// (18-07) las losas se quedan de noche cerrada sobre el crema y el texto de las pills se
+// borra: Gold 1,52:1 y cian 1,59:1 sobre 4,5:1 de mínimo.
+//
+// Decisión de Víctor 18-07 (mockup mockup_wrapped_claro.html, opción 3 "Híbrido"): la losa
+// SIGUE siendo una losa, que es el golpe de efecto del Wrapped, pero deriva del acento del
+// tema en vez del índigo fijo. En Claro es verde profundo sobre papel; en Cuero, oro oscuro.
+
+/**
+ * Los dos stops de una losa a partir de [color]. La losa siempre lleva texto blanco, así que
+ * se oscurece HASTA MEDIRLO: un factor fijo funciona para los cinco acentos pero se rompe con
+ * los colores muy luminosos (el oro del mejor puntuado se quedaba en 4,22:1 y el cian en
+ * 4,46:1, por debajo del mínimo).
+ */
+fun slabOf(color: Color): List<Color> {
+    val (a, b) = ContrastUtils.slabStops(color.toRgbInt())
+    return listOf(a.toComposeColor(), b.toComposeColor())
+}
+
+/** Variante de la losa para la caja de al lado, un punto más profunda, para que las dos cajas
+ *  de una fila no sean el mismo bloque de color. */
+fun slabAltOf(color: Color): List<Color> = slabOf(color).map { darken(it, 0.22f) }
+
+/**
+ * Texto secundario sobre la losa de [color]: el propio color aclarado hacia el blanco, para
+ * que la losa no sea blanco sobre color a secas y conserve el tinte. Se mide igual que la
+ * losa, porque con el oro y el cian el 0.85 fijo tampoco llegaba.
+ */
+fun onSlabMutedOf(color: Color): Color =
+    ContrastUtils.onSlabMutedFor(color.toRgbInt()).toComposeColor()
+
+/** La losa del Wrapped, derivada del acento del tema activo. */
+fun wrappedSlab(theme: Theme): List<Color> = slabOf(accentForTheme(theme))
+
+/** La losa secundaria del Wrapped, derivada del acento del tema activo. */
+fun wrappedSlabAlt(theme: Theme): List<Color> = slabAltOf(accentForTheme(theme))
+
+/** Texto principal sobre una losa: blanco, en los cinco temas y también sobre las losas
+ *  semánticas, porque [slabOf] garantiza por construcción que el blanco pasa. El acento sobre
+ *  su propia losa oscurecida NO pasa, y por eso el número de "Páginas" llevaba fallando
+ *  2,56:1 en Oscuro desde antes de que existiera el tema Claro. */
+fun onSlab(theme: Theme): Color = Color.White
+
+/** Texto secundario sobre la losa del tema activo. */
+fun onSlabMuted(theme: Theme): Color = onSlabMutedOf(accentForTheme(theme))
+
+private val wrappedInkCache = HashMap<Long, Color>()
+
+/**
+ * Color de TEXTO de una pill del Wrapped, a partir de su color semántico.
+ *
+ * Conserva el MATIZ y mueve solo la luminosidad hasta que el color pasa AA sobre su propio
+ * tinte, que es lo que mantiene el significado: el ámbar de las horas se sigue leyendo como
+ * ámbar, en tinta sobre el papel y en ámbar vivo sobre el negro.
+ *
+ * Corrige en las dos direcciones a propósito. Sobre el papel hay que oscurecer (Gold iba a
+ * 1,52:1), pero sobre el negro hay colores que tampoco llegan y hay que aclarar: Accent2
+ * lleva en 3,81:1 desde antes de que existiera el tema Claro. Un helper que solo mirase al
+ * Claro dejaría ese a medias.
+ *
+ * Ojo: el tinte del fondo es del propio color, así que se mueve con él. Hay que recalcular
+ * los dos en cada paso, no medir contra el tinte original.
+ */
+fun wrappedInk(color: Color, theme: Theme): Color {
+    val key = (color.value.toLong() shl 1) xor theme.bgDark.value.toLong()
+    wrappedInkCache[key]?.let { return it }
+    val result = ContrastUtils.inkFor(
+        color = color.toRgbInt(),
+        bg = theme.bgDark.toRgbInt(),
+        isDark = theme.isDark,
+        fallback = theme.textMain.toRgbInt()
+    ).toComposeColor()
+    wrappedInkCache[key] = result
+    return result
+}
+
 // Feedback 17-07 (Bloque 2): los degradados decorativos índigo→violeta (barras del
 // histograma de sesiones, portada sin imagen, badge del historial de Wrapped) también
 // salían azules sobre el cuero. En Cuero y Aurora se resuelven con el acento del tema
 // degradando a su propia versión translúcida; el resto de temas conservan el par de
 // siempre para no cambiar su aspecto.
+// B-037: la rama `else` cubría Oscuro Y Claro, así que cuando el Claro pasó a verde (r2
+// "Papel", 18-07) este helper se quedó atrás y le seguía pintando índigo→morado las barras
+// del histograma, la portada sin imagen y el badge del historial. Otro azul superviviente,
+// de los que el grep de `Accent` sí veía pero nadie miró.
+//
+// El Claro además no puede desvanecerse con alfa como los oscuros: sobre el crema, bajar el
+// alfa es acercarse al fondo, o sea perder contraste. Su segundo stop va hacia el negro.
 fun accentGradient(theme: Theme): List<Color> = when {
-    theme.bgDark == BgDarkC || theme.bgDark == BgDarkA || theme.bgDark == BgDarkAm -> {
-        val a = accentForTheme(theme); listOf(a, a.copy(alpha = 0.55f))
-    }
-    else -> listOf(Accent, Accent2)
+    theme.bgDark == BgDarkD -> listOf(Accent, Accent2)   // Oscuro: el par histórico índigo→violeta
+    !theme.isDark           -> { val a = accentForTheme(theme); listOf(a, darken(a, 0.28f)) }
+    else                    -> { val a = accentForTheme(theme); listOf(a, a.copy(alpha = 0.55f)) }
 }
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)
+// B-037: el cian del Wrapped (mejor mes, franja favorita, día seleccionado) vivía repetido
+// como literal 0xFF22D3EE por media docena de sitios. Con nombre se puede tematizar.
+val Cyan    = Color(0xFF22D3EE)
 
 val BgDarkD = Color(0xFF0F172A); val BgMidD = Color(0xFF1E1B4B)
 // Feedback 14-07 (F5): borde del tema oscuro más visible (8% → 17% de blanco,
