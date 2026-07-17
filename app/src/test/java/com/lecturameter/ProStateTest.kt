@@ -189,6 +189,104 @@ class ProStateTest {
         assertFalse(Pro.themeAllowed(prefs, ThemeMode.CUERO))
     }
 
+    // ── P-032: regalo de un tema al acabar la prueba ─────────────────────────
+
+    @Test
+    fun `el regalo no se ofrece sin prueba gastada ni con la prueba en curso`() {
+        val prefs = FakePrefs()
+        assertFalse(Pro.trialGiftPending(prefs, T0))          // nunca probó: nada que regalar
+        Pro.activateTrial(prefs, T0)
+        assertFalse(Pro.trialGiftPending(prefs, T0 + days(1))) // en curso: aún no toca
+    }
+
+    @Test
+    fun `al caducar la prueba el regalo queda pendiente y se cierra al concederlo`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        assertTrue(Pro.trialGiftPending(prefs, T0 + days(8)))
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.CUERO)
+        assertFalse(Pro.trialGiftPending(prefs, T0 + days(8))) // no se vuelve a preguntar
+    }
+
+    @Test
+    fun `a quien compra Pro no se le ofrece el regalo porque ya tiene los tres temas`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        Pro.markPurchased(prefs)
+        assertFalse(Pro.trialGiftPending(prefs, T0 + days(8)))
+    }
+
+    @Test
+    fun `el tema regalado se puede usar para siempre y los otros de pago siguen bloqueados`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.CUERO)
+        assertTrue(Pro.themeAllowed(prefs, ThemeMode.CUERO))
+        assertFalse(Pro.themeAllowed(prefs, ThemeMode.AURORA))
+        assertFalse(Pro.themeAllowed(prefs, ThemeMode.AMOLED))
+    }
+
+    // Mina 2 del mockup: si el regalo escribiera en pro_grandfathered_theme, quien viniera
+    // de la 2.7 con Aurora heredado y eligiera Cuero PERDERÍA el Aurora. Son claves aparte.
+    @Test
+    fun `el regalo NO pisa el tema heredado de la 2_7 y se conservan los dos`() {
+        val prefs = FakePrefs()
+        prefs.map["theme_mode"] = "aurora"
+        Pro.grandfatherCurrentThemeIfNeeded(prefs)   // usuario 2.7 con Aurora
+        Pro.activateTrial(prefs, T0)
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.CUERO)
+        assertTrue(Pro.themeAllowed(prefs, ThemeMode.AURORA))  // el heredado NO se pierde
+        assertTrue(Pro.themeAllowed(prefs, ThemeMode.CUERO))   // y el regalado también vale
+        assertFalse(Pro.themeAllowed(prefs, ThemeMode.AMOLED)) // el tercero sigue de pago
+        assertEquals("aurora", prefs.getString(Pro.GRANDFATHER_KEY, null))
+        assertEquals("cuero", prefs.getString(Pro.TRIAL_GIFT_KEY, null))
+    }
+
+    @Test
+    fun `no se puede regalar un tema gratis`() {
+        val prefs = FakePrefs()
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.DARK)
+        assertNull(prefs.getString(Pro.TRIAL_GIFT_KEY, null))
+        assertFalse(prefs.getBoolean(Pro.TRIAL_GIFT_DONE_KEY, false))
+    }
+
+    // ── B-041: no perder el tema al caducar la prueba ────────────────────────
+
+    @Test
+    fun `el tema apagado al caducar la prueba vuelve al comprar Pro`() {
+        val prefs = FakePrefs()
+        // Estaba en Cuero durante el trial y el trial caducó: la app lo apaga y lo recuerda
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.CUERO)
+        assertNull(Pro.reclaimThemeAfterUnlock(prefs))   // sin derecho todavía: no se devuelve
+        Pro.markPurchased(prefs)
+        assertEquals(ThemeMode.CUERO, Pro.reclaimThemeAfterUnlock(prefs))
+        // Se consume: no vuelve a pedir restaurar una y otra vez
+        assertNull(Pro.reclaimThemeAfterUnlock(prefs))
+    }
+
+    // Elegir el regalo cierra la pregunta "qué tema quieres": el apagado deja de estar
+    // pendiente de restaurar. Si no, quien tenía Cuero en la prueba, elige Aurora de regalo
+    // y compra Pro meses después se encontraría con que la app le cambia sola a Cuero.
+    @Test
+    fun `el regalo cierra la restauracion y comprar Pro despues NO pisa el tema elegido`() {
+        val prefs = FakePrefs()
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.CUERO)   // tenía Cuero al caducar
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.AURORA)      // pero eligió Aurora
+        assertNull(prefs.getString(Pro.THEME_BEFORE_LOCK_KEY, null))
+        Pro.markPurchased(prefs)
+        assertNull(Pro.reclaimThemeAfterUnlock(prefs))        // Cuero NO resucita
+    }
+
+    @Test
+    fun `solo se recuerda el primer tema apagado y nunca uno gratis`() {
+        val prefs = FakePrefs()
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.DARK)     // gratis: no se guarda
+        assertNull(prefs.getString(Pro.THEME_BEFORE_LOCK_KEY, null))
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.CUERO)
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.AURORA)   // el segundo NO pisa al primero
+        assertEquals("cuero", prefs.getString(Pro.THEME_BEFORE_LOCK_KEY, null))
+    }
+
     // ── Tope de ediciones (P-031) ────────────────────────────────────────────
 
     // Decisión Víctor 17-07: gratis base + 2 (3 totales), Pro sin límite.

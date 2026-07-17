@@ -931,7 +931,12 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         var showProUpsell by remember { mutableStateOf(false) }
         var proRefresh by remember { mutableStateOf(0) }
         if (showProUpsell) {
-            ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false }, onProChanged = { proRefresh++ })
+            // B-041: al ganar Pro en caliente (compra, canje o trial), devolver el tema que
+            // la caducidad de la prueba tuvo que apagar. Sin esto no volvería hasta reiniciar.
+            ProUpsellSheet(theme, prefs, onDismiss = { showProUpsell = false }, onProChanged = {
+                proRefresh++
+                vm.reclaimThemeIfUnlocked(prefs, context)
+            })
         }
 
         // ── TEMA ─────────────────────────────────────────────────────────────

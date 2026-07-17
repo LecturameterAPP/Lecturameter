@@ -2498,6 +2498,13 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 }
             }
         }
+            // P-032: regalo de tema al acabar la prueba. Vive AQUÍ, sobre el NavHost, y no
+            // dentro de una pantalla concreta: la prueba caduca cuando caduca, y el usuario
+            // puede estar en cualquier sitio. Se pinta después del velo de arranque para que
+            // no salte antes de que la app se haya asentado.
+            if (initialNavSettled) {
+                TrialGiftDialog(vm, prefs, theme, onSeePro = { navigateTo(Screen.Settings) })
+            }
             // B-012: velo de arranque — tapa el frame de biblioteca vacía cuando el
             // arranque en frío entra por deep link (widget/timer) hacia otra pantalla,
             // y ahora también el reacomodo de insets del primer frame (r2).

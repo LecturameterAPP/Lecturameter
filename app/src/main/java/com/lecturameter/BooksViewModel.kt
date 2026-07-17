@@ -660,10 +660,22 @@ class BooksViewModel : ViewModel() {
             else      -> ThemeMode.DARK
         }
         // D-013: si el tema guardado es de pago y ya no está permitido (p. ej. terminó
-        // la prueba de 7 días), la app cae a Oscuro en vez de enseñar un tema sin licencia
+        // la prueba de 7 días), la app cae a Oscuro en vez de enseñar un tema sin licencia.
+        //
+        // B-041: pisar "theme_mode" aquí era DESTRUCTIVO. El tema original se perdía y quien
+        // compraba Pro después no lo recuperaba: volvía a Oscuro y ni se acordaba de cuál
+        // tenía. Ahora se recuerda antes de apagarlo (rememberThemeBeforeLock) y se devuelve
+        // solo en cuanto se vuelve a tener derecho a él (compra, código o regalo del trial).
         if (!com.lecturameter.utils.Pro.themeAllowed(prefs, themeMode)) {
+            com.lecturameter.utils.Pro.rememberThemeBeforeLock(prefs, themeMode)
             themeMode = ThemeMode.DARK
             prefs.edit().putString("theme_mode", "dark").apply()
+        } else {
+            // Ya hay derecho otra vez: si quedaba un tema apagado, devolvérselo.
+            com.lecturameter.utils.Pro.reclaimThemeAfterUnlock(prefs)?.let { reclaimed ->
+                themeMode = reclaimed
+                prefs.edit().putString("theme_mode", reclaimed.value).apply()
+            }
         }
         com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }
         loadWrapped(prefs)
@@ -1075,6 +1087,15 @@ class BooksViewModel : ViewModel() {
             viewModelScope.launch { com.lecturameter.widget.updateBookWidgets(context) }
         }
     }
+    /**
+     * B-041: llamar cuando se GANA Pro en caliente (compra, canje o regalo del trial). El
+     * arranque ya hace esto en load(), pero la compra pasa a mitad de sesión y sin esto el
+     * tema no volvería hasta reiniciar la app.
+     */
+    fun reclaimThemeIfUnlocked(prefs: android.content.SharedPreferences, context: android.content.Context? = null) {
+        com.lecturameter.utils.Pro.reclaimThemeAfterUnlock(prefs)?.let { setThemeMode(it, prefs, context) }
+    }
+
     // Compatibilidad: toggle rápido claro/oscuro desde la topbar
     fun toggleTheme(prefs: android.content.SharedPreferences, context: android.content.Context? = null) {
         val next = if (themeMode == ThemeMode.LIGHT) ThemeMode.DARK else ThemeMode.LIGHT

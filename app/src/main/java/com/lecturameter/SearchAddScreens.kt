@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -889,18 +890,44 @@ fun EditionsSection(
                     BookStatus.PENDING   -> Color(0xFF8B5CF6) // Purple
                     BookStatus.DROPPED   -> Color(0xFFF87171) // Red
                 }
-                val cardBg = if (ed.isActive) shelfColor.copy(alpha = 0.06f) else Color.Transparent
                 val borderStart = if (ed.isActive) shelfColor else Color.Transparent
+
+                // P-031 (Bloque 4, feature 3, opción A de Víctor): ediciones colapsables.
+                // Solo UI: no hay dato nuevo ni migración. La lista larguísima de antes
+                // (ISBN y tres botones por edición, siempre desplegados) se pliega y deja a
+                // la vista lo que sirve para ELEGIR de un vistazo: bandera, idioma, año,
+                // páginas y el estado.
+                //
+                // Cuál se abre por defecto: la activa (decisión del mockup). Estado NO
+                // persistido: en Ajustes sí (sect_backup_expanded) porque son secciones
+                // fijas, pero las ediciones van y vienen y guardar por id ensuciaría las
+                // prefs para nada. remember(ed.id) y ya.
+                var edExpanded by remember(ed.id) { mutableStateOf(ed.isActive) }
 
                 Column(
                     Modifier
-                        .background(cardBg)
+                        // AMOLED: bgMid ES bgDark (negro puro), así que una tarjeta pintada
+                        // con bgMid es invisible. cardColor da #141414 plegada y #242424
+                        // abierta: se distinguen sin romper el negro puro.
+                        .background(cardColor(theme, edExpanded))
+                        // La activa lleva además su tinte de estantería ENCIMA del gris base
+                        .background(if (ed.isActive) shelfColor.copy(alpha = 0.06f) else Color.Transparent)
                         .drawBehind {
                             if (ed.isActive) drawRect(color = borderStart, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height))
                         }
-                        .padding(horizontal = 14.dp, vertical = 11.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // ── Cabecera plegable ────────────────────────────────────────
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { edExpanded = !edExpanded }
+                            .padding(horizontal = 14.dp, vertical = 11.dp)
+                    ) {
                         // Bandera (solo display, no interactiva)
                         Text(
                             ed.flag,
@@ -908,22 +935,20 @@ fun EditionsSection(
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                         Column(Modifier.weight(1f)) {
-                            Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                            val meta = listOfNotNull(
-                                ed.languageLabel,
-                                ed.publisher.ifBlank { null },
+                            // Idioma y año: lo que distingue una edición de otra de un vistazo.
+                            // Si la edición no tiene ni idioma ni año (importaciones viejas),
+                            // cae al título: una cabecera vacía sería imposible de identificar.
+                            val head = listOfNotNull(
+                                ed.languageLabel.ifBlank { null },
                                 ed.publishYear.ifBlank { null }
-                            ).joinToString(" · ")
-                            Text(meta, color = theme.textDim, fontSize = 11.sp)
-                            if (!ed.isbn.isNullOrBlank()) {
-                                Text(
-                                    "ISBN: ${ed.isbn}",
-                                    color = theme.textMuted,
-                                    fontSize = 10.sp,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
+                            ).joinToString(", ").ifBlank { ed.title.ifBlank { book.title } }
+                            Text(head, color = theme.textMain, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            if (ed.pages > 0) {
+                                // textMuted y no textDim: medido, textDim sobre la tarjeta se
+                                // queda en 2,1:1 (Oscuro abierta) y 2,7:1 (AMOLED). Con
+                                // textMuted el peor caso sube a 3,97:1 (Oscuro abierta), que
+                                // es el mismo suelo que ya tiene el subtítulo de SettingsSection.
+                                Text(stringResource(R.string.editions_pages_short, ed.pages), color = theme.textMuted, fontSize = 10.5.sp)
                             }
                         }
                         // Status pill — v21.41: distingue Reading de Rereading
@@ -940,6 +965,30 @@ fun EditionsSection(
                                 Text(statusLabel(book.status), color = shelfColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp))
                             }
                         }
+                        Icon(
+                            Icons.Default.KeyboardArrowDown, null,
+                            tint = theme.textDim,
+                            modifier = Modifier.size(18.dp).rotate(if (edExpanded) 0f else -90f)
+                        )
+                    }
+
+                    // ── Cuerpo (solo abierta) ────────────────────────────────────
+                    if (edExpanded) Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 11.dp)) {
+                    // El título de la edición baja aquí: puede diferir por idioma y sigue
+                    // siendo útil, pero no es lo que se mira para elegir.
+                    Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    ed.publisher.ifBlank { null }?.let {
+                        Text(it, color = theme.textDim, fontSize = 11.sp)
+                    }
+                    if (!ed.isbn.isNullOrBlank()) {
+                        Text(
+                            "ISBN: ${ed.isbn}",
+                            color = theme.textMuted,
+                            fontSize = 10.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
                     }
                     if (ed.pages > 0 || ed.isActive) {
                         Spacer(Modifier.height(7.dp))
@@ -1008,6 +1057,7 @@ fun EditionsSection(
                             }
                         }
                     }
+                    }   // fin del cuerpo desplegado
                 }
                 if (idx < editions.lastIndex) Divider(color = theme.border, thickness = 1.dp)
             }

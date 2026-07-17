@@ -1086,7 +1086,167 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
 // Gráficas adicionales dentro de StatsScreen
 // Se accede mediante toggle "Vista" en la barra de filtros.
 
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * P-034: fila del rango libre de fechas en los filtros de Estadísticas (Pro).
+ *
+ * Gating ad-hoc por call-site, como el resto del proyecto: no existe un ProGate(featureKey)
+ * genérico y no es momento de inventarlo a 2 días del lanzamiento. Sin Pro la fila enseña el
+ * candado y abre ProUpsellSheet; con Pro abre el selector de rango.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatsDateRangeRow(
+    theme: Theme,
+    rangeStart: String?,
+    rangeEnd: String?,
+    onRangePicked: (String?, String?) -> Unit
+) {
+    val acc = accentForTheme(theme)
+    val ctx = LocalContext.current
+    val prefs = remember { ctx.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE) }
+    var proRefresh by remember { mutableStateOf(0) }
+    val isPro = remember(proRefresh) { com.lecturameter.utils.Pro.isPro(prefs) }
+    var showUpsell by remember { mutableStateOf(false) }
+    var showPicker by remember { mutableStateOf(false) }
+    val active = rangeStart != null && rangeEnd != null
+
+    if (showUpsell) {
+        ProUpsellSheet(theme, prefs, onDismiss = { showUpsell = false }, onProChanged = { proRefresh++ })
+    }
+    if (showPicker) {
+        StatsDateRangePicker(
+            theme = theme,
+            initialStart = rangeStart,
+            initialEnd = rangeEnd,
+            onDismiss = { showPicker = false },
+            onConfirm = { s, e -> onRangePicked(s, e); showPicker = false }
+        )
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.filter_range_label), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.width(60.dp))
+        Surface(
+            onClick = { if (isPro) showPicker = true else showUpsell = true },
+            shape = RoundedCornerShape(8.dp),
+            // AMOLED: bgMid es negro puro; para una superficie pulsable sobre la tarjeta de
+            // filtros hace falta cardColor, que sí despega del fondo.
+            color = if (active) acc.copy(alpha = 0.15f) else cardColor(theme),
+            border = BorderStroke(1.dp, if (active) acc else theme.border),
+            modifier = Modifier.weight(1f)
+        ) {
+            Row(Modifier.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (active) "$rangeStart → $rangeEnd" else stringResource(R.string.filter_range_placeholder),
+                    // Activo en textMain (12,2:1 peor caso) y no en el acento: medido, el
+                    // acento sobre su tinte al 15% cae a 2,98:1 en Oscuro. Las fechas son
+                    // información, no decoración; quien marca el estado es el borde.
+                    color = if (active) theme.textMain else theme.textMuted,
+                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (!isPro) {
+                    Spacer(Modifier.width(4.dp))
+                    Surface(shape = RoundedCornerShape(20.dp), color = Color.Transparent, border = BorderStroke(1.dp, acc)) {
+                        Text(stringResource(R.string.filter_range_pro), color = acc, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp))
+                    }
+                }
+            }
+        }
+        if (active) {
+            Surface(
+                onClick = { onRangePicked(null, null) },
+                shape = RoundedCornerShape(8.dp),
+                color = cardColor(theme),
+                border = BorderStroke(1.dp, theme.border)
+            ) {
+                Text("✕", color = theme.textMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
+            }
+        }
+    }
+}
+
+/**
+ * Selector de rango de fechas de Material 3, vestido con los tokens del tema activo.
+ *
+ * Los colores NO son opcionales aquí: por defecto el DateRangePicker se pinta con el
+ * ColorScheme de Material, que en esta app no es el tema real (los temas son tokens propios,
+ * no un ColorScheme). Sin esto, en Cuero o Aurora saldría un diálogo morado de fábrica.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatsDateRangePicker(
+    theme: Theme,
+    initialStart: String?,
+    initialEnd: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (String?, String?) -> Unit
+) {
+    val acc = accentForTheme(theme)
+    // yyyy-MM-dd ↔ millis UTC: el picker trabaja en UTC y las fechas de la app son civiles
+    // (sin hora), así que se convierten por el mediodía UTC para que ningún huso las corra un día.
+    fun toMillis(d: String?): Long? = d?.takeIf { it.length >= 10 }?.let {
+        runCatching { java.time.LocalDate.parse(it).toEpochDay() * 86_400_000L }.getOrNull()
+    }
+    fun toIso(ms: Long?): String? = ms?.let {
+        java.time.LocalDate.ofEpochDay(Math.floorDiv(it, 86_400_000L)).toString()
+    }
+
+    val state = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = toMillis(initialStart),
+        initialSelectedEndDateMillis = toMillis(initialEnd)
+    )
+    val colors = DatePickerDefaults.colors(
+        // bgMid, como el resto de diálogos del proyecto. theme.surface es TRANSLÚCIDO en
+        // Oscuro/Aurora/AMOLED y dejaría ver el fondo a través del calendario.
+        containerColor = theme.bgMid,
+        titleContentColor = theme.textMain,
+        headlineContentColor = theme.textMain,
+        weekdayContentColor = theme.textMuted,
+        subheadContentColor = theme.textMuted,
+        yearContentColor = theme.textMain,
+        currentYearContentColor = acc,
+        selectedYearContentColor = onAccentColor(theme),
+        selectedYearContainerColor = acc,
+        dayContentColor = theme.textMain,
+        disabledDayContentColor = theme.textDim,
+        selectedDayContentColor = onAccentColor(theme),
+        selectedDayContainerColor = acc,
+        // "Hoy" en textMain (14,6:1 peor caso) y no en el acento: medido, el acento sobre
+        // bgMid se queda en 3,58:1 en Oscuro y eso es un número de día, o sea texto. Lo que
+        // señala "hoy" es su borde, que es gráfico (3:1) y ahí el acento sí llega.
+        todayContentColor = theme.textMain,
+        todayDateBorderColor = acc,
+        dayInSelectionRangeContentColor = theme.textMain,
+        dayInSelectionRangeContainerColor = acc.copy(alpha = 0.25f),
+        navigationContentColor = theme.textMain
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        colors = colors,
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(toIso(state.selectedStartDateMillis), toIso(state.selectedEndDateMillis)) },
+                // Sin las dos puntas no hay rango: confirmar dejaría un filtro a medias
+                enabled = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null
+            ) {
+                Text(
+                    stringResource(R.string.filter_range_ok),
+                    color = if (state.selectedStartDateMillis != null && state.selectedEndDateMillis != null) acc else theme.textDim
+                )
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.filter_range_cancel), color = theme.textMuted) } }
+    ) {
+        DateRangePicker(
+            state = state,
+            colors = colors,
+            title = { Text(stringResource(R.string.filter_range_placeholder), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, top = 12.dp)) }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun StatsChartsView(
     vm: BooksViewModel,
@@ -1116,32 +1276,49 @@ fun StatsChartsView(
     val statusFilters = remember { mutableStateListOf<BookStatus>() }  // multiselección, máx 2
     var hideFunctionalless by remember { mutableStateOf(false) }
 
+    // P-034 (Bloque 4, feature 5, opción B de Víctor): "A + rango libre (Pro)".
+    //
+    // La opción A (selector de año) YA EXISTÍA aquí (selYear/selMonth) y sigue GRATIS: es
+    // de la 2.7 y pasarla a Pro sería quitarle algo a todo el mundo. Lo que añade Pro es
+    // el rango de fechas LIBRE, que no existe hoy y por tanto no le quita nada a nadie.
+    //
+    // Rango y año/mes son EXCLUYENTES a propósito: son dos formas de decir lo mismo y
+    // combinarlas da intersecciones vacías que el usuario no sabe explicarse ("tengo 2025
+    // y un rango de 2026, ¿por qué no sale nada?"). Al activar uno se limpia el otro.
+    var rangeStart by remember { mutableStateOf<String?>(null) }  // "yyyy-MM-dd" inclusive
+    var rangeEnd by remember { mutableStateOf<String?>(null) }    // "yyyy-MM-dd" inclusive
+    val rangeActive = rangeStart != null && rangeEnd != null
+
     val booksForCharts = filtered
         .let { list -> if (statusFilters.isNotEmpty()) list.filter { it.status in statusFilters } else list }
         .let { list -> if (hideFunctionalless) list.filter { it.firstFunctionalPage != null || it.lastFunctionalPage != null } else list }
 
     val sessionsByBook = sessions.groupBy { it.bookId }
 
-    // ¿Una fecha "yyyy-MM-dd" cae en el período seleccionado (año y/o mes)?
+    // ¿Una fecha "yyyy-MM-dd" cae en el período seleccionado (rango libre, o año y/o mes)?
+    // El formato ISO ordena igual como texto que como fecha, así que comparar cadenas basta
+    // y evita parsear una fecha por libro y por sesión en cada recomposición.
     fun dateInPeriod(d: String?): Boolean {
         if (d == null || d.length < 4) return false
+        if (rangeActive) return d.length >= 10 && d >= rangeStart!! && d <= rangeEnd!!
         selYear?.let { if (!d.startsWith(it)) return false }
         selMonth?.let { m -> val mm = m.toString().padStart(2, '0'); if (d.length < 7 || d.substring(5, 7) != mm) return false }
         return true
     }
     // Libros que pertenecen al período: por fecha de inicio/fin o por tener alguna sesión en él.
     // Los donuts (estado, género, idioma, autor) usan esto para reaccionar a año/mes.
-    val booksInPeriod = if (selYear == null && selMonth == null) booksForCharts
+    val booksInPeriod = if (selYear == null && selMonth == null && !rangeActive) booksForCharts
         else booksForCharts.filter { b ->
             dateInPeriod(b.endDate) || dateInPeriod(b.startDate) ||
             (sessionsByBook[b.id]?.any { dateInPeriod(it.date) } == true)
         }
 
-    // Sesiones de los libros filtrados + filtro de período (año y mes combinables)
+    // Sesiones de los libros filtrados + filtro de período (rango libre, o año y mes combinables)
     val filteredBookIds = booksForCharts.map { it.id }.toSet()
     val filteredSessions = sessions
         .filter { it.bookId in filteredBookIds }
         .let { list ->
+            if (rangeActive) return@let list.filter { dateInPeriod(it.date) }
             var l = list
             selYear?.let { y -> l = l.filter { it.date.startsWith(y) } }
             selMonth?.let { m ->
@@ -1223,7 +1400,8 @@ fun StatsChartsView(
                         DropdownMenu(expanded = showYearMenu, onDismissRequest = { showYearMenu = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selYear == null) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = null; showYearMenu = false })
                             availableYears.forEach { y ->
-                                DropdownMenuItem(text = { Text(y, color = if (selYear == y) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = y; showYearMenu = false })
+                                // P-034: año y rango son excluyentes; elegir año quita el rango
+                                DropdownMenuItem(text = { Text(y, color = if (selYear == y) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selYear = y; rangeStart = null; rangeEnd = null; showYearMenu = false })
                             }
                         }
                     }
@@ -1236,11 +1414,24 @@ fun StatsChartsView(
                         DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.txt_32630ca9), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp, fontWeight = if (selMonth == null) FontWeight.Bold else FontWeight.Normal) }, onClick = { selMonth = null; showMonthMenu = false })
                             (1..12).forEach { m ->
-                                DropdownMenuItem(text = { Text(monthNames[m - 1], color = if (selMonth == m) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = m; showMonthMenu = false })
+                                // P-034: mes y rango son excluyentes; elegir mes quita el rango
+                                DropdownMenuItem(text = { Text(monthNames[m - 1], color = if (selMonth == m) acc else theme.textMain, fontSize = 13.sp) }, onClick = { selMonth = m; rangeStart = null; rangeEnd = null; showMonthMenu = false })
                             }
                         }
                     }
                 }
+                // P-034: rango libre de fechas (Pro). Fila NUEVA debajo de Período; los
+                // filtros de hoy (año, mes, género, autor) no se tocan y siguen gratis.
+                StatsDateRangeRow(
+                    theme = theme,
+                    rangeStart = rangeStart,
+                    rangeEnd = rangeEnd,
+                    onRangePicked = { s, e ->
+                        rangeStart = s; rangeEnd = e
+                        // Excluyentes: el rango manda y año/mes se limpian
+                        if (s != null) { selYear = null; selMonth = null }
+                    }
+                )
                 // Estados — multiselección (máx 2), en varias líneas con FlowRow
                 Row(verticalAlignment = Alignment.Top) {
                     Text(stringResource(R.string.txt_e7396239), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.width(60.dp).padding(top = 5.dp))
@@ -1315,10 +1506,13 @@ fun StatsChartsView(
         }
 
         // ── Empty state cuando hay filtro de período pero ningún libro ────────
-        if ((selYear != null || selMonth != null) && booksInPeriod.isEmpty()) {
+        if ((selYear != null || selMonth != null || rangeActive) && booksInPeriod.isEmpty()) {
             val periodLbl = buildString {
-                if (selMonth != null) { append(monthNames[selMonth!! - 1]); if (selYear != null) append(" ") }
-                if (selYear != null) append(selYear)
+                if (rangeActive) append("$rangeStart / $rangeEnd")
+                else {
+                    if (selMonth != null) { append(monthNames[selMonth!! - 1]); if (selYear != null) append(" ") }
+                    if (selYear != null) append(selYear)
+                }
             }
             Surface(shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
