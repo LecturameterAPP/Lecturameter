@@ -1703,6 +1703,12 @@ class MainActivity : ComponentActivity() {
         // P-035: retoma el aviso de actualización si la descarga terminó mientras
         // la app estaba en segundo plano (o en una sesión anterior).
         inAppUpdate.onResume()
+        // M3: LmBilling.init solo corre en onCreate. Si el servicio de Play se cayó estando
+        // la app en segundo plano (la Play Store se actualiza sola a diario) y se agotaron
+        // los reintentos, nadie volvía a conectar: el precio de Pro desaparecía para siempre.
+        // Volver a primer plano es el momento natural de reintentarlo. No hace nada si ya
+        // está conectado.
+        LmBilling.reconnect()
     }
 
     override fun onDestroy() {

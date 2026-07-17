@@ -111,14 +111,53 @@ class ProStateTest {
         assertEquals(0, Pro.trialDaysLeft(prefs, T0 + days(8)))
     }
 
+    // ── M1: retrasar el reloj del sistema ────────────────────────────────────
+    //
+    // El test que había aquí ("retrasar el reloj ANTES del inicio del trial NO lo reactiva")
+    // daba FALSA SEGURIDAD: pasaba, pero cubría el único caso que no hace nadie (retrasar
+    // el reloj antes de empezar la prueba, cuando aún no tienes nada que estirar). El
+    // agujero real estaba justo al lado y no lo tocaba ningún test: retrasar el reloj DENTRO
+    // de la ventana. Estos tres lo cubren.
+
     @Test
-    fun `retrasar el reloj del sistema antes del inicio del trial NO lo reactiva`() {
+    fun `retrasar el reloj DENTRO de la ventana del trial no regala tiempo`() {
         val prefs = FakePrefs()
         Pro.activateTrial(prefs, T0)
-        // El usuario pone el reloj 30 días atrás: la caducidad absoluta quedaría
-        // "en el futuro" para siempre; la guarda por inicio lo corta.
-        assertFalse(Pro.trialActive(prefs, T0 - days(30)))
-        assertFalse(Pro.isPro(prefs, T0 - days(30)))
+        // Día 6 de la prueba: activa y legítima.
+        assertTrue(Pro.trialActive(prefs, T0 + days(6)))
+        // El usuario pone la fecha en el día 1. Antes esto daba Pro permanente: el día 1
+        // sigue estando dentro de [inicio, fin) y la guarda por inicio ni se enteraba.
+        // Ahora el reloj efectivo no baja del día 6.
+        assertTrue(Pro.trialActive(prefs, T0 + days(1)))          // no se le corta a traición
+        assertEquals(1, Pro.trialDaysLeft(prefs, T0 + days(1)))   // pero sigue siendo el día 6
+        // Y con la fecha atrasada CONGELADA, el tiempo real sigue corriendo: dos días reales
+        // después (fecha del sistema = día 3) la prueba está caducada igual.
+        assertFalse(Pro.trialActive(prefs, T0 + days(3)))
+        assertFalse(Pro.isPro(prefs, T0 + days(3)))
+    }
+
+    @Test
+    fun `retrasar el reloj muchas veces no estira la prueba ni un dia`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        assertTrue(Pro.trialActive(prefs, T0 + days(6)))
+        // Rebobinar al día 1 una y otra vez: cada intento se absorbe en el desfase y el
+        // reloj efectivo se queda clavado en el día 6, sin bajar.
+        repeat(5) { assertTrue(Pro.trialActive(prefs, T0 + days(1))) }
+        // Un día real después (fecha del sistema en el día 2) la prueba está caducada:
+        // rebobinar no le ha regalado ni un minuto.
+        assertFalse(Pro.trialActive(prefs, T0 + days(2)))
+    }
+
+    @Test
+    fun `retrasar el reloj antes del inicio del trial no reactiva ni regala nada`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        // Retrasar 30 días nada más empezar: el reloj efectivo se queda en el inicio, así
+        // que la prueba sigue activa (no se le castiga por tener mal la hora)...
+        assertTrue(Pro.trialActive(prefs, T0 - days(30)))
+        // ...pero no ha ganado tiempo: a los 7 días reales caduca igual.
+        assertFalse(Pro.trialActive(prefs, T0 - days(23)))
     }
 
     @Test
@@ -130,6 +169,101 @@ class ProStateTest {
         assertTrue(Pro.trialActive(prefs, T0))               // dentro de la ventana derivada
         assertFalse(Pro.trialActive(prefs, T0 + days(5)))    // caduca igual
         assertFalse(Pro.trialActive(prefs, T0 - days(3)))    // la guarda derivada también corta
+    }
+
+    // ── C1 / M4: reinstalación y Auto Backup ─────────────────────────────────
+    //
+    // Ningún test cubría la reinstalación, y de ahí salieron C1 y M4. El Auto Backup de
+    // Android respalda EL FICHERO "lecturameter.xml" ENTERO y lo restaura al reinstalar
+    // desde Play. Aquí se simula exactamente eso: se copia el fichero respaldado a una
+    // instalación nueva. Todo lo que NO esté en ese fichero nace con su valor por defecto.
+    //
+    // La regresión que cazan: mientras pro_trial_used vivía en un fichero excluido del
+    // backup, reinstalar lo devolvía a false y "Empezar prueba" volvía a salir. Gastar la
+    // prueba, desinstalar, reinstalar y repetir era gratis y para siempre, con la
+    // biblioteca intacta porque lecturameter.xml sí se restauraba.
+
+    /** Simula reinstalar desde Play: instalación nueva con lecturameter.xml restaurado. */
+    private fun reinstallWithAutoBackup(old: FakePrefs): FakePrefs {
+        val restored = FakePrefs()
+        restored.map.putAll(old.map)   // el backup se lleva el fichero principal entero
+        return restored
+    }
+
+    @Test
+    fun `reinstalar tras gastar la prueba NO la vuelve a ofrecer`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        assertFalse(Pro.trialAvailable(prefs, T0 + days(30)))   // gastada y caducada
+
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertFalse(Pro.trialAvailable(fresh, T0 + days(30)))   // y sigue gastada
+        assertFalse(Pro.isPro(fresh, T0 + days(30)))
+    }
+
+    @Test
+    fun `la marca de prueba gastada viaja en el fichero respaldado`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        // Explícito: si alguien vuelve a sacar estas claves del fichero respaldado, este
+        // test cae. La marca de "ya lo has gastado" SIEMPRE quiere backup.
+        assertTrue(prefs.map.containsKey(Pro.TRIAL_USED_KEY))
+        assertTrue(prefs.map.containsKey(Pro.TRIAL_EXPIRES_KEY))
+        assertTrue(prefs.map.containsKey(Pro.TRIAL_STARTED_KEY))
+    }
+
+    @Test
+    fun `reinstalar en mitad de la prueba la conserva, no la reinicia`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertTrue(Pro.trialActive(fresh, T0 + days(3)))        // sigue el mismo trial
+        assertFalse(Pro.trialAvailable(fresh, T0 + days(3)))    // no se puede reiniciar
+        assertFalse(Pro.trialActive(fresh, T0 + days(7)))       // y caduca cuando tocaba
+    }
+
+    @Test
+    fun `quien compro Pro lo conserva al reinstalar`() {
+        val prefs = FakePrefs()
+        Pro.markPurchased(prefs)
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertTrue(Pro.isPro(fresh, T0))
+        assertEquals("play", fresh.getString(Pro.SRC_KEY, null))
+    }
+
+    // M4: trialGiftPending era un AND entre claves de DOS ficheros con políticas de backup
+    // opuestas, así que al reinstalar el regalo prometido se evaporaba. Con el trial de
+    // vuelta en el principal, las cuatro claves viajan juntas.
+    @Test
+    fun `el regalo del trial sobrevive a la reinstalacion`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        Pro.rememberThemeBeforeLock(prefs, ThemeMode.CUERO)
+        assertTrue(Pro.trialGiftPending(prefs, T0 + days(8)))   // pendiente antes de reinstalar
+
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertTrue(Pro.trialGiftPending(fresh, T0 + days(8)))   // y sigue pendiente después
+        // theme_before_lock no se queda huérfano: sigue apuntando al tema preseleccionado.
+        assertEquals("cuero", fresh.getString(Pro.THEME_BEFORE_LOCK_KEY, null))
+    }
+
+    @Test
+    fun `el tema ya regalado sigue siendo suyo tras reinstalar`() {
+        val prefs = FakePrefs()
+        Pro.activateTrial(prefs, T0)
+        Pro.grantTrialGiftTheme(prefs, ThemeMode.AURORA)
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertTrue(Pro.themeAllowed(fresh, ThemeMode.AURORA))
+        assertFalse(Pro.trialGiftPending(fresh, T0 + days(8)))  // no se le vuelve a preguntar
+    }
+
+    @Test
+    fun `el tema heredado de la 2_7 sigue siendo suyo tras reinstalar`() {
+        val prefs = FakePrefs()
+        prefs.map["theme_mode"] = "aurora"
+        Pro.grandfatherCurrentThemeIfNeeded(prefs)
+        val fresh = reinstallWithAutoBackup(prefs)
+        assertTrue(Pro.themeAllowed(fresh, ThemeMode.AURORA))
     }
 
     // ── Temas de pago y grandfathering ───────────────────────────────────────

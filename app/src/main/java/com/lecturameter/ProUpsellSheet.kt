@@ -56,6 +56,11 @@ fun ProUpsellSheet(
     val productDetails by LmBilling.productDetails.collectAsState()
     val purchaseTick by LmBilling.purchaseCompleted.collectAsState()
     LaunchedEffect(purchaseTick) { if (purchaseTick > 0) { refresh++; onProChanged() } }
+    // M3: al abrir la hoja, asegurarse de que Billing sigue vivo. Si el servicio se cayó
+    // (la Play Store se actualiza sola a menudo) y se agotaron los reintentos, sin esto el
+    // precio no vuelve JAMÁS y el usuario cree que Pro no está a la venta. No cuesta nada
+    // si ya está conectado.
+    LaunchedEffect(Unit) { LmBilling.reconnect() }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
         Column(
@@ -110,8 +115,19 @@ fun ProUpsellSheet(
                 }
                 // Compra: precio real de Play si está disponible; si no, botón deshabilitado
                 val price = productDetails[SKU_LM_PRO]?.oneTimePurchaseOfferDetails?.formattedPrice
+                val buyErrorMsg = stringResource(R.string.pro_buy_error)
                 OutlinedButton(
-                    onClick = { if (activity != null) LmBilling.launchPurchase(activity) },
+                    // M2: launchPurchase devuelve Boolean A PROPÓSITO (ver LmBilling) y la UI
+                    // tiraba el valor. Si Play se caía entre poblar el precio y el tap, el
+                    // usuario pulsaba "Comprar por 2,99 €" y no pasaba absolutamente nada:
+                    // ni Toast, ni spinner, ni flujo de Play. En el botón que cobra, eso no.
+                    onClick = {
+                        if (activity != null && !LmBilling.launchPurchase(activity)) {
+                            android.widget.Toast.makeText(context, buyErrorMsg, android.widget.Toast.LENGTH_LONG).show()
+                            // El servicio se ha caído: intentar recuperarlo para el siguiente tap.
+                            LmBilling.reconnect()
+                        }
+                    },
                     enabled = price != null && activity != null,
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, if (price != null) acc else theme.border),
@@ -131,15 +147,26 @@ fun ProUpsellSheet(
                 // del arranque no llegó (caché de Play desincronizada), este botón lo fuerza.
                 var restoring by remember { mutableStateOf(false) }
                 val restoreNoneMsg = stringResource(R.string.pro_restore_none)
+                val restoreUnavailableMsg = stringResource(R.string.pro_restore_unavailable)
                 TextButton(
                     onClick = {
                         restoring = true
-                        LmBilling.restore { found ->
+                        // C2: los tres casos son distintos y antes dos de ellos daban el
+                        // mismo Toast. Decirle "no consta tu compra" a quien pagó (y solo
+                        // está sin cobertura) es la peor frase que puede leer.
+                        LmBilling.restore { result ->
                             // El callback de Billing llega en su propio hilo: al principal
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
                                 restoring = false
-                                if (found) { refresh++; onProChanged() }
-                                else android.widget.Toast.makeText(context, restoreNoneMsg, android.widget.Toast.LENGTH_SHORT).show()
+                                when (result) {
+                                    LmBilling.RestoreResult.FOUND -> { refresh++; onProChanged() }
+                                    LmBilling.RestoreResult.NONE ->
+                                        android.widget.Toast.makeText(context, restoreNoneMsg, android.widget.Toast.LENGTH_SHORT).show()
+                                    LmBilling.RestoreResult.UNAVAILABLE -> {
+                                        android.widget.Toast.makeText(context, restoreUnavailableMsg, android.widget.Toast.LENGTH_LONG).show()
+                                        LmBilling.reconnect()
+                                    }
+                                }
                             }
                         }
                     },

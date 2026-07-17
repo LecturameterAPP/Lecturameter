@@ -5,9 +5,11 @@
     device_transfer: includes data when transferring to a new device.
 -->
 <data-extraction-rules>
-    <!-- A6: SOLO viaja lecturameter.xml. lecturameter_pro_local.xml (trial y lockout del
-         canje) no está incluido y por tanto no va ni a la nube ni al traslado de dispositivo;
-         lint prohíbe excluir un path no incluido, por eso basta con no incluirlo. -->
+    <!-- C1 (19-07): SOLO viaja lecturameter.xml, que ahora incluye el estado del trial
+         (pro_trial_used y su ventana). Dejarlo fuera del backup NO impedía reiniciar la
+         prueba: la permitía, porque al reinstalar la clave nacía a false. Ver ProState.kt.
+         lecturameter_pro_local.xml (solo contadores del canje) sigue sin incluirse; lint
+         prohíbe excluir un path no incluido, por eso basta con no incluirlo. -->
     <cloud-backup>
         <include domain="sharedpref" path="lecturameter.xml" />
     </cloud-backup>

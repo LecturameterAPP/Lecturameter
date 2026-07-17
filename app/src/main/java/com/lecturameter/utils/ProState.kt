@@ -28,6 +28,10 @@ object Pro {
     const val TRIAL_EXPIRES_KEY = "pro_trial_expires"
     const val TRIAL_STARTED_KEY = "pro_trial_started"   // guarda contra retrasar el reloj
     const val TRIAL_USED_KEY = "pro_trial_used"
+
+    // M1: reloj efectivo del trial. Ver effectiveNow().
+    const val TRIAL_SEEN_MAX_KEY = "pro_trial_seen_max"
+    const val TRIAL_CLOCK_OFFSET_KEY = "pro_trial_clock_offset"
     const val GRANDFATHER_KEY = "pro_grandfathered_theme"
     private const val GRANDFATHER_DONE_KEY = "pro_grandfather_done"
 
@@ -56,16 +60,35 @@ object Pro {
     private const val MAX_ATTEMPTS = 5
     private const val LOCKOUT_MS = 24L * 60 * 60 * 1000
     private const val TRIAL_MS = 7L * 24 * 60 * 60 * 1000
+    /** M1: por debajo de este salto no se reescribe la marca de agua. Ver effectiveNow. */
+    private const val SEEN_MAX_GRANULARITY_MS = 60_000L
 
-    // A6 (seguridad): el trial y el lockout del canje NO deben viajar en el Auto Backup de
-    // Android. Si lo hacen, reinstalar restaura un backup viejo de Google y permite reiniciar
-    // (o reactivar) la prueba gratis. Por eso viven en un fichero de prefs SEPARADO,
-    // "lecturameter_pro_local.xml", excluido de backup_rules.xml y data_extraction_rules.xml.
-    // pro_unlocked y pro_source SÍ se quedan en "lecturameter.xml" (deseable respaldarlos:
-    // quien compró Pro no debe perderlo al reinstalar).
+    // C1 (revisión de lanzamiento, 19-07): el trial vive en "lecturameter.xml", que SÍ se
+    // respalda.
+    //
+    // OJO, que el comentario que había aquí (A6) razonaba AL REVÉS y regalaba la app.
+    // Decía que sacar pro_trial_* del Auto Backup impedía "reiniciar la prueba al
+    // reinstalar". Es justo al contrario: excluir una clave del backup no impide restaurar
+    // un valor MALO, impide restaurar el BUENO. Al reinstalar, el fichero excluido no
+    // existe, pro_trial_used vuelve a su default (false) y trialAvailable() ofrece otros
+    // 7 días. Y como lecturameter.xml sí se restaura, el usuario recupera libros, sesiones,
+    // wrapped y retos: gastar la prueba, desinstalar, reinstalar desde Play y volver a
+    // empezar era gratis, cómodo, sin root ni ADB, y repetible para siempre.
+    //
+    // Respaldando el trial, reinstalar restaura pro_trial_used = true y la prueba NO vuelve.
+    // Regla para el siguiente que pase por aquí: una marca de "ya lo has gastado" SIEMPRE
+    // quiere backup; lo que no quiere backup es un secreto o una credencial.
+    //
+    // Lo que esto NO cubre: "Borrar datos" desde los Ajustes de Android (se lleva por
+    // delante también el backup). Cerrar esa vía exige registrar el dispositivo en el
+    // backend (endpoint /trial); ver el informe de esta rama.
+    //
+    // pro_code_attempts y pro_code_lockout se quedan en el fichero local: no conceden Pro
+    // por sí solos y el gate real del canje es el worker.
     private const val PREFS_MAIN = "lecturameter"
     private const val PREFS_LOCAL = "lecturameter_pro_local"
-    private const val MIGRATED_KEY = "pro_local_migrated"
+    private const val MIGRATED_KEY = "pro_local_migrated"        // legacy A6: principal → local
+    private const val TRIAL_BACK_KEY = "pro_trial_back_to_main"  // C1: local → principal
 
     // Formato de código LM canjeable. Validado aquí ademas de en la UI (defensa en profundidad).
     private val CODE_FORMAT = Regex("^LM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
@@ -80,30 +103,48 @@ object Pro {
     fun init(context: Context) {
         val app = context.applicationContext
         val local = app.getSharedPreferences(PREFS_LOCAL, Context.MODE_PRIVATE)
-        migrateIfNeeded(app, local)
+        migrateCodeCountersToLocal(app, local)
+        migrateTrialBackToMain(app, local)
         localPrefsRef = local
     }
 
-    /** Prefs donde viven trial+lockout: la local si init corrió (producción), o el prefs
-     *  pasado si no (tests). */
+    /** Prefs donde viven los contadores del canje: la local si init corrió (producción), o
+     *  el prefs pasado si no (tests). El trial YA NO pasa por aquí: vive en el principal. */
     private fun localFor(prefs: SharedPreferences): SharedPreferences = localPrefsRef ?: prefs
 
-    /** Migración one-shot: la primera vez, copia las claves de trial/lockout del fichero
-     *  principal al local y las borra del principal, para no perder el estado de usuarios
-     *  ya instalados. A partir de ahí el principal deja de arrastrarlas en sus backups. */
-    private fun migrateIfNeeded(ctx: Context, local: SharedPreferences) {
+    /** Migración one-shot (resto de A6): contadores del canje del principal al local. Se
+     *  mantiene solo para no perder un lockout vigente de instalaciones ya migradas. */
+    private fun migrateCodeCountersToLocal(ctx: Context, local: SharedPreferences) {
         if (local.getBoolean(MIGRATED_KEY, false)) return
         val main = ctx.getSharedPreferences(PREFS_MAIN, Context.MODE_PRIVATE)
         val le = local.edit()
-        if (main.contains(TRIAL_STARTED_KEY)) le.putLong(TRIAL_STARTED_KEY, main.getLong(TRIAL_STARTED_KEY, 0L))
-        if (main.contains(TRIAL_EXPIRES_KEY)) le.putLong(TRIAL_EXPIRES_KEY, main.getLong(TRIAL_EXPIRES_KEY, 0L))
-        if (main.contains(TRIAL_USED_KEY)) le.putBoolean(TRIAL_USED_KEY, main.getBoolean(TRIAL_USED_KEY, false))
         if (main.contains(ATTEMPTS_KEY)) le.putInt(ATTEMPTS_KEY, main.getInt(ATTEMPTS_KEY, 0))
         if (main.contains(LOCKOUT_KEY)) le.putLong(LOCKOUT_KEY, main.getLong(LOCKOUT_KEY, 0L))
         le.putBoolean(MIGRATED_KEY, true).apply()
-        main.edit()
+        main.edit().remove(ATTEMPTS_KEY).remove(LOCKOUT_KEY).apply()
+    }
+
+    /**
+     * C1: devuelve las claves del trial al fichero respaldado, para las instalaciones que
+     * ya corrieron la migración de A6 y las tienen en el local.
+     *
+     * Conservadora a propósito: NUNCA regala una prueba nueva. Si cualquiera de los dos
+     * ficheros dice que la prueba se gastó, se gastó; y la ventana solo se copia si el
+     * principal no la trae ya (un backup restaurado manda sobre el fichero local, que es
+     * el que puede haber nacido vacío tras reinstalar).
+     */
+    private fun migrateTrialBackToMain(ctx: Context, local: SharedPreferences) {
+        val main = ctx.getSharedPreferences(PREFS_MAIN, Context.MODE_PRIVATE)
+        if (main.getBoolean(TRIAL_BACK_KEY, false)) return
+        val me = main.edit()
+        if (!main.contains(TRIAL_STARTED_KEY) && local.contains(TRIAL_STARTED_KEY))
+            me.putLong(TRIAL_STARTED_KEY, local.getLong(TRIAL_STARTED_KEY, 0L))
+        if (!main.contains(TRIAL_EXPIRES_KEY) && local.contains(TRIAL_EXPIRES_KEY))
+            me.putLong(TRIAL_EXPIRES_KEY, local.getLong(TRIAL_EXPIRES_KEY, 0L))
+        if (local.getBoolean(TRIAL_USED_KEY, false)) me.putBoolean(TRIAL_USED_KEY, true)
+        me.putBoolean(TRIAL_BACK_KEY, true).apply()
+        local.edit()
             .remove(TRIAL_STARTED_KEY).remove(TRIAL_EXPIRES_KEY).remove(TRIAL_USED_KEY)
-            .remove(ATTEMPTS_KEY).remove(LOCKOUT_KEY)
             .apply()
     }
 
@@ -128,32 +169,70 @@ object Pro {
     fun isPro(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
         prefs.getBoolean(PREF_KEY, false) || trialActive(prefs, now)
 
-    /** La prueba está activa entre su inicio y su caducidad. La ventana [inicio, fin) hace
-     *  que retrasar el reloj del sistema más allá del inicio NO estire la prueba (edge case
-     *  clásico de los trials locales). Instalaciones que activaron la prueba antes de existir
-     *  TRIAL_STARTED_KEY: se deriva el inicio como caducidad menos 7 días. */
+    /**
+     * M1: reloj efectivo del trial, a prueba de retrasar la hora del sistema.
+     *
+     * La guarda vieja (`now in started until expires`) solo cortaba si retrasabas el reloj
+     * ANTES del inicio del trial, cosa que no hace nadie. El ataque real es el de dentro de
+     * la ventana: estás en el día 6, pones la fecha en el día 1 y `now` sigue estando dentro
+     * de [inicio, fin) → Pro permanente mientras no toques la fecha.
+     *
+     * Aquí se guarda el mayor instante efectivo visto (seen_max) más un desfase acumulado.
+     * El desfase es lo que hace que esto funcione, y por eso NO basta un simple
+     * max(now, seenMax): con solo el máximo, dejar la fecha atrasada congela `now` por
+     * debajo de la marca, el efectivo se queda clavado en el día 6 y el trial no caduca
+     * NUNCA. Absorbiendo el retroceso en el desfase, el reloj efectivo no baja y además
+     * sigue AVANZANDO con el tiempo real aunque la fecha del sistema se quede atrás.
+     * Retroceder mil veces no regala ni un minuto.
+     *
+     * Adelantar el reloj sí acorta la prueba, y es lo correcto: quien se la quiere acabar
+     * antes, allá él.
+     */
+    private fun effectiveNow(prefs: SharedPreferences, now: Long): Long {
+        val seenMax = prefs.getLong(TRIAL_SEEN_MAX_KEY, 0L)
+        val offset = prefs.getLong(TRIAL_CLOCK_OFFSET_KEY, 0L)
+        var eff = now + offset
+        if (seenMax > 0L && eff < seenMax) {
+            // Reloj retrasado: el desfase se queda EXACTAMENTE con lo que se intentó ganar.
+            prefs.edit().putLong(TRIAL_CLOCK_OFFSET_KEY, offset + (seenMax - eff)).apply()
+            eff = seenMax
+        } else if (eff > seenMax + SEEN_MAX_GRANULARITY_MS) {
+            // Solo se reescribe la marca a saltos: isPro() se llama en cada recomposición
+            // (themeAllowed) y un write por recomposición sería absurdo. Un minuto de
+            // margen no le da para un exploit a nadie.
+            prefs.edit().putLong(TRIAL_SEEN_MAX_KEY, eff).apply()
+        }
+        return eff
+    }
+
+    /** La prueba está activa entre su inicio y su caducidad, contra el reloj EFECTIVO
+     *  (ver effectiveNow: retrasar la hora del sistema no estira la prueba). Instalaciones
+     *  que activaron la prueba antes de existir TRIAL_STARTED_KEY: se deriva el inicio como
+     *  caducidad menos 7 días. */
     fun trialActive(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean {
-        val lp = localFor(prefs)
-        val expires = lp.getLong(TRIAL_EXPIRES_KEY, 0L)
+        val expires = prefs.getLong(TRIAL_EXPIRES_KEY, 0L)
         if (expires <= 0L) return false
-        val started = lp.getLong(TRIAL_STARTED_KEY, 0L).takeIf { it > 0L } ?: (expires - TRIAL_MS)
-        return now in started until expires
+        val started = prefs.getLong(TRIAL_STARTED_KEY, 0L).takeIf { it > 0L } ?: (expires - TRIAL_MS)
+        return effectiveNow(prefs, now) in started until expires
     }
 
     fun trialAvailable(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
-        !localFor(prefs).getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs, now)
+        !prefs.getBoolean(TRIAL_USED_KEY, false) && !prefs.getBoolean(PREF_KEY, false) && !trialActive(prefs, now)
 
     fun trialDaysLeft(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Int {
         if (!trialActive(prefs, now)) return 0
-        val left = localFor(prefs).getLong(TRIAL_EXPIRES_KEY, 0L) - now
+        val left = prefs.getLong(TRIAL_EXPIRES_KEY, 0L) - effectiveNow(prefs, now)
         return if (left <= 0) 0 else ((left + 86_399_999) / 86_400_000).toInt()
     }
 
     fun activateTrial(prefs: SharedPreferences, now: Long = System.currentTimeMillis()) {
-        localFor(prefs).edit()
+        prefs.edit()
             .putLong(TRIAL_STARTED_KEY, now)
             .putLong(TRIAL_EXPIRES_KEY, now + TRIAL_MS)
             .putBoolean(TRIAL_USED_KEY, true)
+            // M1: la marca de agua arranca en el inicio y el desfase a cero.
+            .putLong(TRIAL_SEEN_MAX_KEY, now)
+            .putLong(TRIAL_CLOCK_OFFSET_KEY, 0L)
             .apply()
     }
 
@@ -187,9 +266,15 @@ object Pro {
      *
      * Ojo con el orden: a quien compra Pro NO se le pregunta, porque ya tiene los 3 temas
      * y el regalo no le añade nada. Si algún día cancela... no puede: la compra es única.
+     *
+     * M4: esto era un AND entre claves de DOS ficheros de prefs con políticas de backup
+     * opuestas (pro_trial_used en el local, sin respaldar; el resto en el principal, sí),
+     * así que al reinstalar el regalo prometido se evaporaba y theme_before_lock se quedaba
+     * huérfano. Con el trial de vuelta en el principal (C1) las cuatro claves viajan juntas
+     * y el regalo sobrevive a la reinstalación.
      */
     fun trialGiftPending(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
-        localFor(prefs).getBoolean(TRIAL_USED_KEY, false) &&
+        prefs.getBoolean(TRIAL_USED_KEY, false) &&
         !trialActive(prefs, now) &&
         !prefs.getBoolean(PREF_KEY, false) &&
         !prefs.getBoolean(TRIAL_GIFT_DONE_KEY, false)
