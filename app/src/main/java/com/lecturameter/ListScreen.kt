@@ -706,10 +706,15 @@ fun ListScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                statusEmoji(status),
-                                fontSize = 13.sp
+                            // P-038: icono Material tintado con el color del estado, en vez
+                            // del emoji del sistema (mockup aprobado 18-07)
+                            Icon(
+                                statusIcon(status),
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(17.dp)
                             )
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 statusLabel(status),
                                 fontSize = 8.5.sp,
@@ -786,7 +791,15 @@ fun ListScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(if (vm.showFavoritesOnly) "❤️" else statusEmoji(activeStatus), fontSize = 44.sp)
+                                // P-038: la estantería vacía usa el mismo icono que su pestaña.
+                                // El ❤️ de "solo favoritos" NO es una estantería: se queda emoji.
+                                if (vm.showFavoritesOnly) Text("❤️", fontSize = 44.sp)
+                                else Icon(
+                                    statusIcon(activeStatus),
+                                    contentDescription = null,
+                                    tint = statusColor(activeStatus).copy(alpha = 0.55f),
+                                    modifier = Modifier.size(44.dp)
+                                )
                                 Spacer(Modifier.height(12.dp))
                                 Text(
                                     if (vm.showFavoritesOnly) stringResource(R.string.empty_shelf_favorites)

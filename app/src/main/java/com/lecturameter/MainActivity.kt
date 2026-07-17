@@ -585,6 +585,20 @@ fun statusEmoji(s: BookStatus) = when (s) {
     BookStatus.DROPPED   -> "❌"
 }
 
+// P-038 (mockup aprobado por Víctor 18-07: "los nuevos iconos son MUCHO mejores que los
+// emojis"): las estanterías pasan de emoji del sistema a icono Material, del mismo juego que
+// los destinos del rail. El emoji lo dibuja el sistema con sus propios colores y no sabe nada
+// del tema; el icono hereda el color del ESTADO (statusColor), que es el que ya llevaban el
+// nombre y el contador. Los dos emojis de arriba del rail (📜 y 📚) se quedan, y el resto de
+// emojis de la app también (decisión suya: "los emojis en otras partes de la app se quedan").
+fun statusIcon(s: BookStatus): androidx.compose.ui.graphics.vector.ImageVector = when (s) {
+    BookStatus.READING   -> Icons.Default.MenuBook
+    BookStatus.REREADING -> Icons.Default.Repeat
+    BookStatus.FINISHED  -> Icons.Default.CheckCircle
+    BookStatus.PENDING   -> Icons.Default.Bookmark
+    BookStatus.DROPPED   -> Icons.Default.Cancel
+}
+
 // ── Géneros (OpenLibrary + Google Books, orden alfabético) ────────────────────
 
 val BOOK_GENRES = listOf(
