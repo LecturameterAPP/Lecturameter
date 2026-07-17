@@ -743,8 +743,9 @@ fun ListScreen(
             }
         }
 
-        // D-015 (Cuero): nervio de lomo entre las estanterías y la lista (solo tema Cuero)
-        CueroNervio(theme, Modifier.padding(start = 10.dp, end = 16.dp, top = 4.dp))
+        // P-036 (18-07): el separador entre las estanterías y la lista lo pone el tema
+        // (nervio en Cuero, línea con halo en Aurora, fundido en AMOLED; nada en Claro/Oscuro)
+        ThemeDivider(theme, Modifier.padding(start = 10.dp, end = 16.dp, top = 4.dp))
 
         // ── Fase 6.1 (D-008, T1): card del rail — primera vez en el home ─────
         if (railTipVisible) {

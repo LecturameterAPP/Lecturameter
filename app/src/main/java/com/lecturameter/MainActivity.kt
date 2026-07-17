@@ -1410,6 +1410,59 @@ fun CueroNervio(theme: Theme, modifier: Modifier = Modifier) {
     }
 }
 
+// ── P-036: separador propio de cada tema de pago (decisiones de Víctor, 18-07) ────────
+// Sustituye a la raya de 1px en el punto donde las estanterías se separan de la lista.
+// Cuero: el nervio de lomo de siempre ("genial", sin cambios).
+// Aurora: UNA sola línea RECTA con el brillo y el degradado teal→morado de la variante A2
+//         (descartadas las ondas de A1/A2: "se quedan en una sola y recta").
+// AMOLED: M1, la línea que nace y muere en el negro puro.
+// Claro y Oscuro no pintan nada aquí: conservan la raya del TabRow, como hasta ahora.
+// El separador del RAIL NO se toca: "la línea que separa en el rail los dos iconos de
+// arriba y los de abajo se queda".
+@Composable
+fun ThemeDivider(theme: Theme, modifier: Modifier = Modifier) {
+    when {
+        isCueroTheme(theme)      -> CueroNervio(theme, modifier)
+        theme.bgDark == BgDarkA  -> AuroraDivider(modifier)
+        theme.bgDark == BgDarkAm -> AmoledDivider(modifier)
+        else -> {}
+    }
+}
+
+// Aurora: el halo se dibuja a mano con trazos anchos y translúcidos superpuestos, no con
+// Modifier.blur (que es API 31+ y esta app soporta desde la 26).
+@Composable
+private fun AuroraDivider(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().padding(vertical = 6.dp).height(9.dp).drawBehind {
+        val brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+            listOf(Color(0xFF5EEAD4), AccentAurora)
+        )
+        val y = size.height / 2f
+        val a = androidx.compose.ui.geometry.Offset(0f, y)
+        val b = androidx.compose.ui.geometry.Offset(size.width, y)
+        val cap = androidx.compose.ui.graphics.StrokeCap.Round
+        drawLine(brush, a, b, strokeWidth = 7.dp.toPx(), alpha = 0.12f, cap = cap)
+        drawLine(brush, a, b, strokeWidth = 4.dp.toPx(), alpha = 0.22f, cap = cap)
+        drawLine(brush, a, b, strokeWidth = 1.4.dp.toPx(), cap = cap)
+    })
+}
+
+// AMOLED: los extremos son negro puro (píxel apagado), fiel al espíritu del tema.
+@Composable
+private fun AmoledDivider(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().padding(vertical = 6.dp).height(5.dp).drawBehind {
+        val y = size.height / 2f
+        drawLine(
+            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                listOf(Color.Transparent, Color.White.copy(alpha = 0.42f), Color.Transparent)
+            ),
+            androidx.compose.ui.geometry.Offset(0f, y),
+            androidx.compose.ui.geometry.Offset(size.width, y),
+            strokeWidth = 1.dp.toPx()
+        )
+    })
+}
+
 // QA 12-07 r2 (Aurora): tema actual accesible desde componentes hoja (chips, pills)
 // sin pasar `theme` por todos los call sites — se usa para remapear el acento.
 val LocalAppTheme = androidx.compose.runtime.compositionLocalOf<Theme?> { null }

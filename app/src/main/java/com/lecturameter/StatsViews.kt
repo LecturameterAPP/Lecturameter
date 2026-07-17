@@ -853,7 +853,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
 
     // Colores cálidos: vacío → amarillo suave → naranja → rojo intenso
     fun heatColor(value: Int, max: Int): Color {
-        if (max == 0 || value == 0) return Color(0xFF1E293B)
+        if (max == 0 || value == 0) return theme.surface
         val ratio = (value.toFloat() / max).coerceIn(0f, 1f)
         return when {
             ratio < 0.20f -> Color(0xFF78350F) // marrón oscuro
@@ -883,10 +883,10 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                 }
                 DropdownMenu(expanded = showYearMenu, onDismissRequest = { showYearMenu = false },
-                    modifier = Modifier.background(Color(0xFF1E293B))) {
+                    modifier = Modifier.background(theme.bgMid)) {
                     availableYears.forEach { y ->
                         DropdownMenuItem(
-                            text = { Text(y, color = if (y == selYear) acc else Color(0xFFF1F5F9), fontSize = 13.sp) },
+                            text = { Text(y, color = if (y == selYear) acc else theme.textMain, fontSize = 13.sp) },
                             onClick = { selYear = y; showYearMenu = false }
                         )
                     }
@@ -915,9 +915,9 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                     }
                 }
                 DropdownMenu(expanded = showMonthMenu, onDismissRequest = { showMonthMenu = false },
-                    modifier = Modifier.background(Color(0xFF1E293B))) {
+                    modifier = Modifier.background(theme.bgMid)) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) acc else Color(0xFFF1F5F9), fontSize = 13.sp) },
+                        text = { Text(stringResource(R.string.txt_e8b7bada), color = if (selMonth == null) acc else theme.textMain, fontSize = 13.sp) },
                         onClick = { selMonth = null; showMonthMenu = false }
                     )
                     (1..12).forEach { m ->
@@ -927,7 +927,7 @@ fun HeatmapView(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(monthNamesFull[m - 1],
-                                        color = if (selMonth == m) acc else if (hasDat) Color(0xFFF1F5F9) else Color(0xFF64748B),
+                                        color = if (selMonth == m) acc else if (hasDat) theme.textMain else theme.textDim,
                                         fontSize = 13.sp)
                                     if (hasDat) {
                                         Spacer(Modifier.width(6.dp))
