@@ -284,7 +284,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     },
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Green),
+                    colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Color.White),
                     enabled = !isExporting && books.isNotEmpty()
                 ) {
                     if (isExporting) {
@@ -352,7 +352,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     },
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Amber),
+                    colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Color.White),
                     enabled = !isBackingUp && books.isNotEmpty()
                 ) {
                     if (isBackingUp) {
@@ -474,7 +474,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                         onClick = { driveSignInLauncher.launch(driveSignInClient.signInIntent) },
                         modifier = Modifier.fillMaxWidth().height(46.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4))
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4), contentColor = Color.White)
                     ) {
                         Icon(Icons.Default.AccountCircle, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -520,7 +520,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                         enabled = !isDriveLoading,
                         modifier = Modifier.fillMaxWidth().height(46.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = if (driveBackupOn) Color(0xFF4285F4) else theme.border)
+                        colors = ButtonDefaults.buttonColors(containerColor = if (driveBackupOn) Color(0xFF4285F4) else theme.border, contentColor = Color.White)
                     ) {
                         if (isDriveLoading) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

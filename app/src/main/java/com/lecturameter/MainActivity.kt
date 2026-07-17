@@ -442,6 +442,18 @@ fun actionFillColor(theme: Theme): Color = when {
     theme.bgDark == BgDarkA -> AccentAurora  // Aurora
     else                    -> Sky
 }
+
+// Feedback 17-07 (Bloque 2): los degradados decorativos índigo→violeta (barras del
+// histograma de sesiones, portada sin imagen, badge del historial de Wrapped) también
+// salían azules sobre el cuero. En Cuero y Aurora se resuelven con el acento del tema
+// degradando a su propia versión translúcida; el resto de temas conservan el par de
+// siempre para no cambiar su aspecto.
+fun accentGradient(theme: Theme): List<Color> = when {
+    theme.bgDark == BgDarkC || theme.bgDark == BgDarkA -> {
+        val a = accentForTheme(theme); listOf(a, a.copy(alpha = 0.55f))
+    }
+    else -> listOf(Accent, Accent2)
+}
 val Green   = Color(0xFF10B981); val Red     = Color(0xFFF87171)
 val Amber   = Color(0xFFF59E0B); val Gold    = Color(0xFFFFBB33)
 val Sky     = Color(0xFF0EA5E9)
@@ -696,7 +708,7 @@ fun GenreSelectorSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = if (isCueroTheme(theme)) theme.bgMid else if (theme.isDark) Color(0xFF151B31) else theme.bgMid,
+        containerColor = if (theme.bgDark == BgDarkD) Color(0xFF151B31) else theme.bgMid,
         contentColor = theme.textMain
     ) {
         // Feedback 11-07: la lista usa weight() dentro del alto acotado del sheet

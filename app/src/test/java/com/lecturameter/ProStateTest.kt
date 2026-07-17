@@ -191,12 +191,15 @@ class ProStateTest {
 
     // ── Tope de ediciones (P-031) ────────────────────────────────────────────
 
+    // Decisión Víctor 17-07: gratis base + 2 (3 totales), Pro sin límite.
+    // Los asserts van contra literales A PROPÓSITO: comparar la constante consigo misma
+    // (como hacía la versión vieja) pasa con cualquier valor y no protege el gate.
     @Test
-    fun `tope de ediciones 2 gratis y 5 Pro`() {
+    fun `tope de ediciones 3 gratis y sin limite en Pro`() {
         val prefs = FakePrefs()
-        assertEquals(Pro.FREE_EDITIONS, Pro.editionLimit(prefs))
+        assertEquals(3, Pro.editionLimit(prefs))
         Pro.markPurchased(prefs)
-        assertEquals(Pro.PRO_EDITIONS, Pro.editionLimit(prefs))
+        assertEquals(Int.MAX_VALUE, Pro.editionLimit(prefs))
     }
 
     // ── Canje: lockout local ─────────────────────────────────────────────────

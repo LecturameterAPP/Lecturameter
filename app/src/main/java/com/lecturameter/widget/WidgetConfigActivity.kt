@@ -131,7 +131,7 @@ private fun WidgetConfigSwitchRow(
             checked = checked,
             onCheckedChange = onChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = com.lecturameter.onAccentColor(theme),
                 checkedTrackColor = com.lecturameter.accentForTheme(theme),
                 uncheckedTrackColor = theme.border
             )

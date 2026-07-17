@@ -267,7 +267,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                 item {
                     Surface(shape = RoundedCornerShape(16.dp), color = accentForTheme(theme).copy(alpha = 0.1f), border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.2f))) {
                         Column(Modifier.padding(20.dp)) {
-                            Text(stringResource(R.string.txt_316406f4), color = Color(0xFFA5B4FC), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                            Text(stringResource(R.string.txt_316406f4), color = accentForTheme(theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(14.dp))
                             Row(Modifier.fillMaxWidth()) {
                                 SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
@@ -629,7 +629,7 @@ fun BookCard(
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = stringResource(R.string.txt_adbe3283),
-                            tint = Color.White,
+                            tint = onAccentColor(theme),
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -742,7 +742,10 @@ fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? =
             modifier = Modifier.size(size.dp, (size * 1.42f).dp).clip(RoundedCornerShape(8.dp))
         )
     } else {
-        Box(Modifier.size(size.dp, (size * 1.42f).dp).clip(RoundedCornerShape(8.dp)).background(Brush.verticalGradient(listOf(Accent, Accent2))), contentAlignment = Alignment.Center) { Text("📖", fontSize = (size / 3.2f).sp) }
+        // BookCover es un composable hoja sin `theme`: el degradado se resuelve por
+        // LocalAppTheme, el mecanismo previsto para esto (mismo caso que themedAccentOr).
+        val coverGradient = LocalAppTheme.current?.let { accentGradient(it) } ?: listOf(Accent, Accent2)
+        Box(Modifier.size(size.dp, (size * 1.42f).dp).clip(RoundedCornerShape(8.dp)).background(Brush.verticalGradient(coverGradient)), contentAlignment = Alignment.Center) { Text("📖", fontSize = (size / 3.2f).sp) }
     }
 }
 
@@ -778,7 +781,7 @@ fun FooterStats(finished: List<Book>, _theme: Theme) {
     val avgRating = if (rated.isNotEmpty()) rated.map { it.rating }.average() else null
     Surface(shape = RoundedCornerShape(16.dp), color = accentForTheme(_theme).copy(alpha = 0.1f), border = BorderStroke(1.dp, accentForTheme(_theme).copy(alpha = 0.2f))) {
         Column(Modifier.padding(20.dp)) {
-            Text(stringResource(R.string.txt_9096e7e0), color = Color(0xFFA5B4FC), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+            Text(stringResource(R.string.txt_9096e7e0), color = accentForTheme(_theme), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth()) {
                 FooterStat("${finished.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f))

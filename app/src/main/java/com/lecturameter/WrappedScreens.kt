@@ -1278,7 +1278,7 @@ fun WrappedHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, o
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             // Year badge
                             Box(
-                                Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(Brush.verticalGradient(listOf(Accent, Accent2))),
+                                Modifier.size(52.dp).clip(RoundedCornerShape(12.dp)).background(Brush.verticalGradient(accentGradient(theme))),
                                 contentAlignment = Alignment.Center
                             ) { Text("${w.year}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                             Spacer(Modifier.width(14.dp))

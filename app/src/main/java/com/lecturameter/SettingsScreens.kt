@@ -1163,7 +1163,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                         localBackupEnabled = checked
                         prefs.edit().putBoolean("local_backup_enabled", checked).apply()
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = acc, uncheckedTrackColor = theme.border)
+                    colors = SwitchDefaults.colors(checkedThumbColor = onAccentColor(theme), checkedTrackColor = acc, uncheckedTrackColor = theme.border)
                 )
             }
             Surface(
@@ -1213,7 +1213,7 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                         driveBackupEnabled = checked
                         prefs.edit().putBoolean("drive_backup_enabled", checked).apply()
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = acc, uncheckedTrackColor = theme.border)
+                    colors = SwitchDefaults.colors(checkedThumbColor = onAccentColor(theme), checkedTrackColor = acc, uncheckedTrackColor = theme.border)
                 )
             }
             Surface(

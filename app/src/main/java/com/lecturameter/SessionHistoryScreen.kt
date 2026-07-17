@@ -997,7 +997,7 @@ fun SessionChart(sessions: List<ReadingSession>, theme: Theme, reversed: Boolean
     if (sorted.isEmpty()) return
 
     val maxPages = sorted.maxOf { it.value }.toFloat().coerceAtLeast(1f)
-    val barColor = Brush.verticalGradient(listOf(Accent, Accent2))
+    val barColor = Brush.verticalGradient(accentGradient(theme))
 
     Surface(
         shape = RoundedCornerShape(14.dp),

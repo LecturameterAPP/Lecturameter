@@ -496,9 +496,7 @@ fun ListScreen(
                 Spacer(Modifier.width(6.dp))
                 Button(
                     onClick = onAdd,
-                    colors = if (isCueroTheme(theme))
-                        ButtonDefaults.buttonColors(containerColor = AccentCuero, contentColor = Color(0xFF241608))
-                    else ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
+                    colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
@@ -566,10 +564,11 @@ fun ListScreen(
                         // Feedback 17-07: si ya hay texto escrito, se lleva a la búsqueda
                         // online y la barra local queda limpia al volver
                         IconButton(onClick = {
-                            if (searchQuery.isNotBlank()) {
-                                listMainRef?.pendingSearchQuery?.value = searchQuery
-                                searchQuery = ""
-                            }
+                            // El canal se escribe SIEMPRE (null si la barra está vacía): el back
+                            // del sistema no pasa por el onBack que lo limpia, así que dejar aquí
+                            // un valor viejo relanzaba solo la búsqueda anterior al volver a entrar.
+                            listMainRef?.pendingSearchQuery?.value = searchQuery.takeIf { it.isNotBlank() }
+                            searchQuery = ""
                             onSearch()
                         }) {
                             Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))

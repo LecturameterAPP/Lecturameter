@@ -660,7 +660,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             val isSelected = selectedEditionResult == ed
                                             Surface(
                                                 shape = RoundedCornerShape(12.dp),
-                                                color = if (isSelected) Color(0x207B6EF6) else theme.bgSurf,
+                                                color = if (isSelected) acc.copy(alpha = 0.13f) else theme.bgSurf,
                                                 border = BorderStroke(1.dp, if (isSelected) acc else theme.border),
                                                 modifier = Modifier.fillMaxWidth().clickable { selectedEditionResult = ed; scannedEditionLanguageUncertain = false }
                                             ) {
@@ -1650,7 +1650,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                             showRemoveWidgetDialog = false
                                             android.widget.Toast.makeText(context, context.getString(R.string.msg_book_no_longer_widget, book.title), android.widget.Toast.LENGTH_SHORT).show()
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Red),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Red, contentColor = Color.White),
                                         shape = RoundedCornerShape(10.dp)
                                     ) { Text(stringResource(R.string.txt_f46b3218)) }
                                 },
@@ -2273,7 +2273,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                             val pagPerDay: Double? = cycleForSection?.pagesPerDay
                                 ?: if (cycledays != null && cycledays >= 1 && totalSessPages > 0)
                                     totalSessPages.toDouble() / cycledays else null
-                            // Feedback 2.6 (estandarización pills): páginas=índigo, tiempo=Sky,
+                            // Feedback 2.6 (estandarización pills): páginas=acento del tema, tiempo=Sky,
                             // velocidad (p/d y p/min)=verde. El color del ciclo queda solo en la
                             // cabecera de sección (lectura índigo / relectura cian).
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {

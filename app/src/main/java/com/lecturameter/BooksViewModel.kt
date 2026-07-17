@@ -1063,7 +1063,6 @@ class BooksViewModel : ViewModel() {
         val next = if (themeMode == ThemeMode.LIGHT) ThemeMode.DARK else ThemeMode.LIGHT
         setThemeMode(next, prefs, context)
     }
-    val isDarkMode get() = themeMode != ThemeMode.LIGHT
     fun addBook(book: Book, prefs: android.content.SharedPreferences) {
         booksInternal = listOf(book) + booksInternal
         save(prefs)

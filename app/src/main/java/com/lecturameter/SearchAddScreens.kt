@@ -862,7 +862,7 @@ fun EditionsSection(
                 if (editions.size > 1) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0x1A7B6EF6)
+                        color = acc.copy(alpha = 0.1f)
                     ) {
                         Text(
                             "${editions.size}",
@@ -980,7 +980,7 @@ fun EditionsSection(
                         if (!ed.isActive) {
                             Surface(
                                 shape = RoundedCornerShape(9.dp),
-                                color = Color(0x1A7B6EF6),
+                                color = acc.copy(alpha = 0.1f),
                                 border = BorderStroke(1.dp, acc.copy(alpha = 0.45f)),
                                 modifier = Modifier.clickable { onSetActive(ed.id) }
                             ) {
