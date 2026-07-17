@@ -419,7 +419,9 @@ private fun BingoCardBody(
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(bg)
                                 .border(
-                                    width = if (isRed || cell.isCompleted) 1.5.dp else 1.dp,
+                                    // El 3×3 lleva un contorno mas GRUESO (2.5dp) y mas oscuro para
+                                    // que se note; el 4×4 conserva su grosor original.
+                                    width = if (isRed) 2.5.dp else if (cell.isCompleted) 1.5.dp else 1.dp,
                                     // El 3×3 rojo lleva un contorno mas oscuro (el propio rojo
                                     // oscurecido) para definir la casilla sobre el relleno rojo,
                                     // en los cinco temas. El 4×4 conserva su borde original.
