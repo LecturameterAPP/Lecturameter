@@ -1214,4 +1214,13 @@
     <!-- P-035: in-app update notice (Play In-App Updates, FLEXIBLE mode) -->
     <string name="msg_update_ready_to_install">Update ready to install</string>
     <string name="btn_restart_update">Restart</string>
+
+    <!-- B5 idea 1 (mockup 17-07): the "+" asks instead of assuming a manual entry -->
+    <string name="add_sheet_title">Add a book</string>
+    <string name="add_sheet_subtitle">Choose how you want to start.</string>
+    <string name="add_sheet_catalog_title">Search the catalog</string>
+    <string name="add_sheet_catalog_badge">Recommended</string>
+    <string name="add_sheet_catalog_desc">Cover, pages and ISBN already filled in</string>
+    <string name="add_sheet_manual_title">Add it manually</string>
+    <string name="add_sheet_manual_desc">For editions that are not in the catalog</string>
 </resources>

@@ -46,6 +46,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.MutableTransitionState
 import android.widget.Toast
@@ -87,6 +88,11 @@ fun ListScreen(
     var scannedIsbnForDialog by remember { mutableStateOf("") }
     // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
     var showQuickStartSheet by remember { mutableStateOf(false) }
+    // B5 idea 1 (mockup aprobado 17-07): el "+" no cambia de aspecto ni de sitio, cambia de
+    // DESTINO. La cabecera va a cero dp de holgura a 360dp (título 135 + iconos 136 + "+" 39
+    // + espacios 18 = los 328 útiles), así que la jerarquía no se puede arreglar ensanchando
+    // nada de esta fila: se arregla en el destino del botón, que no ocupa ni un dp.
+    var showAddChoiceSheet by remember { mutableStateOf(false) }
     // Feedback 13-07: el historial es un panel del home (no un drawer modal) — así el
     // rail sigue visible y FUNCIONAL con el panel abierto
     var historyOpen by rememberSaveable { mutableStateOf(false) }
@@ -187,6 +193,18 @@ fun ListScreen(
         }
     // v2.4 rework: el filtro de favoritos se aplica a TODAS las pestañas
     val allFiltered = if (vm.showFavoritesOnly) searchFiltered.filter { it.isFavorite } else searchFiltered
+
+    // ── B5 idea 2 (mockup aprobado 17-07): cuándo se ofrece el catálogo bajo la barra ──
+    // El CTA de buscar en las APIs YA existía, pero colgaba de la estantería vacía: solo
+    // asomaba si la pestaña activa se quedaba sin ningún libro. Con cuarenta libros y un
+    // par de falsos positivos del fuzzy, no llegaba a verse nunca. Aquí la condición pasa a
+    // ser la del USUARIO, no la de la estantería: hay texto escrito y las coincidencias
+    // locales son pocas, o sea, lo que busca probablemente no lo tiene todavía.
+    // N = 3 (propuesta del mockup): con tres o más coincidencias se asume que ya lo tiene y
+    // el chip estorbaría. Con "solo favoritos" no aparece nunca, igual que el CTA de hoy:
+    // ahí el filtro explica la ausencia de resultados y el catálogo no viene a cuento.
+    val localMatches = allFiltered.size
+    val showCatalogSuggestion = searchQuery.isNotBlank() && !vm.showFavoritesOnly && localMatches < 3
     val shelves: Map<BookStatus, List<Book>> = run {
         val widgetBookId = com.lecturameter.widget.loadWidgetBook(LocalContext.current)
         SHELF_ORDER.associateWith { status ->
@@ -293,6 +311,25 @@ fun ListScreen(
     }
     if (showSurveyFeedback) {
         FeedbackDialog(theme, onDismiss = { showSurveyFeedback = false })
+    }
+
+    // ── B5 idea 1: hoja de elección del "+" — catálogo (recomendado) o a mano ──────
+    if (showAddChoiceSheet) {
+        AddChoiceSheet(
+            theme = theme,
+            onCatalog = {
+                showAddChoiceSheet = false
+                // Mismo cuidado que la lupa de la barra (B1): el canal se escribe SIEMPRE,
+                // null incluido. El back del sistema no pasa por el onBack que lo limpia, así
+                // que un valor viejo aquí relanzaría la búsqueda anterior nada más entrar.
+                // De regalo: si venías escribiendo en la barra, el texto viaja al catálogo.
+                listMainRef?.pendingSearchQuery?.value = searchQuery.takeIf { it.isNotBlank() }
+                searchQuery = ""
+                onSearch()
+            },
+            onManual = { showAddChoiceSheet = false; onAdd() },
+            onDismiss = { showAddChoiceSheet = false }
+        )
     }
 
     // ── D-002/T1: bottom sheet de inicio rápido — libros Leyendo/Releyendo con ▶ ──
@@ -495,7 +532,13 @@ fun ListScreen(
                 }
                 Spacer(Modifier.width(6.dp))
                 Button(
-                    onClick = onAdd,
+                    // B5 idea 1: antes iba derecho a AddScreen (formulario en blanco). El
+                    // botón sólido en acento gritaba "añade a mano" mientras la búsqueda en
+                    // el catálogo era el tercer icono de 20dp de la fila de al lado, así que
+                    // la gente rellenaba a mano portada, páginas e ISBN que la API daba
+                    // gratis. Ahora pregunta. Añadir a mano NO desaparece: es la segunda
+                    // opción de la hoja, a un toque.
+                    onClick = { showAddChoiceSheet = true },
                     colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
@@ -620,6 +663,57 @@ fun ListScreen(
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true
             )
+
+            // ── B5 idea 2: sugerencia viva del catálogo, DEBAJO de la barra ───────
+            // El sitio importa: la fila del título no admite ni un dp más, así que el chip
+            // vive en este Column, que ya existía y crece hacia abajo. Aparece en el único
+            // momento en el que el usuario ya ha declarado que busca un libro concreto.
+            // La etiqueta va en textMain y NO en el acento: medido sobre los tokens reales,
+            // el índigo del tema Oscuro sobre el chip teñido da 3,03:1, por debajo del 4,5
+            // que pide un texto. El acento se reserva al icono, que como elemento gráfico
+            // se conforma con 3:1 (3,03 en Oscuro, el peor de los cinco; en Cuero el oro
+            // suave de los iconos da 5,09).
+            AnimatedVisibility(
+                visible = showCatalogSuggestion,
+                enter = fadeIn(animationSpec = tween(durationMillis = 180)),
+                exit  = fadeOut(animationSpec = tween(durationMillis = 120))
+            ) {
+                Surface(
+                    onClick = {
+                        // Mismo canal que el CTA de la estantería vacía (F6): pendingSearchQuery,
+                        // NUNCA pendingScannedIsbn (ése dispara el diálogo del escáner).
+                        listMainRef?.pendingSearchQuery?.value = searchQuery
+                        // Feedback 17-07: la barra local queda limpia al volver
+                        searchQuery = ""
+                        onNavigateToBookSearch()
+                    },
+                    shape = RoundedCornerShape(10.dp),
+                    color = suggestionChipColor(theme),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.TravelExplore, contentDescription = null,
+                            tint = actionIconTint(theme), modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.search_online_cta, searchQuery),
+                            color = theme.textMain,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("›", color = theme.textDim, fontSize = 15.sp)
+                    }
+                }
+            }
 
             // ── Dialog elección post-scan ISBN ────────────────────────
             if (showIsbnScanDialog && scannedIsbnForDialog.isNotBlank()) {
@@ -812,7 +906,13 @@ fun ListScreen(
                                 // libros nuevos" — CTA contextual: si la búsqueda local no
                                 // encuentra nada, ofrecer buscarlo en internet AQUÍ, justo
                                 // cuando el usuario lo necesita (sin depender del tutorial)
-                                if (searchQuery.isNotBlank() && !vm.showFavoritesOnly) {
+                                // B5 idea 2: este CTA NO se retira, se destapa. Sigue siendo el
+                                // único aviso en el caso que el chip no cubre: la estantería
+                                // activa está vacía pero hay 3+ coincidencias locales en OTRA
+                                // pestaña (buscas "Dune" desde Leyendo y lo tienes en Leídos).
+                                // Cuando el chip ya está arriba se calla, para no ofrecer dos
+                                // veces lo mismo en la misma pantalla.
+                                if (searchQuery.isNotBlank() && !vm.showFavoritesOnly && !showCatalogSuggestion) {
                                     Spacer(Modifier.height(16.dp))
                                     Button(
                                         onClick = {
@@ -986,6 +1086,136 @@ fun ListScreen(
         )
     }
     } // Box
+}
+
+/**
+ * B5 idea 2: fondo del chip de sugerencia del catálogo (valores del mockup aprobado).
+ *
+ * Son colores OPACOS calculados tema a tema, y no `accentForTheme(theme).copy(alpha = …)`,
+ * porque un alfa único no sirve para los cinco: en AMOLED el fondo es negro puro y el gris
+ * del acento al 14% deja el chip en #171718, o sea 1,17:1 contra el fondo. Sería el mismo
+ * agujero que ya nos ha mordido cinco veces pintando tarjetas con `bgMid`.
+ *
+ * Tampoco usa `cardColor()`: el chip no es una tarjeta de la lista, es una superficie teñida
+ * con el acento, y ése es justo el punto (dice "catálogo" antes de leer la etiqueta).
+ */
+private fun suggestionChipColor(theme: Theme): Color = when {
+    !theme.isDark            -> Color(0xFFE4ECE8)  // Claro: verde salvia sobre el papel
+    theme.bgDark == BgDarkA  -> Color(0xFF264B5D)  // Aurora
+    theme.bgDark == BgDarkAm -> Color(0xFF242426)  // AMOLED: gris, no negro (si no, no existe)
+    theme.bgDark == BgDarkC  -> Color(0xFF42311B)  // Cuero
+    else                     -> Color(0xFF252C4F)  // Oscuro
+}
+
+/**
+ * B5 idea 1: la hoja que abre el "+". Dos opciones, y la primera es el catálogo.
+ *
+ * No esconde nada: "a mano" sigue estando a un toque, porque el caso es real (manga,
+ * ediciones raras, libros que no están en ninguna API). Lo que cambia es cuál de los dos
+ * PARECE el camino recomendado, que hasta ahora era justo el que no interesa.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddChoiceSheet(
+    theme: Theme,
+    onCatalog: () -> Unit,
+    onManual: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val acc = accentForTheme(theme)
+    val onAcc = onAccentColor(theme)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // En AMOLED `bgMid` ES `bgDark` (negro puro): con el scrim detrás, una hoja negra
+        // sobre fondo oscurecido no tiene borde ni volumen. Se levanta solo ahí.
+        containerColor = if (theme.bgDark == BgDarkAm) Color(0xFF121212) else theme.bgMid,
+        contentColor = theme.textMain
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 22.dp).navigationBarsPadding()) {
+            Text(
+                stringResource(R.string.add_sheet_title),
+                color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                stringResource(R.string.add_sheet_subtitle),
+                color = theme.textMuted, fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 14.dp)
+            )
+
+            // Opción recomendada: acento pleno. El texto va en onAccentColor (blanco en
+            // Claro y Oscuro, el tono oscuro del tema en Aurora, AMOLED y Cuero): 4,47:1
+            // en el peor caso, que es el Oscuro.
+            Surface(
+                onClick = onCatalog,
+                shape = RoundedCornerShape(12.dp),
+                color = acc,
+                contentColor = onAcc,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 13.dp)
+                ) {
+                    Icon(Icons.Default.TravelExplore, contentDescription = null, tint = onAcc, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                stringResource(R.string.add_sheet_catalog_title),
+                                color = onAcc, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            // La chapa "Recomendado" oscurece el propio acento en vez de meter
+                            // un color ajeno al tema: 4,64:1 en el peor caso (Aurora).
+                            Surface(shape = RoundedCornerShape(5.dp), color = Color(0x38000000)) {
+                                Text(
+                                    stringResource(R.string.add_sheet_catalog_badge),
+                                    color = onAcc, fontSize = 9.5.sp, fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            stringResource(R.string.add_sheet_catalog_desc),
+                            color = onAcc, fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Añadir a mano: contorno, no desaparece. Un toque, como antes del cambio.
+            Surface(
+                onClick = onManual,
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, theme.border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 13.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = actionIconTint(theme), modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.add_sheet_manual_title),
+                            color = theme.textMain, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            stringResource(R.string.add_sheet_manual_desc),
+                            color = theme.textMuted, fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
