@@ -1138,7 +1138,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 else -> {
                     val isBingoPage = hasBingoSlide && page == 10
                     if (isBingoPage) Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
-                        val best = bingoYear.maxByOrNull { it.cellsDone }!!
+                        // B4 (2): por PORCENTAJE, no por casillas: desde que el 3×3 de Pro
+                        // comparte historial con el 4×4, cellsDone no es comparable entre
+                        // entradas (9/9 perdía contra 10/16). Ver bestMonthSummary.
+                        val best = com.lecturameter.utils.BingoManager.bestMonthSummary(bingoYear)!!
                         val isEsW = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
                         Spacer(Modifier.height(8.dp))
                         Text(stringResource(R.string.wbingo_title), fontSize = 30.sp, fontWeight = FontWeight.Black,

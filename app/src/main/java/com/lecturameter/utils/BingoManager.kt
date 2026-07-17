@@ -101,7 +101,7 @@ object BingoManager {
         val done = card.cells.count { it.isCompleted }
         // Cartones sin ningún progreso (incluidos los regenerados por migración) no cuentan
         if (done == 0) return
-        val summary = BingoMonthSummary(
+        val summary: BingoMonthSummary = BingoMonthSummary(
             monthKey = card.monthKey,
             templateNameEs = card.templateNameEs,
             templateNameEn = card.templateNameEn,
@@ -113,8 +113,15 @@ object BingoManager {
             uncompletedEs = card.cells.filter { !it.isCompleted }.map { it.labelEs },
             uncompletedEn = card.cells.filter { !it.isCompleted }.map { it.labelEn }
         )
-        val list = loadMonthSummaries(prefs) + summary
-        prefs.edit().putString(HISTORY_KEY, gson.toJson(list)).apply()
+        // B4 (2, costura bingo↔wrapped): NUNCA concatenar a pelo. Este append no es solo la
+        // rotación del día 1: reconcileBingo3Entitlement archiva el 3×3 en CADA load(), y
+        // restaurar un backup puede reponer un cartón ya archivado (restoreCard ve local=null
+        // → localDone=-1 → cualquier progreso "gana" y reescribe bingo_card_3). El siguiente
+        // arranque lo vuelve a archivar y el mes salía DOS veces. No es cosmético: el Wrapped
+        // suma cellsDone/lines de todo el año, así que restaurar un backup inflaba las cifras
+        // de la pantalla que la gente comparte. mergeSummaries deduplica por identidad de
+        // cartón y se queda con el más avanzado.
+        saveMonthSummaries(prefs, mergeSummaries(loadMonthSummaries(prefs), listOf(summary)))
     }
 
     /** Backup v3: escritura directa del historial (merge por identidad en la restauración). */
@@ -125,16 +132,70 @@ object BingoManager {
     /** B4 (2): lado del cartón que resume esta entrada (3 o 4). Derivado de cellsTotal. */
     fun sideOfSummary(s: BingoMonthSummary): Int = sideOf(s.cellsTotal)
 
-    /** B4 (2): identidad de un resumen para deduplicar al restaurar un backup.
+    /** B4 (2): identidad de un resumen para deduplicar (al archivar y al restaurar).
      *
      *  El merge iba SOLO por monthKey, y eso ya se quedaba corto antes de los dos cartones
      *  (un mes puede tener dos resúmenes: completas el cartón, pides otro y ese también se
      *  archiva). Con el 3×3 conviviendo, un mismo mes tiene normalmente un 4×4 Y un 3×3, así
-     *  que deduplicar por mes se comería uno de los dos al restaurar. La identidad real es
-     *  mes + plantilla + tamaño + progreso: dos cartones distintos del mismo mes difieren en
-     *  la plantilla, y el mismo cartón archivado dos veces coincide en todo. */
+     *  que deduplicar por mes se comería uno de los dos al restaurar.
+     *
+     *  La identidad es mes + plantilla + tamaño, y NO incluye el progreso a propósito. El
+     *  patrón es lo que el cartón lleva HECHO, no quién es: el mismo cartón se archiva más de
+     *  una vez (reconcile en cada load, y restaurar repone lo ya archivado) y puede hacerlo
+     *  con progresos DISTINTOS, así que meter el patrón en la clave dejaba pasar justo el
+     *  duplicado que hay que cazar (archivado a 4 casillas + archivado a 6 = 10 en el Wrapped
+     *  para un cartón que nunca pasó de 6). Dos cartones de verdad distintos del mismo mes y
+     *  tamaño difieren SIEMPRE en la plantilla: la rotación avanza el índice en cada cartón
+     *  nuevo y hay 12 plantillas por tamaño, así que repetir plantilla dentro de un mes exige
+     *  quemar 12 cartones en 30 días. */
     fun summaryKey(s: BingoMonthSummary): String =
-        "${s.monthKey}|${s.templateId()}|${s.cellsTotal}|${s.pattern}"
+        "${s.monthKey}|${s.templateId()}|${s.cellsTotal}"
+
+    /** B4 (2): une resúmenes por identidad de cartón quedándose con el MÁS avanzado.
+     *
+     *  Un cartón archivado dos veces no son dos meses: es el mismo mes visto dos veces, y el
+     *  bueno es el que más lejos llegó (archivar nunca debe hacer retroceder lo ya guardado,
+     *  igual que restaurar nunca degrada un cartón vivo). Conserva el orden de [base] para no
+     *  barajar el historial ya guardado; quien llame decide si ordena después. */
+    fun mergeSummaries(
+        base: List<BingoMonthSummary>,
+        incoming: List<BingoMonthSummary>
+    ): List<BingoMonthSummary> {
+        val byKey = LinkedHashMap<String, BingoMonthSummary>()
+        for (s in base + incoming) {
+            val k = summaryKey(s)
+            val cur = byKey[k]
+            if (cur == null || s.cellsDone > cur.cellsDone) byKey[k] = s
+        }
+        return byKey.values.toList()
+    }
+
+    /** B4 (2): cuánto se conquistó del cartón, 0..1. Es lo único comparable entre tamaños.
+     *  cellsTotal 0 (resumen corrupto o default de Gson) → 0, nunca división por cero. */
+    fun progressRatio(s: BingoMonthSummary): Float =
+        if (s.cellsTotal <= 0) 0f else s.cellsDone.toFloat() / s.cellsTotal
+
+    /** B4 (2, costura bingo↔wrapped): el "mejor mes" del Wrapped anual.
+     *
+     *  Lo escribió la rama `wrapped` con un maxByOrNull { cellsDone } cuando SOLO existía el
+     *  4×4; la rama `bingo` metió los 3×3 en la misma clave sin que la otra se enterara, y
+     *  cellsDone dejó de ser comparable: un 3×3 PERFECTO (9/9, el cartón difícil) perdía
+     *  contra un 4×4 a medias (10/16) por 9 < 10. El Wrapped anunciaba el mes flojo, dibujaba
+     *  la rejilla incompleta y el único cartón perfecto del año no salía: lo contrario de lo
+     *  que dice esa slide.
+     *
+     *  Se compara por PORCENTAJE del cartón: "mejor" es lo lejos que llegaste en el cartón que
+     *  te tocó, no cuántas casillas cayeron. Así el completo gana solo (1.0 es el máximo) sin
+     *  necesidad de tratar `complete` aparte. Desempates: más líneas (jugar a línea es más duro
+     *  que picotear casillas sueltas) y luego más casillas, que a igual porcentaje premia el
+     *  cartón grande (16/16 pesa más que 9/9). A igualdad total gana el primero de la lista,
+     *  que llega ordenada por mes: el mérito más antiguo. */
+    fun bestMonthSummary(list: List<BingoMonthSummary>): BingoMonthSummary? =
+        list.maxWithOrNull(
+            compareBy<BingoMonthSummary> { progressRatio(it) }
+                .thenBy { it.lines }
+                .thenBy { it.cellsDone }
+        )
 
     /** El resumen no guarda templateId (nunca lo guardó), así que el nombre ES su
      *  identificador estable dentro del mes. */

@@ -383,13 +383,22 @@ class BooksViewModel : ViewModel() {
      *  B4 (2): el 3×3 NO se crea si el usuario no es Pro. Que exista el cartón es el
      *  gate real; la UI solo lo refleja. Así un gratis nunca acumula progreso invisible
      *  en un cartón que no puede ver. */
+    /** B4 (2): ¿le toca jugar este tamaño a este usuario? El 4×4 es de todos; el 3×3 es el
+     *  extra de Pro. El gate REAL es este, no "que exista el cartón": entre restaurar un
+     *  backup y el siguiente reconcile hay una ventana en la que un no-Pro TIENE un 3×3 vivo
+     *  (lo repuso el restore), y los hooks lo seguían evaluando y GUARDANDO porque
+     *  ensureBingoCard sale temprano pero bingoFlow(3).value ya no era null. No hacía daño
+     *  (reconcile lo archiva), pero era progreso invisible en un cartón sin derecho. */
+    private fun canPlayBingo(prefs: android.content.SharedPreferences, side: Int): Boolean =
+        side != com.lecturameter.utils.BingoManager.SIDE_3 || com.lecturameter.utils.Pro.isPro(prefs)
+
     fun ensureBingoCard(
         prefs: android.content.SharedPreferences,
         side: Int = com.lecturameter.utils.BingoManager.SIDE_4,
         force: Boolean = false
     ) {
         val ctx = appContext ?: return
-        if (side == com.lecturameter.utils.BingoManager.SIDE_3 && !com.lecturameter.utils.Pro.isPro(prefs)) return
+        if (!canPlayBingo(prefs, side)) return
         val templates = com.lecturameter.utils.BingoManager.templatesFor(ctx, side)
         if (templates.isEmpty()) return
         val month = com.lecturameter.utils.BingoManager.currentMonthKey()
@@ -442,6 +451,7 @@ class BooksViewModel : ViewModel() {
      *  B4 (2): evalúa los DOS cartones — el mismo libro cuenta para el 4×4 y para el 3×3. */
     private fun bingoOnBookFinished(book: Book, prefs: android.content.SharedPreferences) {
         for (side in listOf(com.lecturameter.utils.BingoManager.SIDE_4, com.lecturameter.utils.BingoManager.SIDE_3)) {
+            if (!canPlayBingo(prefs, side)) continue
             // Feedback 13-07 (12): rotar ANTES de evaluar — un libro terminado el día 1 con
             // la app viva desde el mes anterior no debe marcar el cartón caducado
             ensureBingoCard(prefs, side)
@@ -463,6 +473,7 @@ class BooksViewModel : ViewModel() {
     private fun bingoOnSession(prefs: android.content.SharedPreferences) {
         val streak = currentReadingStreak()
         for (side in listOf(com.lecturameter.utils.BingoManager.SIDE_4, com.lecturameter.utils.BingoManager.SIDE_3)) {
+            if (!canPlayBingo(prefs, side)) continue
             // Feedback 13-07 (12): igual que en bingoOnBookFinished — rotar antes de evaluar
             ensureBingoCard(prefs, side)
             val card = bingoFlow(side).value ?: continue

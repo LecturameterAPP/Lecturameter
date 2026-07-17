@@ -500,11 +500,19 @@ fun importFullBackupFromJson(
         // reconcileBingo3Entitlement lo archivará en el historial en el siguiente arranque,
         // que es justo lo que pidió Víctor (conservarlo y poder verlo).
         var bingoRestored = false
-        fun restoreCard(fromBackup: BingoCard?) {
+        // [expectedSide]: el campo del backup del que sale este cartón manda sobre lo que
+        // digan sus celdas. Un backup anterior a "Feedback 13-07 (10)" (cartón fijo 3×3) trae
+        // un `bingoCard` de 9 celdas, y como la clave se derivaba del nº de celdas resucitaba
+        // como el cartón 3×3 de Pro: un cartón viejo del bingo GRATIS colándose en el extra de
+        // pago. Ningún usuario real puede tener ese backup (el 3×3 nació dentro del refac),
+        // pero Víctor sí guarda backups de pruebas de esa época. Si el tamaño no casa con el
+        // campo, el cartón es de otra era y se ignora: el historial no depende de esto.
+        fun restoreCard(fromBackup: BingoCard?, expectedSide: Int) {
             if (fromBackup == null) return
             if (fromBackup.monthKey != com.lecturameter.utils.BingoManager.currentMonthKey()) return
             val side = com.lecturameter.utils.BingoManager.sideOf(fromBackup.cells.size)
             if (side < 3) return  // cartón corrupto: nº de celdas que no es un cuadrado
+            if (side != expectedSide) return
             val local = com.lecturameter.repository.BingoRepository.loadOrNull(prefs, side)
             val localDone = local?.cells?.count { it.isCompleted } ?: -1
             val backupDone = fromBackup.cells.count { it.isCompleted }
@@ -513,8 +521,8 @@ fun importFullBackupFromJson(
                 bingoRestored = true
             }
         }
-        restoreCard(backup.bingoCard)
-        restoreCard(backup.bingoCard3)
+        restoreCard(backup.bingoCard, com.lecturameter.utils.BingoManager.SIDE_4)
+        restoreCard(backup.bingoCard3, com.lecturameter.utils.BingoManager.SIDE_3)
         if (bingoRestored) vm.reloadBingoCard(prefs)
         // Historial mensual del Bingo: unión por IDENTIDAD del resumen, no por mes.
         //
@@ -525,12 +533,15 @@ fun importFullBackupFromJson(
         // distingue mes + plantilla + tamaño + progreso.
         backup.bingoMonthHistory?.let { fromBackup ->
             val local = com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs)
-            val localKeys = local.map { com.lecturameter.utils.BingoManager.summaryKey(it) }.toSet()
-            val incoming = fromBackup.filter {
-                it.monthKey.isNotBlank() && com.lecturameter.utils.BingoManager.summaryKey(it) !in localKeys
-            }
-            if (incoming.isNotEmpty()) {
-                com.lecturameter.utils.BingoManager.saveMonthSummaries(prefs, (local + incoming).sortedBy { it.monthKey })
+            // El merge y el archivado comparten identidad (summaryKey) y criterio: un cartón
+            // que ya está en el historial local no entra otra vez, y si el backup lo trae MÁS
+            // avanzado gana el más avanzado. Restaurar nunca suma dos veces el mismo cartón
+            // (inflaba el Wrapped) ni degrada lo que ya había.
+            val merged = com.lecturameter.utils.BingoManager
+                .mergeSummaries(local, fromBackup.filter { it.monthKey.isNotBlank() })
+                .sortedBy { it.monthKey }
+            if (merged != local) {
+                com.lecturameter.utils.BingoManager.saveMonthSummaries(prefs, merged)
                 vm.loadBingoHistory(prefs)
             }
         }

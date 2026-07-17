@@ -188,4 +188,113 @@ class BingoManagerTest {
         val b = summary(monthKey = "2026-07", cellsTotal = 16, name = "El clásico")
         assertEquals(BingoManager.summaryKey(a), BingoManager.summaryKey(b))
     }
+
+    // ── B4 (2, costura bingo↔wrapped): el historial no se duplica al archivar ──────
+    // Escenario real: reconcileBingo3Entitlement archiva el 3×3 en CADA load(), y restaurar
+    // un backup repone un cartón ya archivado (restoreCard ve local=null → localDone=-1 → todo
+    // progreso gana). El Wrapped suma cellsDone/lines del año: duplicar = inflar las cifras.
+
+    /** Cartón de [total] celdas con las [done] primeras marcadas. */
+    private fun playedCard(
+        total: Int, done: Int, name: String = "El tocho", monthKey: String = "2026-07"
+    ) = BingoCard(
+        templateId = name, templateNameEs = name, templateNameEn = name, monthKey = monthKey,
+        cells = (0 until total).map {
+            BingoCell(conditionType = "genre", conditionValue = "x", labelEs = "c$it", labelEn = "c$it",
+                isCompleted = it < done)
+        }
+    )
+
+    @Test fun appendMonthSummary_el_mismo_carton_archivado_dos_veces_no_duplica_el_mes() {
+        // Trial con 4 casillas del 3×3 → caduca → reconcile archiva → restauras el backup
+        // (repone bingo_card_3) → siguiente arranque, reconcile vuelve a archivar.
+        val prefs = FakePrefs()
+        val card = playedCard(total = 9, done = 4)
+        BingoManager.appendMonthSummary(prefs, card)
+        BingoManager.appendMonthSummary(prefs, card)
+        val history = BingoManager.loadMonthSummaries(prefs)
+        assertEquals(1, history.size)
+        // Lo que veía el Wrapped: 8 casillas de un cartón que solo tiene 4 hechas.
+        assertEquals(4, history.sumOf { it.cellsDone })
+    }
+
+    @Test fun appendMonthSummary_reponer_el_carton_con_mas_progreso_no_suma_las_dos_veces() {
+        // El duplicado que NO cazaba deduplicar por patrón: mismo cartón archivado con
+        // progresos distintos (archivado a 4 → restauras un backup con 6 → se rearchiva).
+        val prefs = FakePrefs()
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 9, done = 4))
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 9, done = 6))
+        val history = BingoManager.loadMonthSummaries(prefs)
+        assertEquals(1, history.size)
+        // Gana el más avanzado, y suma 6 (no 4+6=10)
+        assertEquals(6, history.single().cellsDone)
+    }
+
+    @Test fun appendMonthSummary_el_4x4_y_el_3x3_del_mismo_mes_conviven() {
+        // Lo normal en un Pro: el mes archiva un cartón de cada tamaño. Deduplicar no puede
+        // comerse uno de los dos.
+        val prefs = FakePrefs()
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 16, done = 5, name = "El clásico"))
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 9, done = 4, name = "El tocho"))
+        assertEquals(2, BingoManager.loadMonthSummaries(prefs).size)
+    }
+
+    @Test fun appendMonthSummary_dos_cartones_distintos_del_mismo_mes_y_tamano_conviven() {
+        // Completas el 4×4, pides otro, y ese también se archiva: distinta plantilla.
+        val prefs = FakePrefs()
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 16, done = 16, name = "El clásico"))
+        BingoManager.appendMonthSummary(prefs, playedCard(total = 16, done = 3, name = "El explorador"))
+        val history = BingoManager.loadMonthSummaries(prefs)
+        assertEquals(2, history.size)
+        assertEquals(19, history.sumOf { it.cellsDone })
+    }
+
+    @Test fun mergeSummaries_restaurar_dos_veces_el_mismo_backup_no_infla_el_historial() {
+        // El backup hace MERGE, no reemplazo: restaurar dos veces el mismo fichero tiene que
+        // dar el mismo historial.
+        val local = listOf(summary(monthKey = "2026-03", cellsTotal = 9, name = "El tocho"))
+        val once = BingoManager.mergeSummaries(local, local)
+        val twice = BingoManager.mergeSummaries(once, local)
+        assertEquals(1, once.size)
+        assertEquals(once, twice)
+    }
+
+    // ── B4 (2, costura bingo↔wrapped): "tu mejor mes" compara porcentajes ─────────
+
+    private fun played(
+        monthKey: String, done: Int, total: Int, lines: Int = 0, name: String = "t"
+    ) = BingoMonthSummary(
+        monthKey = monthKey, templateNameEs = name, templateNameEn = name, cellsDone = done,
+        cellsTotal = total, lines = lines, complete = done == total, pattern = "1".repeat(done)
+    )
+
+    @Test fun bestMonthSummary_el_3x3_perfecto_gana_al_4x4_a_medias() {
+        // El bug: maxByOrNull { cellsDone } daba julio porque 10 > 9, y el ÚNICO cartón
+        // perfecto del año no salía en la slide que presume de él.
+        val marzo = played("2026-03", done = 9, total = 9, lines = 8)   // 9/9 = 1.00
+        val julio = played("2026-07", done = 10, total = 16, lines = 1) // 10/16 = 0.63
+        assertEquals("2026-03", BingoManager.bestMonthSummary(listOf(marzo, julio))?.monthKey)
+    }
+
+    @Test fun bestMonthSummary_a_igual_porcentaje_gana_el_carton_grande() {
+        // Dos cartones perfectos: pesa más el de 16 casillas.
+        val tresPerfecto = played("2026-03", done = 9, total = 9, lines = 8)
+        val cuatroPerfecto = played("2026-07", done = 16, total = 16, lines = 10)
+        assertEquals("2026-07", BingoManager.bestMonthSummary(listOf(tresPerfecto, cuatroPerfecto))?.monthKey)
+    }
+
+    @Test fun bestMonthSummary_a_igual_porcentaje_desempata_por_lineas() {
+        val pocasLineas = played("2026-02", done = 8, total = 16, lines = 0)
+        val masLineas = played("2026-05", done = 8, total = 16, lines = 2)
+        assertEquals("2026-05", BingoManager.bestMonthSummary(listOf(pocasLineas, masLineas))?.monthKey)
+    }
+
+    @Test fun bestMonthSummary_aguanta_un_resumen_corrupto_sin_dividir_por_cero() {
+        // cellsTotal 0 = default de Gson en un resumen corrupto: no puede reventar el Wrapped.
+        val roto = played("2026-01", done = 0, total = 0)
+        val bueno = played("2026-04", done = 2, total = 16)
+        assertEquals(0f, BingoManager.progressRatio(roto), 0f)
+        assertEquals("2026-04", BingoManager.bestMonthSummary(listOf(roto, bueno))?.monthKey)
+        assertEquals(null, BingoManager.bestMonthSummary(emptyList()))
+    }
 }
