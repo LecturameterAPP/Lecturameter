@@ -233,23 +233,23 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 // ── SLIDE 0: RESUMEN ──────────────────────────────────────────
                 0 -> Column(sm) {
                     // Fondo temático del slide (superpuesto al glow global)
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     WrappedNarrative(stringResource(R.string.wrapped_narr_1), theme)
                     // Año protagonista con gradiente
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                         .background(Brush.linearGradient(wrappedSlabFor(Slot.YEAR, theme))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(20.dp)) {
                             // El "2026" recupera su degradado (en Oscuro, el #818CF8 -> #22D3EE de siempre).
-                            Text("${wrapped.year}", fontSize = 80.sp, fontWeight = FontWeight.Black,
+                            Text("${wrapped.year}", fontSize = 62.sp, fontWeight = FontWeight.Black,
                                 style = androidx.compose.ui.text.TextStyle(
                                     brush = Brush.horizontalGradient(wrappedHeroFor(Slot.YEAR, theme))
                                 ))
                             Text(stringResource(R.string.wcard_subtitle), color = onSlabMutedFor(Slot.YEAR, theme), fontSize = 14.sp)
                         }
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(12.dp))
                     // 2 stats enormes
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         WrappedBigCard(wrapped.totalPages.toLocaleString(), stringResource(R.string.wcard_pages), theme,
@@ -257,7 +257,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         WrappedBigCard("${wrapped.totalBooks}", stringResource(R.string.wcard_books), theme,
                             Slot.YEAR_ALT, Modifier.weight(1f))
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                     // 3 mini stats
                     val hTot = wrapped.totalMinutes / 60; val mTot = wrapped.totalMinutes % 60
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -265,7 +265,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         WrappedMiniCard("${wrapped.longestStreakDays}d", stringResource(R.string.wcard_streak), Green, theme, Modifier.weight(1f))
                         WrappedMiniCard("${wrapped.totalSessions}", stringResource(R.string.wcard_sessions), Sky, theme, Modifier.weight(1f))
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                     // Autor + género
                     if (wrapped.favoriteAuthor.isNotBlank()) {
                         WrappedFavRow("", stringResource(R.string.wcard_author_year), wrapped.favoriteAuthor,
@@ -277,11 +277,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_book_count, wrapped.favoriteGenreBooks, wrapped.favoriteGenreBooks), acc, theme)
                     }
                     if (wrapped.longestStreakDays > 0) {
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(10.dp))
                         Surface(shape = RoundedCornerShape(16.dp), color = Red.copy(0.12f),
                             border = BorderStroke(1.dp, wrappedInk(Red, theme).copy(0.35f)), modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("🔥", fontSize = 28.sp); Spacer(Modifier.width(10.dp))
+                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("🔥", fontSize = 26.sp); Spacer(Modifier.width(10.dp))
                                 Column {
                                     Text(stringResource(R.string.txt_362b636c), color = wrappedInk(Red, theme), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                                     Text(androidx.compose.ui.res.pluralStringResource(R.plurals.wrapped_streak_full, wrapped.longestStreakDays, wrapped.longestStreakDays), color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -289,7 +289,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                             }
                         }
                     }
-                    Spacer(Modifier.height(40.dp))
+                    Spacer(Modifier.height(24.dp))
                 }
 
                 // ── SLIDE 1: TIEMPO ───────────────────────────────────────────
@@ -437,13 +437,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                             .background(Brush.linearGradient(wrappedSlabFor(Slot.RATED, theme))),
                             contentAlignment = Alignment.Center) {
-                            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 val bestBook = books.firstOrNull { it.title == top3[0].first }
                                 if (bestBook != null) {
-                                    BookCover(bestBook.coverUrl, bestBook.title, size = 64, isbnFallback = bestBook.isbn)
+                                    BookCover(bestBook.coverUrl, bestBook.title, size = 52, isbnFallback = bestBook.isbn)
                                     Spacer(Modifier.height(6.dp))
                                 }
-                                Text("${top3[0].second}/10", fontSize = 30.sp, fontWeight = FontWeight.Black,
+                                Text("${top3[0].second}/10", fontSize = 26.sp, fontWeight = FontWeight.Black,
                                     style = androidx.compose.ui.text.TextStyle(
                                         brush = Brush.horizontalGradient(wrappedHeroFor(Slot.RATED, theme))
                                     ))
@@ -486,13 +486,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                             .background(Brush.linearGradient(wrappedSlabFor(Slot.FASTEST, theme))),
                             contentAlignment = Alignment.Center) {
-                            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 val fastBook = books.firstOrNull { it.title == fastTop3[0].first }
                                 if (fastBook != null) {
-                                    BookCover(fastBook.coverUrl, fastBook.title, size = 60, isbnFallback = fastBook.isbn)
+                                    BookCover(fastBook.coverUrl, fastBook.title, size = 50, isbnFallback = fastBook.isbn)
                                     Spacer(Modifier.height(6.dp))
                                 }
-                                Text("${String.format("%.1f", fastTop3[0].second)} p/d", fontSize = 28.sp, fontWeight = FontWeight.Black,
+                                Text("${String.format("%.1f", fastTop3[0].second)} p/d", fontSize = 24.sp, fontWeight = FontWeight.Black,
                                     style = androidx.compose.ui.text.TextStyle(
                                         brush = Brush.horizontalGradient(wrappedHeroFor(Slot.FASTEST, theme))
                                     ))
@@ -521,7 +521,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     }
                     // Feedback 2.6: la card de libros abandonados se movió a la slide de
                     // cierre — esta slide es la de mejores/más rápidos.
-                    Spacer(Modifier.height(40.dp))
+                    Spacer(Modifier.height(20.dp))
                 }
 
                 // ── SLIDE 4: GRÁFICA ──────────────────────────────────────────
@@ -593,6 +593,17 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                             i in podium -> 0.75f
                                             else -> 0.45f
                                         }
+                                        // Feedback 17-07 (resalte del mejor mes por COLOR, no solo
+                                        // por opacidad): la barra ganadora va con el acento PLENO del
+                                        // tema; las demas con una version DESATURADA del mismo acento
+                                        // (mismo matiz, menos croma), asi el maximo salta a la vista
+                                        // sin interaccion. En AMOLED el acento ya es gris neutro y la
+                                        // desaturacion no da de si, pero ahi la jerarquia la sigue
+                                        // marcando la opacidad; los dos ejes se combinan. Sale del
+                                        // acento del tema, no de un hex suelto, y pasa por
+                                        // wrappedGraphic para conservar el 3:1 sobre la tarjeta.
+                                        val barBase = if (isMax) acc else desaturate(acc, 0.55f)
+                                        val barTop = wrappedGraphic(barBase, theme)
                                         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Bottom) {
                                             // Feedback 17-07: la etiqueta "MEJOR MES" flotante encima de la
@@ -616,12 +627,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                                 // Feedback 17-07: las barras adoptan el ACENTO DEL TEMA (oro en
                                                 // Cuero, morado en Aurora, índigo en Oscuro…) en vez de la paleta
                                                 // fija cian/violeta, que desentonaba sobre Cuero. El mejor mes
-                                                // destaca por la opacidad plena (barAlpha=1 vs 0.45 del resto) más
-                                                // el número y la letra del eje. wrappedGraphic sigue garantizando
-                                                // el contraste 3:1 del gráfico sobre la tarjeta de cada tema.
+                                                // destaca por el acento PLENO frente al tono desaturado del resto
+                                                // (ver barBase), reforzado por la opacidad plena (barAlpha=1 vs
+                                                // 0.45), el número y la letra del eje. wrappedGraphic sigue
+                                                // garantizando el contraste 3:1 del gráfico sobre la tarjeta.
                                                 .background(Brush.verticalGradient(listOf(
-                                                    wrappedGraphic(acc, theme),
-                                                    wrappedGraphic(acc, theme).copy(0.5f)))))
+                                                    barTop,
+                                                    barTop.copy(0.5f)))))
                                         }
                                     }
                                 }
@@ -1194,13 +1206,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Spacer(Modifier.height(40.dp))
                     } else Column(sm, horizontalAlignment = Alignment.CenterHorizontally) {
                         // ── P-015: cierre con comparativa vs año anterior ────────
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(6.dp))
                         // B3 (17-07): el texto grande cierra con un ":(" en la misma letra
                         // en degradado (narrativización, 11ª pantalla). Lleva un espacio duro U+00A0
                         // a propósito: con espacio normal el ":(" se va solo a la línea de
                         // abajo y la carita queda partida.
-                        Text(stringResource(R.string.wclose_title) + " :(", fontSize = 26.sp, fontWeight = FontWeight.Black,
-                            textAlign = TextAlign.Center, lineHeight = 32.sp,
+                        Text(stringResource(R.string.wclose_title) + " :(", fontSize = 22.sp, fontWeight = FontWeight.Black,
+                            textAlign = TextAlign.Center, lineHeight = 27.sp,
                             style = androidx.compose.ui.text.TextStyle(
                                 brush = Brush.horizontalGradient(accentGradientText(theme))
                             ))
@@ -1208,13 +1220,13 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         Text(
                             if (hasPrev) stringResource(R.string.wclose_vs, wrapped.year, wrapped.year - 1)
                             else stringResource(R.string.wclose_totals),
-                            color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                            color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
                         )
                         @Composable
                         fun cmpRow(label: String, value: String, delta: Int?) {
                             Surface(shape = RoundedCornerShape(12.dp), color = theme.surface,
                                 border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth()) {
-                                Row(Modifier.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(label, color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.weight(1f))
                                     Text(value, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     if (delta != null && delta != 0) {
@@ -1226,7 +1238,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                     }
                                 }
                             }
-                            Spacer(Modifier.height(7.dp))
+                            Spacer(Modifier.height(5.dp))
                         }
                         cmpRow(stringResource(R.string.wclose_books), "${wrapped.totalBooks}",
                             if (hasPrev) wrapped.totalBooks - wrapped.previousYearBooks else null)
@@ -1282,7 +1294,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                     }
                                 }
                             }
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(4.dp))
                         }
                         vsRow(stringResource(R.string.wclose_genre_vs),
                             if (wrapped.favoriteGenre.isNotBlank()) displayGenre(wrapped.favoriteGenre) else "",
@@ -1331,11 +1343,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                 if (wrapped.bestWeekNumber > 0) stringResource(R.string.wclose_week_short, wrapped.bestWeekNumber) else "",
                                 if (wrapped.previousYearBestWeekNumber > 0) stringResource(R.string.wclose_week_short, wrapped.previousYearBestWeekNumber) else "")
                         }
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(10.dp))
                         Text(stringResource(R.string.wclose_quote), color = theme.textMuted, fontSize = 14.sp,
-                            fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 22.sp,
+                            fontStyle = FontStyle.Italic, textAlign = TextAlign.Center, lineHeight = 20.sp,
                             modifier = Modifier.padding(horizontal = 12.dp))
-                        Spacer(Modifier.height(40.dp))
+                        Spacer(Modifier.height(20.dp))
                     }
                 }
             }

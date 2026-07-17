@@ -217,30 +217,37 @@ class ContrastTest {
         "Claro" to 0xFFFFFF, "Oscuro" to 0x0F172A, "Aurora" to 0x1A1030,
         "AMOLED" to 0x000000, "Cuero" to 0x241608
     )
-    // cardColor(): el fondo real de una casilla SIN marcar. En AMOLED no es bgMid (que es
-    // negro puro) sino blanco al 8%, que es justo lo que arregló el fix del cartón invisible.
-    private val casillaSinMarcar = mapOf(
-        "Claro" to 0xF1EDE3, "Oscuro" to 0x1E1B4B, "Aurora" to 0x0E2E4E,
-        "AMOLED" to ContrastUtils.flatten(0xFFFFFF, 0x14 / 255f, 0x000000), "Cuero" to 0x1E140A
-    )
+    // darken(color, 0.4): réplica del contorno mas oscuro de la casilla del 3×3 (rojo del
+    // relleno oscurecido al 60%). Cada canal * (1 - 0.4). Feedback de Víctor 17-07: outline
+    // mas oscuro para definir la casilla sobre el relleno rojo.
+    private fun darken40(rgb: Int): Int {
+        val r = ((rgb shr 16 and 0xFF) * 0.6f).toInt()
+        val g = ((rgb shr 8 and 0xFF) * 0.6f).toInt()
+        val b = ((rgb and 0xFF) * 0.6f).toInt()
+        return (r shl 16) or (g shl 8) or b
+    }
 
     @Test
-    fun `el rojo del 3x3 se lee sobre la casilla en los cinco temas`() {
+    fun `el 3x3 rojo se lee y su contorno oscuro se distingue`() {
+        // Diseño real (feedback 17-07): la casilla del 3×3 va RELLENA de rojo, con el texto
+        // en onRedColor y un contorno mas oscuro. El viejo test (texto rojo sobre cardColor)
+        // ya no refleja nada: esa combinacion desaparecio al pintar la casilla de rojo.
         for ((nombreTema, bg, _) in temas) {
             val rojo = rojoPorTema.getValue(nombreTema)
-            val ratio = ContrastUtils.contrast(rojo, casillaSinMarcar.getValue(nombreTema))
+            val tinta = tintaSobreRojo.getValue(nombreTema)
+            // 1) El texto de la casilla (onRedColor) se lee sobre el relleno rojo.
+            val ratioTexto = ContrastUtils.contrast(tinta, rojo)
             assertTrue(
-                "el rojo de $nombreTema sobre su casilla da ${"%.2f".format(ratio)}:1 (minimo $AA_TEXT)",
-                ratio >= AA_TEXT
+                "el texto de $nombreTema sobre la casilla roja da ${"%.2f".format(ratioTexto)}:1 (minimo $AA_TEXT)",
+                ratioTexto >= AA_TEXT
             )
-            // El otro requisito de Víctor: "que no duela a los ojos". Un rojo de 12:1 sobre
-            // negro es un fluorescente. El techo real medido es 6,66 (AMOLED).
+            // 2) El contorno mas oscuro se distingue del relleno (si no, no se veria el borde).
+            val ratioBorde = ContrastUtils.contrast(darken40(rojo), rojo)
             assertTrue(
-                "el rojo de $nombreTema deslumbra: ${"%.2f".format(ratio)}:1",
-                ratio <= 8.0
+                "el contorno de $nombreTema no se distingue del relleno: ${"%.2f".format(ratioBorde)}:1",
+                ratioBorde >= 1.2
             )
-            // Y tiene que leerse tambien sobre el fondo de la pantalla (el mensaje
-            // "carton completado" va en rojo directamente sobre bgDark).
+            // 3) El mensaje "carton completado" va en rojo directo sobre el fondo de pantalla.
             assertTrue(
                 "el rojo de $nombreTema sobre el fondo da ${"%.2f".format(ContrastUtils.contrast(rojo, bg))}:1",
                 ContrastUtils.contrast(rojo, bg) >= AA_TEXT

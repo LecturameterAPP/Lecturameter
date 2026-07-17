@@ -548,6 +548,20 @@ fun lighten(color: Color, factor: Float): Color = Color(
     alpha = color.alpha
 )
 
+/** Desatura [color] mezclandolo con el gris de su propia luminancia en [factor] (0 = igual,
+ *  1 = gris puro). Conserva el matiz y baja el croma, la unica variedad de color honesta en
+ *  un tema de un solo acento. Es el espejo en Compose de WrappedPalette.ash: sirve para dar un
+ *  tono APAGADO derivado del acento sin importar un color ajeno ni fijar un hex. */
+fun desaturate(color: Color, factor: Float): Color {
+    val y = 0.2126f * color.red + 0.7152f * color.green + 0.0722f * color.blue
+    return Color(
+        red = color.red + (y - color.red) * factor,
+        green = color.green + (y - color.green) * factor,
+        blue = color.blue + (y - color.blue) * factor,
+        alpha = color.alpha
+    )
+}
+
 // ── B-037: contraste medido, no a ojo ────────────────────────────────────────
 // La matemática vive en utils/ContrastUtils, sobre enteros y sin Compose, para que se pueda
 // probar con tests (ver ContrastTest). Aquí solo está el puente desde Compose.

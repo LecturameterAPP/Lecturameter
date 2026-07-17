@@ -681,7 +681,13 @@ class BooksViewModel : ViewModel() {
      *  D-016: la cuenta vive en challengeProgressInRange (la reusa el cierre de año). */
     fun challengeProgress(c: Challenge): Pair<Int, Int> {
         val year = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-        val rangeStart = c.startDate ?: "$year-01-01"
+        // B-036: si falta startDate, derivar el inicio del ano del endDate en vez de forzar el
+        // ano en curso. Con un endDate de OTRO ano, "$year-01-01" quedaba por delante del endDate,
+        // el rango salia vacio y finalProgress daba 0 pese a haber lecturas que debian contar.
+        // Casos: sin fechas -> ano en curso (igual que antes); solo endDate -> desde el 1 de enero
+        // del ano del endDate; solo startDate y ambos -> sin cambios.
+        val startYearRef = c.startDate ?: c.endDate ?: "$year-01-01"
+        val rangeStart = c.startDate ?: "${startYearRef.take(4)}-01-01"
         val rangeEnd   = c.endDate   ?: "$year-12-31"
         return challengeProgressInRange(c, rangeStart, rangeEnd) to c.target
     }

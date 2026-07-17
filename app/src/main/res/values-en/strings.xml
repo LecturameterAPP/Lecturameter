@@ -416,6 +416,8 @@
     <string name="timer_recorded_time">Recorded time: %1$s</string>
     <string name="filter_month_placeholder">Month</string>
     <string name="filter_year_placeholder">Year</string>
+    <string name="filter_sort_desc">↓ Higher</string>
+    <string name="filter_sort_asc">↑ Lower</string>
     <string name="wrapped_share_text">My reading year %1$d on Lecturameter 📚</string>
     <string name="wrapped_year_header">Your reading year %1$d</string>
     <string name="wrapped_empty_hint">Finish at least one book with a completion date in %1$d to see your wrapped.</string>
@@ -1083,6 +1085,7 @@
     <string name="quickstart_title">⏱️ Start a reading session</string>
     <string name="quickstart_empty">You have no books in Reading or Rereading. Start a book to be able to time sessions.</string>
     <string name="quickstart_session_running">Session in progress</string>
+    <string name="quickstart_session_paused">Paused</string>
     <string name="finish_prediction_line">🔮 At %1$s pages per day you read, you have ~%2$d reading days left</string>
     <!-- Fase 6.1 (D-008): one-time contextual tips -->
     <string name="tip_rail_title">Your sections rail</string>

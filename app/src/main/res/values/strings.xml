@@ -416,6 +416,8 @@
     <string name="timer_recorded_time">Tiempo registrado: %1$s</string>
     <string name="filter_month_placeholder">Mes</string>
     <string name="filter_year_placeholder">Año</string>
+    <string name="filter_sort_desc">↓ Mayor</string>
+    <string name="filter_sort_asc">↑ Menor</string>
     <string name="wrapped_share_text">Mi año lector %1$d en Lecturameter 📚</string>
     <string name="wrapped_year_header">Tu año lector %1$d</string>
     <string name="wrapped_empty_hint">Termina al menos un libro con fecha de finalización en %1$d para ver tu wrapped.</string>
@@ -1086,7 +1088,8 @@
     <!-- D-002/T1: inicio rápido de sesión desde la barra del home -->
     <string name="quickstart_title">⏱️ Iniciar sesión de lectura</string>
     <string name="quickstart_empty">No tienes libros en Leyendo o Releyendo. Empieza un libro para poder cronometrar sesiones.</string>
-    <string name="quickstart_session_running">Sesión en curso</string>
+    <string name="quickstart_session_running">Sesión en marcha</string>
+    <string name="quickstart_session_paused">En pausa</string>
     <string name="finish_prediction_line">🔮 A %1$s págs por día que lees, te quedan ~%2$d días de lectura</string>
     <!-- Fase 6.1 (D-008): tips contextuales de una sola vez -->
     <string name="tip_rail_title">Tu rail de secciones</string>

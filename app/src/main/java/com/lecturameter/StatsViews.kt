@@ -1381,7 +1381,7 @@ fun StatsChartsView(
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.txt_26afc116), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.width(60.dp))
-                    listOf(false to "↓ Mayor", true to "↑ Menor").forEach { (asc, lbl) ->
+                    listOf(false to stringResource(R.string.filter_sort_desc), true to stringResource(R.string.filter_sort_asc)).forEach { (asc, lbl) ->
                         val sel = ascending == asc
                         Surface(onClick = { ascending = asc }, shape = RoundedCornerShape(8.dp), color = if (sel) acc else theme.bgMid, border = BorderStroke(1.dp, if (sel) acc else theme.border)) {
                             Text(lbl, color = if (sel) onAccentColor(theme) else theme.textMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))

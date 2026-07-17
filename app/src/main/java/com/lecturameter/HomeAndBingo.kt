@@ -365,6 +365,12 @@ private fun BingoCardBody(
                     for (col in 0 until side) {
                         val cellIdx = row * side + col
                         val cell = c.cells[cellIdx]
+                        // B4: el 3×3 se tiñe de rojo. Sus casillas se rellenan con el MISMO rojo
+                        // que el boton (accent == redForTheme) y su texto va en onCardTint
+                        // (onRedColor), la tinta legible sobre ese rojo en los cinco temas. El 4×4
+                        // no cambia: sigue con su casilla neutra y su acento.
+                        val isRed = side == com.lecturameter.utils.BingoManager.SIDE_3
+                        val cellInk = onCardTint(theme, side)
                         // La casilla sin marcar iba en theme.bgMid, y en AMOLED bgMid ES bgDark:
                         // negro sobre negro, o sea el cartón entero invisible salvo por los bordes.
                         // Es la QUINTA vez que aparece este error (heatmap, carril del widget,
@@ -372,7 +378,8 @@ private fun BingoCardBody(
                         // mismo agujero en AMOLED. cardColor() ya existía y solo se usaba en una
                         // pantalla; el barrido del resto sigue pendiente.
                         val bg by androidx.compose.animation.animateColorAsState(
-                            targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else cardColor(theme),
+                            targetValue = if (isRed) accent
+                                          else if (cell.isCompleted) accent.copy(alpha = 0.18f) else cardColor(theme),
                             animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
                         )
                         // Fase 4 (D-003, 4): dispara el flip+glow SOLO si esta celda nunca animó
@@ -404,7 +411,7 @@ private fun BingoCardBody(
                                     val glowA = if (p > 0.2f) (1f - kotlin.math.abs(p - 0.6f) / 0.4f).coerceIn(0f, 1f) else 0f
                                     val a = maxOf(glowA, sweepAnim[cellIdx].value)
                                     if (a > 0f) drawRoundRect(
-                                        color = accent.copy(alpha = 0.6f * a),
+                                        color = (if (isRed) cellInk else accent).copy(alpha = 0.6f * a),
                                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 6.dp.toPx()),
                                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx())
                                     )
@@ -412,8 +419,12 @@ private fun BingoCardBody(
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(bg)
                                 .border(
-                                    width = if (cell.isCompleted) 1.5.dp else 1.dp,
-                                    color = if (cell.isCompleted) accent else theme.border,
+                                    width = if (isRed || cell.isCompleted) 1.5.dp else 1.dp,
+                                    // El 3×3 rojo lleva un contorno mas oscuro (el propio rojo
+                                    // oscurecido) para definir la casilla sobre el relleno rojo,
+                                    // en los cinco temas. El 4×4 conserva su borde original.
+                                    color = if (isRed) darken(accent, 0.4f)
+                                            else if (cell.isCompleted) accent else theme.border,
                                     shape = RoundedCornerShape(14.dp)
                                 ),
                             contentAlignment = Alignment.Center
@@ -431,11 +442,11 @@ private fun BingoCardBody(
                                         )
                                     ) + fadeIn()
                                 ) {
-                                    Text("✓", color = accent, fontSize = checkSize, fontWeight = FontWeight.Bold)
+                                    Text("✓", color = if (isRed) cellInk else accent, fontSize = checkSize, fontWeight = FontWeight.Bold)
                                 }
                                 Text(
                                     if (isEs) cell.labelEs else cell.labelEn,
-                                    color = if (cell.isCompleted) theme.textMain else theme.textMuted,
+                                    color = if (isRed) cellInk else if (cell.isCompleted) theme.textMain else theme.textMuted,
                                     fontSize = labelSize,
                                     lineHeight = labelLineHeight,
                                     textAlign = TextAlign.Center,
@@ -445,7 +456,7 @@ private fun BingoCardBody(
                                 cell.completedByBookId?.let { bid ->
                                     books.firstOrNull { it.id == bid }?.let { b ->
                                         Text(
-                                            b.title, color = accent, fontSize = 7.5.sp,
+                                            b.title, color = if (isRed) cellInk else accent, fontSize = 7.5.sp,
                                             maxLines = 1, overflow = TextOverflow.Ellipsis,
                                             textAlign = TextAlign.Center
                                         )

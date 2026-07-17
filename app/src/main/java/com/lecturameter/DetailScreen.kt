@@ -889,220 +889,15 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
     // ── Diálogo: Registrar sesión ─────────────────────────────────────────────
     if (showSessionDialog) {
-        // v20.0 (G1): autofill considera el ciclo actual.
-        //   - Si REREADING: solo sesiones del ciclo de relectura abierto.
-        //     · Sin sesiones aún en el ciclo → firstFunctionalPage (o vacío).
-        //     · Con sesiones del ciclo → última endPage + 1.
-        //   - Si READING/FINISHED: comportamiento clásico (última endPage global del libro).
-        // remember(bookSessions, book.status, book.dateEvents) recalcula al cambiar la lista o el estado.
-        val autoStart = remember(bookSessions, book.status, book.dateEvents, book.firstFunctionalPage) {
-            val isRereadingNow = book.status == BookStatus.REREADING
-            if (isRereadingNow) {
-                val evs = migrateLegacyToEvents(book)
-                val openReread = evs.filter { it.type == "reread" }
-                    .lastOrNull { ev ->
-                        evs.none { it.type == "reread_end" && it.occurrence == ev.occurrence }
-                    }
-                if (openReread != null) {
-                    val cycleSessions = bookSessions.filter { (it.readingIndex ?: 0) == openReread.occurrence }
-                    val lastEndPage = cycleSessions.firstOrNull()?.endPage
-                    when {
-                        lastEndPage != null -> {
-                            val lastFunc = book.lastFunctionalPage
-                            val next = lastEndPage + 1
-                            if (lastFunc != null && next > lastFunc) book.firstFunctionalPage?.toString() ?: ""
-                            else next.toString()
-                        }
-                        book.firstFunctionalPage != null -> book.firstFunctionalPage.toString()
-                        else -> ""
-                    }
-                } else {
-                    // No hay ciclo abierto → fallback firstFunctional
-                    book.firstFunctionalPage?.toString() ?: ""
-                }
-            } else {
-                val lastEndPage = bookSessions.firstOrNull()?.endPage
-                when {
-                    lastEndPage != null -> (lastEndPage + 1).toString()
-                    book.firstFunctionalPage != null -> book.firstFunctionalPage.toString()
-                    else -> ""
-                }
-            }
-        }
-
-        var pageStart   by remember(autoStart) { mutableStateOf(autoStart) }
-        var pageEnd     by remember { mutableStateOf("") }
-        var sessionMinutes by remember { mutableStateOf(autoSessionMinutes?.toString() ?: "") }
-        var sessionNote by remember { mutableStateOf("") }
-        var sessionError by remember { mutableStateOf("") }
-        val fromTimer = autoSessionMinutes != null
-        // v20.0: fecha editable (cronometrada → today; manual → today, el usuario puede editar)
-        var sessionDate by remember { mutableStateOf(todayDisplay()) }
-
-        val totalPages = if (pageEnd.toIntOrNull() != null && pageStart.toIntOrNull() != null) (pageEnd.toIntOrNull()!! - pageStart.toIntOrNull()!! + 1).coerceAtLeast(0) else 0
-        val mins = if (fromTimer) autoSessionMinutes else sessionMinutes.toIntOrNull()
-        val ppm = if (totalPages > 0 && mins != null && mins > 0)
-            String.format("%.1f", totalPages.toDouble() / mins) else null
-
-        AlertDialog(
-            onDismissRequest = { closeSessionDialog() },
-            containerColor = theme.bgMid,
-            title = { Text(if (fromTimer) "⏱️ ${stringResource(R.string.timed_session_title)}" else stringResource(R.string.txt_e810b914), color = theme.textMain, fontWeight = FontWeight.Bold) },
-            text = {
-                // v2.4: scroll de respaldo para landscape móvil (mockup aprobado)
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    // v20.0: fecha editable. Si cronometrada se prefija hoy (no se permite editar para mantener integridad del temporizador).
-                    if (fromTimer) {
-                        Text("${stringResource(R.string.txt_5d69fc39).removePrefix("📅 ")}: ${fmtDate(today())}", color = theme.textDim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
-                    } else {
-                        Text(stringResource(R.string.txt_78359316), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-                        OutlinedTextField(
-                            value = sessionDate,
-                            onValueChange = { sessionDate = it; sessionError = "" },
-                            placeholder = { Text(todayDisplay(), color = theme.textDim) },
-                            colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
-                        )
-                    }
-                    if (fromTimer) {
-                        Surface(shape = RoundedCornerShape(10.dp), color = Green.copy(alpha = 0.12f), border = BorderStroke(1.dp, Green.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
-                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                Text("⏱️", fontSize = 16.sp)
-                                Spacer(Modifier.width(6.dp))
-                                Text(stringResource(R.string.timer_recorded_time, fmtMinutes(autoSessionMinutes!!)), color = Green, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                    // Página inicial y final
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.txt_900cd8a8), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-                            OutlinedTextField(
-                                value = pageStart, onValueChange = { pageStart = it.filter { c -> c.isDigit() }; sessionError = "" },
-                                placeholder = { Text(stringResource(R.string.txt_3015bbac), color = theme.textDim) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
-                                singleLine = true, modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.txt_c8d92673), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-                            OutlinedTextField(
-                                value = pageEnd, onValueChange = { pageEnd = it.filter { c -> c.isDigit() }; sessionError = "" },
-                                placeholder = { Text(stringResource(R.string.txt_78cf172d), color = theme.textDim) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
-                                singleLine = true, modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                    // Resumen calculado
-                    if (totalPages > 0) {
-                        Surface(shape = RoundedCornerShape(8.dp), color = acc.copy(alpha = 0.1f), border = BorderStroke(1.dp, acc.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("$totalPages", color = acc, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                    Text(stringResource(R.string.txt_47bcdf9a), color = theme.textDim, fontSize = 10.sp)
-                                }
-                                if (ppm != null) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(ppm, color = Green, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                        Text(stringResource(R.string.txt_ef31b7ae), color = theme.textDim, fontSize = 10.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Tiempo (solo si no viene del temporizador)
-                    if (!fromTimer) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(stringResource(R.string.txt_f7772d77), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-                        OutlinedTextField(
-                            value = sessionMinutes, onValueChange = { sessionMinutes = it.filter { c -> c.isDigit() } },
-                            placeholder = { Text(stringResource(R.string.txt_e4bf49dd), color = theme.textDim) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
-                            singleLine = true, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
-                        )
-                    }
-                    // Nota (opcional)
-                    Text(stringResource(R.string.txt_7cd6ad03), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-                    OutlinedTextField(
-                        value = sessionNote, onValueChange = { sessionNote = it },
-                        placeholder = { Text(stringResource(R.string.txt_2136819a), color = theme.textDim) },
-                        colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
-                        maxLines = 3, modifier = Modifier.fillMaxWidth().heightIn(min = 70.dp)
-                    )
-                    if (sessionError.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(sessionError, color = Red, fontSize = 12.sp)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val start = pageStart.toIntOrNull()
-                        val end   = pageEnd.toIntOrNull()
-                        val lastFunc = book.lastFunctionalPage
-                        // v20.0: validar fecha manual
-                        val effectiveDate: String = if (fromTimer) today() else {
-                            val raw = sessionDate.trim()
-                            if (raw.isBlank()) {
-                                sessionError = context.getString(R.string.err_date_required); return@Button
-                            }
-                            val parsed = parseFlexibleDate(raw)
-                            if (parsed == null) {
-                                sessionError = context.getString(R.string.err_date_invalid_format); return@Button
-                            }
-                            val todayStored = today()
-                            if (parsed > todayStored) {
-                                sessionError = context.getString(R.string.err_date_invalid_generic); return@Button
-                            }
-                            val bookStart = book.startDate
-                            if (bookStart != null && parsed < bookStart) {
-                                sessionError = context.getString(R.string.err_date_invalid_generic); return@Button
-                            }
-                            displayToStored(raw)
-                        }
-                        when {
-                            start == null || start < 1 ->
-                                { sessionError = context.getString(R.string.err_page_start_min1); return@Button }
-                            end == null || end > book.pages ->
-                                { sessionError = context.getString(R.string.err_page_end_over_total_n, book.pages); return@Button }
-                            lastFunc != null && end > lastFunc ->
-                                { sessionError = context.getString(R.string.err_page_end_over_func, lastFunc); return@Button }
-                            end < start ->
-                                { sessionError = context.getString(R.string.err_page_end_lt_start); return@Button }
-                        }
-                        // Si startPage coincide con el endPage de la sesión anterior,
-                        // esa página ya fue contada → no sumar +1
-                        val prevEndPage = bookSessions.firstOrNull()?.endPage
-                        val pages = if (prevEndPage != null && start == prevEndPage) end!! - start!!
-                                    else end!! - start!! + 1
-                        val m = if (fromTimer) autoSessionMinutes else sessionMinutes.toIntOrNull()
-                        val activeEditionId = book.editions.firstOrNull { it.isActive }?.id
-                        vm.addSession(ReadingSession(
-                            bookId = id, date = effectiveDate, pages = pages, minutes = m,
-                            note = sessionNote.trim(), editionId = activeEditionId,
-                            startPage = start, endPage = end,
-                            // v2.4 rework: hora de inicio para el heatmap horario.
-                            // Solo sesiones del día actual (retro-añadir fechas pasadas daría horas falsas).
-                            startTimestamp = if (effectiveDate == today())
-                                System.currentTimeMillis() - ((m ?: 0) * 60_000L)
-                            else null
-                        ), prefs)
-                        refreshWidgetForBookIfSelected(context, id)
-                        timerSeconds = 0
-                        closeSessionDialog()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAcc),
-                    shape = RoundedCornerShape(10.dp)
-                ) { Text(stringResource(R.string.txt_d3270bdb)) }
-            },
-            dismissButton = { TextButton(onClick = { closeSessionDialog() }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
+        SessionSaveDialog(
+            book = book,
+            bookSessions = bookSessions,
+            vm = vm,
+            prefs = prefs,
+            theme = theme,
+            autoSessionMinutes = autoSessionMinutes,
+            onDismiss = { closeSessionDialog() },
+            onSaved = { timerSeconds = 0; closeSessionDialog() }
         )
     }
 
@@ -2388,3 +2183,222 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
         }
     }
 } // v21.34: cierre de DetailScreen faltante
+
+// ── Diálogo de sesión cronometrada / manual, reutilizable ─────────────────────
+// Extraído de DetailScreen el 17-07 para poder invocarlo también desde la hoja de
+// inicio rápido del home (crono en la fila). Mismo comportamiento y validaciones.
+//   - autoSessionMinutes != null → sesión cronometrada (tiempo fijo, fecha = hoy).
+//   - autoSessionMinutes == null → sesión manual (tiempo y fecha editables).
+// onSaved se dispara SOLO al guardar; onDismiss al descartar/cerrar.
+@Composable
+internal fun SessionSaveDialog(
+    book: Book,
+    bookSessions: List<ReadingSession>,
+    vm: BooksViewModel,
+    prefs: android.content.SharedPreferences,
+    theme: Theme,
+    autoSessionMinutes: Int?,
+    onDismiss: () -> Unit,
+    onSaved: () -> Unit
+) {
+    val context = LocalContext.current
+    val acc = accentForTheme(theme)
+    val onAcc = onAccentColor(theme)
+    val id = book.id
+    // v20.0 (G1): autofill considera el ciclo actual.
+    val autoStart = remember(bookSessions, book.status, book.dateEvents, book.firstFunctionalPage) {
+        val isRereadingNow = book.status == BookStatus.REREADING
+        if (isRereadingNow) {
+            val evs = migrateLegacyToEvents(book)
+            val openReread = evs.filter { it.type == "reread" }
+                .lastOrNull { ev ->
+                    evs.none { it.type == "reread_end" && it.occurrence == ev.occurrence }
+                }
+            if (openReread != null) {
+                val cycleSessions = bookSessions.filter { (it.readingIndex ?: 0) == openReread.occurrence }
+                val lastEndPage = cycleSessions.firstOrNull()?.endPage
+                when {
+                    lastEndPage != null -> {
+                        val lastFunc = book.lastFunctionalPage
+                        val next = lastEndPage + 1
+                        if (lastFunc != null && next > lastFunc) book.firstFunctionalPage?.toString() ?: ""
+                        else next.toString()
+                    }
+                    book.firstFunctionalPage != null -> book.firstFunctionalPage.toString()
+                    else -> ""
+                }
+            } else {
+                book.firstFunctionalPage?.toString() ?: ""
+            }
+        } else {
+            val lastEndPage = bookSessions.firstOrNull()?.endPage
+            when {
+                lastEndPage != null -> (lastEndPage + 1).toString()
+                book.firstFunctionalPage != null -> book.firstFunctionalPage.toString()
+                else -> ""
+            }
+        }
+    }
+
+    var pageStart   by remember(autoStart) { mutableStateOf(autoStart) }
+    var pageEnd     by remember { mutableStateOf("") }
+    var sessionMinutes by remember { mutableStateOf(autoSessionMinutes?.toString() ?: "") }
+    var sessionNote by remember { mutableStateOf("") }
+    var sessionError by remember { mutableStateOf("") }
+    val fromTimer = autoSessionMinutes != null
+    var sessionDate by remember { mutableStateOf(todayDisplay()) }
+
+    val totalPages = if (pageEnd.toIntOrNull() != null && pageStart.toIntOrNull() != null) (pageEnd.toIntOrNull()!! - pageStart.toIntOrNull()!! + 1).coerceAtLeast(0) else 0
+    val mins = if (fromTimer) autoSessionMinutes else sessionMinutes.toIntOrNull()
+    val ppm = if (totalPages > 0 && mins != null && mins > 0)
+        String.format("%.1f", totalPages.toDouble() / mins) else null
+
+    AlertDialog(
+        onDismissRequest = { onDismiss() },
+        containerColor = theme.bgMid,
+        title = { Text(if (fromTimer) "⏱️ ${stringResource(R.string.timed_session_title)}" else stringResource(R.string.txt_e810b914), color = theme.textMain, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (fromTimer) {
+                    Text("${stringResource(R.string.txt_5d69fc39).removePrefix("📅 ")}: ${fmtDate(today())}", color = theme.textDim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
+                } else {
+                    Text(stringResource(R.string.txt_78359316), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    OutlinedTextField(
+                        value = sessionDate,
+                        onValueChange = { sessionDate = it; sessionError = "" },
+                        placeholder = { Text(todayDisplay(), color = theme.textDim) },
+                        colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    )
+                }
+                if (fromTimer) {
+                    Surface(shape = RoundedCornerShape(10.dp), color = Green.copy(alpha = 0.12f), border = BorderStroke(1.dp, Green.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
+                        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Text("⏱️", fontSize = 16.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.timer_recorded_time, fmtMinutes(autoSessionMinutes!!)), color = Green, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.txt_900cd8a8), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                        OutlinedTextField(
+                            value = pageStart, onValueChange = { pageStart = it.filter { c -> c.isDigit() }; sessionError = "" },
+                            placeholder = { Text(stringResource(R.string.txt_3015bbac), color = theme.textDim) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                            singleLine = true, modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.txt_c8d92673), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                        OutlinedTextField(
+                            value = pageEnd, onValueChange = { pageEnd = it.filter { c -> c.isDigit() }; sessionError = "" },
+                            placeholder = { Text(stringResource(R.string.txt_78cf172d), color = theme.textDim) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                            singleLine = true, modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                if (totalPages > 0) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = acc.copy(alpha = 0.1f), border = BorderStroke(1.dp, acc.copy(alpha = 0.3f)), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("$totalPages", color = acc, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.txt_47bcdf9a), color = theme.textDim, fontSize = 10.sp)
+                            }
+                            if (ppm != null) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(ppm, color = Green, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.txt_ef31b7ae), color = theme.textDim, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!fromTimer) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.txt_f7772d77), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    OutlinedTextField(
+                        value = sessionMinutes, onValueChange = { sessionMinutes = it.filter { c -> c.isDigit() } },
+                        placeholder = { Text(stringResource(R.string.txt_e4bf49dd), color = theme.textDim) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                        singleLine = true, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                    )
+                }
+                Text(stringResource(R.string.txt_7cd6ad03), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                OutlinedTextField(
+                    value = sessionNote, onValueChange = { sessionNote = it },
+                    placeholder = { Text(stringResource(R.string.txt_2136819a), color = theme.textDim) },
+                    colors = fieldColors(theme), shape = RoundedCornerShape(10.dp),
+                    maxLines = 3, modifier = Modifier.fillMaxWidth().heightIn(min = 70.dp)
+                )
+                if (sessionError.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(sessionError, color = Red, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val start = pageStart.toIntOrNull()
+                    val end   = pageEnd.toIntOrNull()
+                    val lastFunc = book.lastFunctionalPage
+                    val effectiveDate: String = if (fromTimer) today() else {
+                        val raw = sessionDate.trim()
+                        if (raw.isBlank()) {
+                            sessionError = context.getString(R.string.err_date_required); return@Button
+                        }
+                        val parsed = parseFlexibleDate(raw)
+                        if (parsed == null) {
+                            sessionError = context.getString(R.string.err_date_invalid_format); return@Button
+                        }
+                        val todayStored = today()
+                        if (parsed > todayStored) {
+                            sessionError = context.getString(R.string.err_date_invalid_generic); return@Button
+                        }
+                        val bookStart = book.startDate
+                        if (bookStart != null && parsed < bookStart) {
+                            sessionError = context.getString(R.string.err_date_invalid_generic); return@Button
+                        }
+                        displayToStored(raw)
+                    }
+                    when {
+                        start == null || start < 1 ->
+                            { sessionError = context.getString(R.string.err_page_start_min1); return@Button }
+                        end == null || end > book.pages ->
+                            { sessionError = context.getString(R.string.err_page_end_over_total_n, book.pages); return@Button }
+                        lastFunc != null && end > lastFunc ->
+                            { sessionError = context.getString(R.string.err_page_end_over_func, lastFunc); return@Button }
+                        end < start ->
+                            { sessionError = context.getString(R.string.err_page_end_lt_start); return@Button }
+                    }
+                    val prevEndPage = bookSessions.firstOrNull()?.endPage
+                    val pages = if (prevEndPage != null && start == prevEndPage) end!! - start!!
+                                else end!! - start!! + 1
+                    val m = if (fromTimer) autoSessionMinutes else sessionMinutes.toIntOrNull()
+                    val activeEditionId = book.editions.firstOrNull { it.isActive }?.id
+                    vm.addSession(ReadingSession(
+                        bookId = id, date = effectiveDate, pages = pages, minutes = m,
+                        note = sessionNote.trim(), editionId = activeEditionId,
+                        startPage = start, endPage = end,
+                        startTimestamp = if (effectiveDate == today())
+                            System.currentTimeMillis() - ((m ?: 0) * 60_000L)
+                        else null
+                    ), prefs)
+                    refreshWidgetForBookIfSelected(context, id)
+                    onSaved()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAcc),
+                shape = RoundedCornerShape(10.dp)
+            ) { Text(stringResource(R.string.txt_d3270bdb)) }
+        },
+        dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
+    )
+}

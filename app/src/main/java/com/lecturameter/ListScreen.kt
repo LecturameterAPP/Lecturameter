@@ -88,13 +88,74 @@ fun ListScreen(
     var scannedIsbnForDialog by remember { mutableStateOf("") }
     // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
     var showQuickStartSheet by remember { mutableStateOf(false) }
-    // Mockup 17-07: el icono del crono se pone ámbar cuando hay sesión en curso
+    // Mockup 17-07: el icono del crono se pone ámbar cuando hay sesión en curso.
+    // Mockup crono-hoja (17-07): la hoja necesita además el estado vivo (pausa,
+    // segundos, libro activo) para pintar la fila en marcha con su reloj y controles.
     var timerRunningHome by remember { mutableStateOf(TimerStateHolder.running) }
+    var timerPausedHome by remember { mutableStateOf(TimerStateHolder.paused) }
+    var timerSecondsHome by remember { mutableStateOf(TimerStateHolder.seconds) }
+    var timerActiveBookHome by remember { mutableStateOf(TimerStateHolder.activeBookId) }
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(500L)
             timerRunningHome = TimerStateHolder.running
+            timerPausedHome = TimerStateHolder.paused
+            timerSecondsHome = TimerStateHolder.seconds
+            timerActiveBookHome = TimerStateHolder.activeBookId
+            kotlinx.coroutines.delay(500L)
         }
+    }
+    // Crono en la hoja: diálogo de sesión (encima de la hoja) tras pulsar stop (■).
+    val timerCtx = LocalContext.current
+    var qsSessionBookId by remember { mutableStateOf(-1L) }
+    var qsSessionMinutes by remember { mutableStateOf<Int?>(null) }
+    var qsShowSessionDialog by remember { mutableStateOf(false) }
+    // Permiso de notificaciones para arrancar el crono desde la hoja (mismo flujo
+    // que el ▶ del detalle: el servicio funciona sin permiso, solo no habrá aviso).
+    var showQsNotifPermDialog by remember { mutableStateOf(false) }
+    var showQsNotifPermDeniedDialog by remember { mutableStateOf(false) }
+    var qsPendingTimerAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // B-019 en la hoja: tiempo huérfano de una sesión que no llegó a guardarse.
+    var qsOrphanSeconds by remember { mutableStateOf(0L) }
+    var qsPendingResumeStart by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val qsNotifPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) showQsNotifPermDeniedDialog = true
+        qsPendingTimerAction?.invoke(); qsPendingTimerAction = null
+    }
+    fun qsRequestNotifThenStart(action: () -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(timerCtx, android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            val alreadyAsked = prefs.getBoolean("notif_perm_asked", false)
+            val activity = timerCtx as? android.app.Activity
+            val canAskAgain = activity != null && androidx.core.app.ActivityCompat
+                .shouldShowRequestPermissionRationale(activity, android.Manifest.permission.POST_NOTIFICATIONS)
+            if (!alreadyAsked || canAskAgain) {
+                prefs.edit().putBoolean("notif_perm_asked", true).apply()
+                qsPendingTimerAction = action
+                showQsNotifPermDialog = true
+            } else {
+                action()
+                showQsNotifPermDeniedDialog = true
+            }
+        } else {
+            action()
+        }
+    }
+    // B-019 en la hoja: si quedó tiempo huérfano de una sesión que no llegó a guardarse
+    // (el proceso murió a mitad), preguntar antes de arrancar, igual que el detalle.
+    fun qsOrphanTimerSeconds(bookId: Long): Long {
+        if (TimerStateHolder.seconds != 0L) return 0L
+        val tp = timerCtx.getSharedPreferences(com.lecturameter.TimerService.TIMER_PREFS, android.content.Context.MODE_PRIVATE)
+        val savedSecs = tp.getLong("running_seconds", 0L)
+        val savedBook = tp.getLong("running_book_id", -1L)
+        return if (savedSecs > 0L && savedBook == bookId) savedSecs else 0L
+    }
+    fun qsStartTimerChecked(bookId: Long, startAction: () -> Unit) {
+        val orphan = qsOrphanTimerSeconds(bookId)
+        if (orphan > 0L) { qsOrphanSeconds = orphan; qsPendingResumeStart = startAction }
+        else qsRequestNotifThenStart(startAction)
     }
     // B5 idea 1 (mockup aprobado 17-07): el "+" no cambia de aspecto ni de sitio, cambia de
     // DESTINO. La cabecera va a cero dp de holgura a 360dp (título 135 + iconos 136 + "+" 39
@@ -340,7 +401,97 @@ fun ListScreen(
         )
     }
 
-    // ── D-002/T1: bottom sheet de inicio rápido — libros Leyendo/Releyendo con ▶ ──
+    // ── Diálogo educativo de permiso de notificaciones (crono desde la hoja) ──────
+    if (showQsNotifPermDialog) {
+        AlertDialog(
+            onDismissRequest = { showQsNotifPermDialog = false },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.txt_5c0e66ea), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.txt_33fe5747), color = theme.textMuted, fontSize = 13.sp) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showQsNotifPermDialog = false
+                    if (android.os.Build.VERSION.SDK_INT >= 33)
+                        qsNotifPermLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    else
+                        qsPendingTimerAction?.invoke().also { qsPendingTimerAction = null }
+                }) { Text(stringResource(R.string.txt_5fcafeb2), color = acc, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showQsNotifPermDialog = false
+                    showQsNotifPermDeniedDialog = true
+                    qsPendingTimerAction?.invoke(); qsPendingTimerAction = null
+                }) { Text(stringResource(R.string.txt_ca8f9bb3), color = Red) }
+            }
+        )
+    }
+    if (showQsNotifPermDeniedDialog) {
+        AlertDialog(
+            onDismissRequest = { showQsNotifPermDeniedDialog = false },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
+            confirmButton = {
+                TextButton(onClick = { showQsNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
+            }
+        )
+    }
+    // B-019 en la hoja: retomar el tiempo huérfano o empezar de cero (mismo flujo y
+    // strings que el detalle). Retomar = dejar las prefs (el servicio las restaura);
+    // empezar de cero = limpiarlas antes de arrancar.
+    if (qsOrphanSeconds > 0L && qsPendingResumeStart != null) {
+        val secs = qsOrphanSeconds
+        val h = secs / 3600; val m = (secs % 3600) / 60; val s = secs % 60
+        val pretty = if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%d:%02d", m, s)
+        val startAction = qsPendingResumeStart
+        AlertDialog(
+            onDismissRequest = { qsOrphanSeconds = 0L; qsPendingResumeStart = null },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.timer_resume_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.timer_resume_msg, pretty), color = theme.textMuted, fontSize = 13.sp) },
+            dismissButton = {
+                TextButton(onClick = {
+                    timerCtx.getSharedPreferences(com.lecturameter.TimerService.TIMER_PREFS, android.content.Context.MODE_PRIVATE)
+                        .edit().clear().apply()
+                    TimerStateHolder.reset()
+                    qsOrphanSeconds = 0L; qsPendingResumeStart = null
+                    startAction?.let { qsRequestNotifThenStart(it) }
+                }) { Text(stringResource(R.string.timer_resume_fresh), color = Red) }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    qsOrphanSeconds = 0L; qsPendingResumeStart = null
+                    startAction?.let { qsRequestNotifThenStart(it) }
+                }) { Text(stringResource(R.string.timer_resume_confirm, pretty), color = acc, fontWeight = FontWeight.Bold) }
+            }
+        )
+    }
+
+    // ── Diálogo de sesión cronometrada, encima de la hoja (mockup crono-hoja) ─────
+    if (qsShowSessionDialog) {
+        val sessBook = booksAll.find { it.id == qsSessionBookId }
+        if (sessBook != null) {
+            val activeLang = vm.editionsForBook(sessBook.id).firstOrNull { it.isActive }?.language ?: "original"
+            val sessBookSessions = vm.sessionsForBookAndLanguage(sessBook.id, activeLang)
+            SessionSaveDialog(
+                book = sessBook,
+                bookSessions = sessBookSessions,
+                vm = vm, prefs = prefs, theme = theme,
+                autoSessionMinutes = qsSessionMinutes,
+                onDismiss = { qsShowSessionDialog = false; qsSessionMinutes = null },
+                // Al guardar, la hoja se cierra sola (propuesta aprobada, punto 4)
+                onSaved = { qsShowSessionDialog = false; qsSessionMinutes = null; showQuickStartSheet = false }
+            )
+        } else {
+            qsShowSessionDialog = false
+        }
+    }
+
+    // ── D-002/T1 + mockup crono-hoja (17-07): hoja de inicio rápido. El ▶ ya NO
+    // navega: arranca el crono en la propia fila. La fila en marcha crece (reloj
+    // vivo + pausa + stop) y el resto de ▶ pasan a ghost. Tocar portada/título
+    // abre el detalle. Stop abre el diálogo de sesión encima de la hoja.
     if (showQuickStartSheet) {
         val qsBooks = booksAll.filter {
             it.status == BookStatus.READING || it.status == BookStatus.REREADING || it.isRereading
@@ -364,50 +515,127 @@ fun ListScreen(
                     )
                 }
                 qsBooks.forEach { b ->
-                    // Feedback 14-07 (F13a): si el crono YA corre para este libro, la fila
-                    // lo indica (borde ámbar + icono de crono en vez de ▶)
-                    val timerActiveHere = TimerStateHolder.running && TimerStateHolder.activeBookId == b.id
+                    // running=true incluye el estado en pausa (la pausa no apaga running).
+                    val timerActiveHere = timerRunningHome && timerActiveBookHome == b.id
+                    val isPausedHere = timerActiveHere && timerPausedHome
+                    // Solo hay un crono a la vez: si corre en OTRO libro, el ▶ se apaga (ghost).
+                    val anotherRunning = timerRunningHome && timerActiveBookHome != b.id
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = theme.surface,
-                        border = BorderStroke(1.dp, if (timerActiveHere) Amber else theme.border),
+                        // El color de identidad del crono en marcha (contador, borde, tinte)
+                        // sigue el ACENTO del tema, no un ambar fijo: cambia con el tema.
+                        color = if (timerActiveHere && !isPausedHere) acc.copy(alpha = 0.07f) else theme.surface,
+                        border = BorderStroke(1.dp, if (timerActiveHere && !isPausedHere) acc else theme.border),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
-                            BookCover(b.coverUrl, b.title, size = 34, isbnFallback = b.isbn)
-                            Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                                Text(b.title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (timerActiveHere) {
-                                    Text(
-                                        stringResource(R.string.quickstart_session_running),
-                                        color = Amber, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
-                                    )
-                                } else {
-                                    Text(
-                                        statusLabel(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
-                                        color = statusColor(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
-                                        fontSize = 11.sp
-                                    )
+                            // Punto 5: tocar la portada o el título abre el detalle del libro.
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).clickable {
+                                    showQuickStartSheet = false
+                                    onDetail(b.id)
+                                }
+                            ) {
+                                BookCover(b.coverUrl, b.title, size = 34, isbnFallback = b.isbn)
+                                Column(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                                    Text(b.title, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    if (timerActiveHere) {
+                                        Text(
+                                            stringResource(if (isPausedHere) R.string.quickstart_session_paused else R.string.quickstart_session_running),
+                                            color = if (isPausedHere) theme.textDim else acc,
+                                            fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                                        )
+                                    } else {
+                                        Text(
+                                            statusLabel(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                            color = statusColor(if (b.status == BookStatus.REREADING || b.isRereading) BookStatus.REREADING else BookStatus.READING),
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
-                            Box(
-                                Modifier.size(36.dp).clip(CircleShape)
-                                    .background(if (timerActiveHere) Amber else Green)
-                                    .clickable {
-                                        showQuickStartSheet = false
-                                        // Con el crono ya corriendo en este libro, solo navegar
-                                        if (!timerActiveHere) TimerQuickStart.pendingBookId = b.id
-                                        onDetail(b.id)
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    if (timerActiveHere) Icons.Default.Timer else Icons.Default.PlayArrow,
-                                    contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)
+                            if (timerActiveHere) {
+                                // Reloj vivo (mm:ss, ámbar; gris si está en pausa)
+                                val hh = timerSecondsHome / 3600
+                                val mm = (timerSecondsHome % 3600) / 60
+                                val ss = timerSecondsHome % 60
+                                val clock = if (hh > 0) String.format("%d:%02d:%02d", hh, mm, ss)
+                                            else String.format("%02d:%02d", mm, ss)
+                                Text(
+                                    clock,
+                                    color = if (isPausedHere) theme.textMuted else acc,
+                                    fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
                                 )
+                                Spacer(Modifier.width(10.dp))
+                                // Pausa / Reanudar: mismos colores que el crono del detalle,
+                                // pausa en ámbar y reanudar (play) en verde.
+                                Box(
+                                    Modifier.size(36.dp).clip(CircleShape)
+                                        .background(if (isPausedHere) Green else Amber)
+                                        .clickable {
+                                            if (isPausedHere) com.lecturameter.TimerService.resume(timerCtx)
+                                            else com.lecturameter.TimerService.pause(timerCtx)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        if (isPausedHere) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                        contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                // Stop: para el servicio y abre el diálogo de sesión encima de la hoja.
+                                // Mismo rojo que el stop del crono del detalle.
+                                Box(
+                                    Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).background(Red.copy(alpha = 0.85f))
+                                        .clickable {
+                                            val secs = TimerStateHolder.seconds
+                                            val minsStop = ((secs + 30) / 60).toInt().coerceAtLeast(1)
+                                            com.lecturameter.TimerService.stop(timerCtx, showEndNotification = false)
+                                            TimerStateHolder.shouldOpenDialog = false
+                                            TimerStateHolder.reset()
+                                            timerRunningHome = false
+                                            qsSessionBookId = b.id
+                                            qsSessionMinutes = minsStop
+                                            qsShowSessionDialog = true
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.cd_end_session), tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            } else {
+                                // ▶ verde (arranca aquí) o ghost apagado si corre otro crono.
+                                Box(
+                                    Modifier.size(36.dp).clip(CircleShape)
+                                        .then(
+                                            if (anotherRunning) Modifier.border(1.dp, theme.border, CircleShape)
+                                            else Modifier.background(Green)
+                                        )
+                                        .clickable(enabled = !anotherRunning) {
+                                            // El ▶ ya no navega: arranca el crono en la propia fila.
+                                            // B-019: si hay tiempo huérfano de este libro, preguntar.
+                                            qsStartTimerChecked(b.id) {
+                                                com.lecturameter.TimerService.start(timerCtx, b.id, b.title)
+                                                timerRunningHome = true
+                                                timerPausedHome = false
+                                                timerActiveBookHome = b.id
+                                                timerSecondsHome = 0
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = if (anotherRunning) theme.textMuted else Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -526,11 +754,35 @@ fun ListScreen(
                         }
                     }
                 }
-                // ⏱️ crono desde el home (T1): ámbar cuando hay sesión en curso (mockup 17-07)
-                IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Default.Timer, contentDescription = "Timer",
-                        tint = if (timerRunningHome) Amber else actionIconTint(theme),
-                        modifier = Modifier.size(19.dp))
+                // ⏱️ crono desde el home (T1): con sesión en curso pasa a pastilla ámbar con el
+                // tiempo dentro (mockup 17-07, decisión 1). Mantiene el MISMO ancho (34dp) que el
+                // icono: la cabecera va a cero holgura a 360dp y no se puede ensanchar esta fila.
+                // En pausa se apaga (fondo neutro, texto atenuado). Tocarlo reabre la hoja.
+                if (timerRunningHome) {
+                    val hh = timerSecondsHome / 3600
+                    val mm = (timerSecondsHome % 3600) / 60
+                    val ss = timerSecondsHome % 60
+                    val liveLabel = if (hh > 0) String.format("%d:%02d", hh, mm) else String.format("%d:%02d", mm, ss)
+                    Box(
+                        Modifier.size(34.dp).clip(RoundedCornerShape(9.dp))
+                            .background(if (timerPausedHome) theme.surface else acc.copy(alpha = 0.16f))
+                            .clickable { showQuickStartSheet = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            liveLabel,
+                            color = if (timerPausedHome) theme.textMuted else acc,
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                } else {
+                    IconButton(onClick = { showQuickStartSheet = true }, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Timer, contentDescription = "Timer",
+                            tint = actionIconTint(theme),
+                            modifier = Modifier.size(19.dp))
+                    }
                 }
                 // Feedback 13-07 (4): acceso rápido a Importar/Exportar backups
                 IconButton(onClick = onImportExport, modifier = Modifier.size(34.dp)) {
