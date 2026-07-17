@@ -149,8 +149,14 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                     for (col in 0 until side) {
                         val cellIdx = row * side + col
                         val cell = c.cells[cellIdx]
+                        // La casilla sin marcar iba en theme.bgMid, y en AMOLED bgMid ES bgDark:
+                        // negro sobre negro, o sea el cartón entero invisible salvo por los bordes.
+                        // Es la QUINTA vez que aparece este error (heatmap, carril del widget,
+                        // Wrapped, historial y esto): cualquier tarjeta pintada con bgMid tiene el
+                        // mismo agujero en AMOLED. cardColor() ya existía y solo se usaba en una
+                        // pantalla; el barrido del resto sigue pendiente.
                         val bg by androidx.compose.animation.animateColorAsState(
-                            targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else theme.bgMid,
+                            targetValue = if (cell.isCompleted) accent.copy(alpha = 0.18f) else cardColor(theme),
                             animationSpec = tween(durationMillis = 300), label = "bingo_cell_bg"
                         )
                         // Fase 4 (D-003, 4): dispara el flip+glow SOLO si esta celda nunca animó
