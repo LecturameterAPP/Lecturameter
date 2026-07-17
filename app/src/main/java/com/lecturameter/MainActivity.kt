@@ -552,32 +552,60 @@ fun slabOf(color: Color): List<Color> {
     return listOf(a.toComposeColor(), b.toComposeColor())
 }
 
-/** Variante de la losa para la caja de al lado, un punto más profunda, para que las dos cajas
- *  de una fila no sean el mismo bloque de color. */
-fun slabAltOf(color: Color): List<Color> = slabOf(color).map { darken(it, 0.22f) }
+// Aquí vivían `slabAltOf`, `wrappedSlab`, `wrappedSlabAlt`, `onSlabMuted` y `onSlabMutedOf`, que
+// eran los cinco helpers con los que B-037 aplanó el Wrapped: TODAS las losas salían del acento
+// del tema, así que en AMOLED las siete temáticas eran el mismo gris. Los sustituye la tabla por
+// slot de abajo, que da a cada slide su losa. `slabOf` se queda: sigue siendo quien mide y
+// garantiza que el blanco pasa, y la tabla se apoya en él.
+
+// ── Revisión de B-037: el Wrapped vuelve a tener doce losas, no una ──────────
+// Arreglé el papel aplanando los cinco temas: las siete losas temáticas pasaron a ser el mismo
+// slabOf(acento) (en AMOLED, siete grises iguales) y los seis números protagonistas perdieron el
+// degradado. En Oscuro NO había nada que arreglar, el bug era el papel, y el Wrapped es la
+// pantalla que la gente comparte. Víctor: "quiero que el wrapped se adapte a cada tema y a poder
+// ser con degradados y tal como tenía antes. En oscuro se pueden preservar como era antes sin
+// perder nada."
+//
+// La tabla y la matemática viven en utils/WrappedPalette, sobre enteros y sin Compose, para que
+// se puedan probar de verdad (ver WrappedPaletteTest). Aquí solo está el puente.
+
+/** [Theme] → la clave del tema en la paleta pura. Por bgDark, igual que [accentForTheme], que es
+ *  como el resto del fichero distingue los temas. */
+fun wrappedThemeKey(theme: Theme): WrappedPalette.ThemeKey = when {
+    !theme.isDark            -> WrappedPalette.ThemeKey.LIGHT
+    theme.bgDark == BgDarkA  -> WrappedPalette.ThemeKey.AURORA
+    theme.bgDark == BgDarkC  -> WrappedPalette.ThemeKey.CUERO
+    theme.bgDark == BgDarkAm -> WrappedPalette.ThemeKey.AMOLED
+    else                     -> WrappedPalette.ThemeKey.DARK
+}
+
+/** Los stops de la losa de [slot]. En Oscuro son los literales de de3180f, intactos. */
+fun wrappedSlabFor(slot: WrappedPalette.Slot, theme: Theme): List<Color> =
+    WrappedPalette.slab(slot, wrappedThemeKey(theme)).map { it.toComposeColor() }
 
 /**
- * Texto secundario sobre la losa de [color]: el propio color aclarado hacia el blanco, para
- * que la losa no sea blanco sobre color a secas y conserve el tinte. Se mide igual que la
- * losa, porque con el oro y el cian el 0.85 fijo tampoco llegaba.
+ * Los dos extremos del número protagonista de [slot], para pintarlo en degradado.
+ *
+ * Los dos son OPACOS y están medidos a 3:1 como mínimo (AA_LARGE) contra el stop más claro de su
+ * losa. **No uses [accentGradient] aquí**: es de fondo y su segundo stop lleva 55% de alfa.
  */
-fun onSlabMutedOf(color: Color): Color =
-    ContrastUtils.onSlabMutedFor(color.toRgbInt()).toComposeColor()
+fun wrappedHeroFor(slot: WrappedPalette.Slot, theme: Theme): List<Color> =
+    WrappedPalette.hero(slot, wrappedThemeKey(theme)).map { it.toComposeColor() }
 
-/** La losa del Wrapped, derivada del acento del tema activo. */
-fun wrappedSlab(theme: Theme): List<Color> = slabOf(accentForTheme(theme))
+/** La etiqueta secundaria de la losa de [slot]: conserva su tinte y pasa AA sobre ella. */
+fun onSlabMutedFor(slot: WrappedPalette.Slot, theme: Theme): Color =
+    WrappedPalette.muted(slot, wrappedThemeKey(theme)).toComposeColor()
 
-/** La losa secundaria del Wrapped, derivada del acento del tema activo. */
-fun wrappedSlabAlt(theme: Theme): List<Color> = slabAltOf(accentForTheme(theme))
+/** El título de una losa que no lleva número protagonista (Tops, Gráfica, Mejor día, Franja,
+ *  Favoritos). Lleva el tinte de su losa, no blanco: en Oscuro el literal de siempre. */
+fun onSlabTitleFor(slot: WrappedPalette.Slot, theme: Theme): Color =
+    WrappedPalette.title(slot, wrappedThemeKey(theme)).toComposeColor()
 
 /** Texto principal sobre una losa: blanco, en los cinco temas y también sobre las losas
  *  semánticas, porque [slabOf] garantiza por construcción que el blanco pasa. El acento sobre
  *  su propia losa oscurecida NO pasa, y por eso el número de "Páginas" llevaba fallando
  *  2,56:1 en Oscuro desde antes de que existiera el tema Claro. */
 fun onSlab(theme: Theme): Color = Color.White
-
-/** Texto secundario sobre la losa del tema activo. */
-fun onSlabMuted(theme: Theme): Color = onSlabMutedOf(accentForTheme(theme))
 
 // La clave era `(color.value shl 1) xor bgDark.value`: el shl tiraba el bit alto del rojo y el
 // xor es lineal, así que dos entradas chocaban si `rgb1 xor rgb2 == (bg1 xor bg2) / 2`. Con los

@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import com.lecturameter.model.*
 import com.lecturameter.utils.*
+import com.lecturameter.utils.WrappedPalette.Slot
 import androidx.navigation.compose.composable
 
 // ── WrappedScreen ─────────────────────────────────────────────────────────────
@@ -236,22 +237,25 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     WrappedNarrative(stringResource(R.string.wrapped_narr_1), theme)
                     // Año protagonista con gradiente
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(wrappedSlab(theme))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.YEAR, theme))),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(28.dp)) {
+                            // El "2026" recupera su degradado (en Oscuro, el #818CF8 -> #22D3EE de siempre).
                             Text("${wrapped.year}", fontSize = 80.sp, fontWeight = FontWeight.Black,
-                                color = onSlab(theme))
-                            Text(stringResource(R.string.wcard_subtitle), color = onSlabMuted(theme), fontSize = 14.sp)
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.horizontalGradient(wrappedHeroFor(Slot.YEAR, theme))
+                                ))
+                            Text(stringResource(R.string.wcard_subtitle), color = onSlabMutedFor(Slot.YEAR, theme), fontSize = 14.sp)
                         }
                     }
                     Spacer(Modifier.height(14.dp))
                     // 2 stats enormes
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         WrappedBigCard(wrapped.totalPages.toLocaleString(), stringResource(R.string.wcard_pages), theme,
-                            Brush.linearGradient(wrappedSlab(theme)), Modifier.weight(1f))
+                            Slot.YEAR, Modifier.weight(1f))
                         WrappedBigCard("${wrapped.totalBooks}", stringResource(R.string.wcard_books), theme,
-                            Brush.linearGradient(wrappedSlabAlt(theme)), Modifier.weight(1f))
+                            Slot.YEAR_ALT, Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(12.dp))
                     // 3 mini stats
@@ -295,23 +299,26 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     // "cambiar el marrón naranja ese por un color más bonito"). B-037: el violeta
                     // fijo se va con el resto de las losas; ahora la cabecera es del tema.
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(wrappedSlab(theme))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.HOURS, theme))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             // v2.4 rework: eliminado emoji decorativo de cabecera
                             val hW = wrapped.totalMinutes / 60; val mW = wrapped.totalMinutes % 60
                             Text(if (hW > 0) "${hW}h ${mW}m" else "${mW}m",
-                                fontSize = 64.sp, fontWeight = FontWeight.Black, color = onSlab(theme))
-                            Text(stringResource(R.string.wcard_hours), color = onSlabMuted(theme), fontSize = 14.sp)
+                                fontSize = 64.sp, fontWeight = FontWeight.Black,
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.horizontalGradient(wrappedHeroFor(Slot.HOURS, theme))
+                                ))
+                            Text(stringResource(R.string.wcard_hours), color = onSlabMutedFor(Slot.HOURS, theme), fontSize = 14.sp)
                         }
                     }
                     Spacer(Modifier.height(14.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         WrappedBigCard("${wrapped.totalSessions}", stringResource(R.string.wcard_sessions), theme,
-                            Brush.linearGradient(wrappedSlabAlt(theme)), Modifier.weight(1f))
+                            Slot.HOURS_ALT, Modifier.weight(1f))
                         if (wrapped.maxSessionPages > 0)
                             WrappedBigCard("${wrapped.maxSessionPages}", stringResource(R.string.wrapped_record_session), theme,
-                                Brush.linearGradient(wrappedSlabAlt(theme)), Modifier.weight(1f))
+                                Slot.HOURS_ALT, Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(12.dp))
                     // Top libros por tiempo
@@ -358,11 +365,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 2 -> Column(sm) {
                     WrappedNarrative(stringResource(R.string.wrapped_narr_3), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(wrappedSlab(theme))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.TOPS, theme))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             // v2.4 rework: eliminado emoji decorativo de cabecera
-                            Text(stringResource(R.string.txt_a6f46d56), color = onSlab(theme),
+                            Text(stringResource(R.string.txt_a6f46d56), color = onSlabTitleFor(Slot.TOPS, theme),
                                 fontSize = 32.sp, fontWeight = FontWeight.Black)
                         }
                     }
@@ -370,10 +377,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (wrapped.favoriteAuthor.isNotBlank())
                             WrappedBigCard(wrapped.favoriteAuthor, "${wrapped.favoriteAuthorBooks} libros", theme,
-                                Brush.linearGradient(wrappedSlabAlt(theme)), Modifier.weight(1f), maxLines = 2)
+                                Slot.TOPS_AUTHOR, Modifier.weight(1f), maxLines = 2)
                         if (wrapped.favoriteGenre.isNotBlank())
                             WrappedBigCard(displayGenre(wrapped.favoriteGenre), "${wrapped.favoriteGenreBooks} libros", theme,
-                                Brush.linearGradient(wrappedSlab(theme)), Modifier.weight(1f), maxLines = 2)
+                                Slot.TOPS_GENRE, Modifier.weight(1f), maxLines = 2)
                     }
                     Spacer(Modifier.height(12.dp))
                     val medals = listOf("🥇","🥈","🥉")
@@ -428,7 +435,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         // B-037: el oro se CONSERVA (aquí significa "mejor puntuado", no es
                         // decoración), pero la losa se deriva de él en vez de ir a un marrón fijo.
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                            .background(Brush.linearGradient(slabOf(Gold))),
+                            .background(Brush.linearGradient(wrappedSlabFor(Slot.RATED, theme))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 val bestBook = books.firstOrNull { it.title == top3[0].first }
@@ -437,10 +444,12 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                     Spacer(Modifier.height(6.dp))
                                 }
                                 Text("${top3[0].second}/10", fontSize = 30.sp, fontWeight = FontWeight.Black,
-                                    color = onSlab(theme))
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(wrappedHeroFor(Slot.RATED, theme))
+                                    ))
                                 Text(top3[0].first, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                                     maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
-                                Text(stringResource(R.string.wrapped_mejor_puntuado), color = onSlabMutedOf(Gold), fontSize = 11.sp)
+                                Text(stringResource(R.string.wrapped_mejor_puntuado), color = onSlabMutedFor(Slot.RATED, theme), fontSize = 11.sp)
                             }
                         }
                         Spacer(Modifier.height(10.dp))
@@ -475,7 +484,7 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         // Hero: libro más rápido — v2.6: card compacta (simétrica a Best Rated).
                         // B-037: el verde se CONSERVA (significa "más rápido"); la losa se deriva de él.
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                            .background(Brush.linearGradient(slabOf(Green))),
+                            .background(Brush.linearGradient(wrappedSlabFor(Slot.FASTEST, theme))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 val fastBook = books.firstOrNull { it.title == fastTop3[0].first }
@@ -484,10 +493,12 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                                     Spacer(Modifier.height(6.dp))
                                 }
                                 Text("${String.format("%.1f", fastTop3[0].second)} p/d", fontSize = 28.sp, fontWeight = FontWeight.Black,
-                                    color = onSlab(theme))
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(wrappedHeroFor(Slot.FASTEST, theme))
+                                    ))
                                 Text(fastTop3[0].first, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(stringResource(R.string.wrapped_libro_mas_rapido), color = onSlabMutedOf(Green), fontSize = 11.sp)
+                                Text(stringResource(R.string.wrapped_libro_mas_rapido), color = onSlabMutedFor(Slot.FASTEST, theme), fontSize = 11.sp)
                             }
                         }
                         // 2º y 3º más rápidos
@@ -517,11 +528,11 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 4 -> Column(sm) {
                     WrappedNarrative(stringResource(R.string.wrapped_narr_5), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(wrappedSlab(theme))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.CHART, theme))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             // v2.4 rework: eliminado emoji decorativo de cabecera
-                            Text(stringResource(R.string.txt_bd81d36d), color = onSlab(theme), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.txt_bd81d36d), color = onSlabTitleFor(Slot.CHART, theme), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(Modifier.height(14.dp))
@@ -664,10 +675,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 5 -> Column(sm) {
                     WrappedNarrative(stringResource(R.string.wrapped_narr_6), theme)
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(wrappedSlab(theme))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.BESTDAY, theme))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.wrapped_bestday_title), color = onSlab(theme),
+                            Text(stringResource(R.string.wrapped_bestday_title), color = onSlabTitleFor(Slot.BESTDAY, theme),
                                 fontSize = 18.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                         }
                     }
@@ -789,10 +800,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     val totalSlot = slots.sum()
                     if (totalSlot <= 0) {
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                            .background(Brush.linearGradient(wrappedSlab(theme))),
+                            .background(Brush.linearGradient(wrappedSlabFor(Slot.TIMESLOT, theme))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(stringResource(R.string.wrapped_timeslot_title), color = onSlab(theme),
+                                Text(stringResource(R.string.wrapped_timeslot_title), color = onSlabTitleFor(Slot.TIMESLOT, theme),
                                     fontSize = 18.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                             }
                         }
@@ -806,14 +817,16 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                         // Hero: franja estrella. El cian se conserva porque aquí SIGNIFICA tiempo
                         // (es el semántico de la franja), pero la losa la pone el tema.
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                            .background(Brush.linearGradient(wrappedSlab(theme))),
+                            .background(Brush.linearGradient(wrappedSlabFor(Slot.TIMESLOT_HERO, theme))),
                             contentAlignment = Alignment.Center) {
                             Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(slotLabels[favIdx], fontSize = 44.sp, fontWeight = FontWeight.Black,
-                                    color = onSlab(theme))
-                                Text(stringResource(R.string.wrapped_timeslot_title), color = onSlabMuted(theme), fontSize = 13.sp)
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.horizontalGradient(wrappedHeroFor(Slot.TIMESLOT_HERO, theme))
+                                    ))
+                                Text(stringResource(R.string.wrapped_timeslot_title), color = onSlabMutedFor(Slot.TIMESLOT_HERO, theme), fontSize = 13.sp)
                                 Text(stringResource(R.string.wrapped_fav_pages, slots[favIdx]),
-                                    color = onSlabMuted(theme), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                    color = onSlabMutedFor(Slot.TIMESLOT_HERO, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 2.dp))
                             }
                         }
@@ -972,13 +985,16 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     // Número enorme: páginas protagonista. Esta es la losa del cierre, la más
                     // grande de todas, así que conserva sus tres stops (los otros van a dos).
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
-                        .background(Brush.linearGradient(
-                            wrappedSlab(theme) + darken(accentForTheme(theme), 0.78f)))) {
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.CLOSE, theme)))) {
                         // v2.4 rework: eliminada marca de agua decorativa
                         Column(Modifier.fillMaxWidth().padding(36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            // El cierre va en VERTICAL (blanco -> #A78BFA en Oscuro) y no en horizontal
+                            // como el resto: el numero ocupa el ancho entero y asi el degradado se ve.
                             Text(wrapped.totalPages.toLocaleString(), fontSize = 80.sp, fontWeight = FontWeight.Black,
-                                color = onSlab(theme))
-                            Text(stringResource(R.string.wcard_pages_read), color = onSlabMuted(theme), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                style = androidx.compose.ui.text.TextStyle(
+                                    brush = Brush.verticalGradient(wrappedHeroFor(Slot.CLOSE, theme))
+                                ))
+                            Text(stringResource(R.string.wcard_pages_read), color = onSlabMutedFor(Slot.CLOSE, theme), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -1037,10 +1053,10 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                     // Cabecera
                     // B-037: el rojo de favoritos se CONSERVA (es su semántico); la losa se deriva de él.
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(slabOf(FavoriteRed))),
+                        .background(Brush.linearGradient(wrappedSlabFor(Slot.FAVORITES, theme))),
                         contentAlignment = Alignment.Center) {
                         Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.wrapped_favorites_section), color = onSlab(theme),
+                            Text(stringResource(R.string.wrapped_favorites_section), color = onSlabTitleFor(Slot.FAVORITES, theme),
                                 fontSize = 24.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
                             // v2.6: eliminado subtítulo "Aleatorios entre tus favoritos…" — los
                             // favoritos ahora son fijos por Wrapped (favoritesForWrapped)
@@ -1358,13 +1374,17 @@ fun WrappedEmptyState(emoji: String, theme: Theme, modifier: Modifier = Modifier
 // 1,95:1 desde antes de que existiera el tema Claro. La etiqueta pierde el alfa, que era la
 // causa raíz: pintar texto con alfa lo mezcla con el fondo antes de leerse. La jerarquía la
 // dan el tamaño y las mayúsculas, no el desvanecido.
+// Revision de B-037: recibe el SLOT y no un pincel ya montado. Antes las dos cajas de una fila
+// se distinguian por que quien llamaba pasase wrappedSlab a una y wrappedSlabAlt a la otra, o sea
+// que la identidad de la losa vivia en el sitio de la llamada, y por eso se pudo aplanar sin que
+// se notara. Ahora la losa y su etiqueta salen del mismo slot y no se pueden desparejar.
 @Composable
-fun WrappedBigCard(value: String, label: String, theme: Theme, bg: Brush, modifier: Modifier = Modifier, maxLines: Int = 1) {
-    Box(modifier.clip(RoundedCornerShape(20.dp)).background(bg), contentAlignment = Alignment.Center) {
+fun WrappedBigCard(value: String, label: String, theme: Theme, slot: Slot, modifier: Modifier = Modifier, maxLines: Int = 1) {
+    Box(modifier.clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(wrappedSlabFor(slot, theme))), contentAlignment = Alignment.Center) {
         Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(value, color = onSlab(theme), fontSize = 30.sp, fontWeight = FontWeight.Black,
                 maxLines = maxLines, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center, lineHeight = 34.sp)
-            Text(label.uppercase(), color = onSlabMuted(theme), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+            Text(label.uppercase(), color = onSlabMutedFor(slot, theme), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
         }
     }
 }
