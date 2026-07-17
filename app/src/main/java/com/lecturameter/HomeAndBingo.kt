@@ -16,10 +16,12 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 // v21.42: Icons.Outlined.Star eliminado — estrellas usan ★/☆ Text
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -50,17 +52,52 @@ import com.lecturameter.model.*
 import com.lecturameter.utils.*
 import androidx.navigation.compose.composable
 
-// ── Bingo (Fase 5, MD5): cartón 3×3 con plantillas rotativas mensuales ─────────
+// ── Bingo (Fase 5, MD5): cartón con plantillas rotativas mensuales ────────────
 // Las celdas se marcan solas (ver BingoManager). Al completar el cartón entero
 // antes de fin de mes se ofrece uno nuevo inmediatamente; si no, rota el día 1.
+//
+// B4 (2): la pantalla muestra DOS cartones que conviven, con un selector arriba.
+//   · Mensual 4×4 → gratis para todos, el de siempre, con el acento del tema.
+//   · Reto 3×3    → extra de Pro, más corto y más duro, teñido de rojo (redForTheme).
+// Un usuario gratis ve la pestaña del 3×3 y puede pulsarla: lo que salta es la hoja de
+// Pro explicándolo. Se enseña, no se esconde: es la diferencia entre un límite y un muro.
 @Composable
-fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
+fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onHistory: () -> Unit = {}) {
     BackHandler { onBack() }
-    val card by vm.bingoCard.collectAsState()
+    val card4 by vm.bingoCard.collectAsState()
+    val card3 by vm.bingoCard3.collectAsState()
     val books by vm.books.collectAsState()
     // Etiquetas del JSON en el idioma de la app (mismo criterio que el resto de la UI)
     val isEs = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
-    val accent = accentForTheme(theme)
+
+    // El Pro puede cambiar mientras la pantalla está viva (se compra en la propia hoja),
+    // así que se relee con un tick en vez de fijarlo en el primer frame.
+    var proTick by remember { mutableStateOf(0) }
+    val isPro = remember(proTick) { com.lecturameter.utils.Pro.isPro(prefs) }
+    // Dos hojas encadenadas: primero la explicación del 3×3 (el "mensaje" que pidió
+    // Víctor) y solo si el usuario quiere, la de venta. Enseñar el precio de golpe al
+    // tocar una pestaña es agresivo; explicar qué es primero, no.
+    var showUpsell by remember { mutableStateOf(false) }
+    var showProSheet by remember { mutableStateOf(false) }
+
+    // El Pro puede haberse comprado en AJUSTES, no aquí: en ese caso nadie ha creado aún el
+    // cartón 3×3 y sin esto habría que reiniciar la app para verlo. ensureBingoCard es
+    // idempotente (si ya existe y es del mes, no hace nada), así que entrar al Bingo es un
+    // sitio seguro para asegurarlo. Al revés también: si el trial caducó estando la app
+    // abierta, aquí se archiva el 3×3 en el historial en vez de dejarlo colgado.
+    LaunchedEffect(isPro) {
+        if (isPro) vm.ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
+        else vm.reconcileBingo3Entitlement(prefs)
+    }
+    // Pestaña elegida, recordada entre visitas. Quien dejó abierto el 3×3 y ya no es Pro
+    // (trial caducado) vuelve al 4×4: su 3×3 no se ha perdido, está en el historial.
+    var side by remember {
+        val saved = prefs.getInt("bingo_side", com.lecturameter.utils.BingoManager.SIDE_4)
+        val safe = if (saved == com.lecturameter.utils.BingoManager.SIDE_3 && !com.lecturameter.utils.Pro.isPro(prefs))
+            com.lecturameter.utils.BingoManager.SIDE_4 else saved
+        mutableStateOf(safe)
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding()) {
         IconButton(
             onClick = onBack,
@@ -68,14 +105,195 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
         ) {
             Icon(Icons.Default.ArrowBack, contentDescription = null, tint = theme.textMain)
         }
-        val c = card
-        if (c == null) {
-            // Sin cartón (no debería ocurrir: ensureBingoCard corre en load)
-            Text("…", color = theme.textMuted, modifier = Modifier.align(Alignment.Center))
-            return@Box
+        // Historial de bingos (los dos tamaños). Mismo gesto que el historial de retos.
+        IconButton(
+            onClick = onHistory,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 28.dp, end = 16.dp)
+        ) {
+            Icon(
+                Icons.Default.History,
+                contentDescription = stringResource(R.string.bingo_history_open),
+                tint = actionIconTint(theme)
+            )
         }
-        // Feedback 13-07 (10): cartón 4×4 (lado dinámico según la plantilla)
+        val c = if (side == com.lecturameter.utils.BingoManager.SIDE_3) card3 else card4
+        // Título + selector + cuerpo en UNA columna, y el cuerpo scrollea dentro. Antes el
+        // cuerpo iba posicionado con un padding fijo desde arriba: con el selector metido en
+        // medio ese número deja de cuadrar (y se solapa) en cuanto cambia una tipografía o
+        // el tamaño de fuente del sistema. Aquí lo resuelve el layout, no una constante.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize().padding(top = 76.dp)
+        ) {
+            Text(stringResource(R.string.bingo_title), color = theme.textMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            BingoSideSelector(
+                side = side, isPro = isPro, theme = theme,
+                onSelect = { wanted ->
+                    if (wanted == com.lecturameter.utils.BingoManager.SIDE_3 && !isPro) showUpsell = true
+                    else { side = wanted; prefs.edit().putInt("bingo_side", wanted).apply() }
+                }
+            )
+            Spacer(Modifier.height(12.dp))
+            if (c == null) {
+                // Sin cartón (no debería ocurrir en el 4×4: ensureBingoCard corre en load).
+                // En el 3×3 es lo normal durante el primer frame tras hacerse Pro.
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("…", color = theme.textMuted)
+                }
+            } else {
+                BingoCardBody(vm, prefs, theme, c, books, isEs, isPro, Modifier.weight(1f))
+            }
+        }
+        if (showUpsell) {
+            Bingo3GateSheet(
+                theme = theme,
+                onDismiss = { showUpsell = false },
+                onSeePro = { showUpsell = false; showProSheet = true }
+            )
+        }
+        if (showProSheet) {
+            ProUpsellSheet(
+                theme, prefs,
+                onDismiss = { showProSheet = false },
+                onProChanged = {
+                    proTick++
+                    // Recién comprado o estrenado el trial: el 3×3 se crea aquí mismo
+                    vm.ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
+                }
+            )
+        }
+    }
+}
+
+/** B4 (2): color del cartón de cada tamaño. El 4×4 se queda con el acento de su tema
+ *  (no cambia NADA respecto a hoy) y el 3×3 se tiñe de rojo. */
+internal fun cardTint(theme: Theme, side: Int): Color =
+    if (side == com.lecturameter.utils.BingoManager.SIDE_3) redForTheme(theme) else accentForTheme(theme)
+
+/** Tinta legible sobre un relleno de cardTint (ver onAccentColor / onRedColor). */
+internal fun onCardTint(theme: Theme, side: Int): Color =
+    if (side == com.lecturameter.utils.BingoManager.SIDE_3) onRedColor(theme) else onAccentColor(theme)
+
+// ── B4 (2): selector de cartón ────────────────────────────────────────────────
+// Dos pestañas en una pastilla. La activa se rellena con el color de SU cartón (acento
+// para el 4×4, rojo para el 3×3), así el color enseña de un vistazo en cuál estás. El
+// relleno se desliza entre las dos con animación, en vez de aparecer de golpe.
+//
+// La pestaña del 3×3 NO se deshabilita para el usuario gratis: se puede pulsar y lo que
+// salta es la explicación. Un control gris y muerto no comunica nada; uno que responde y
+// te cuenta qué es, sí.
+@Composable
+private fun BingoSideSelector(
+    side: Int,
+    isPro: Boolean,
+    theme: Theme,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val s3 = com.lecturameter.utils.BingoManager.SIDE_3
+    val s4 = com.lecturameter.utils.BingoManager.SIDE_4
+    Row(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            // cardColor() y no bgMid: en AMOLED bgMid ES bgDark y la pastilla sería invisible
+            .background(cardColor(theme))
+            .border(1.dp, theme.border, RoundedCornerShape(12.dp))
+            .padding(3.dp)
+    ) {
+        for (s in listOf(s4, s3)) {
+            val selected = s == side
+            val tint = cardTint(theme, s)
+            // El relleno de la pestaña activa entra con transición, no de golpe
+            val bg by androidx.compose.animation.animateColorAsState(
+                targetValue = if (selected) tint else Color.Transparent,
+                animationSpec = tween(durationMillis = 260), label = "bingo_tab_bg"
+            )
+            val fg by androidx.compose.animation.animateColorAsState(
+                targetValue = if (selected) onCardTint(theme, s) else theme.textMuted,
+                animationSpec = tween(durationMillis = 260), label = "bingo_tab_fg"
+            )
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(bg)
+                    .clickable { onSelect(s) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    when {
+                        s == s4    -> stringResource(R.string.bingo_tab_4)
+                        isPro      -> stringResource(R.string.bingo_tab_3)
+                        else       -> stringResource(R.string.bingo_tab_3_locked)
+                    },
+                    color = fg, fontSize = 13.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+// ── B4 (2): el mensaje del gate ───────────────────────────────────────────────
+// Lo que ve un usuario gratis al tocar la pestaña del 3×3. Explica QUÉ es y, sobre todo,
+// deja claro que su 4×4 no se toca: el miedo razonable al ver un candado en una función
+// que ya usabas es "me han quitado algo", y aquí no se le ha quitado nada a nadie.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Bingo3GateSheet(theme: Theme, onDismiss: () -> Unit, onSeePro: () -> Unit) {
+    val acc = accentForTheme(theme)
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                stringResource(R.string.bingo_3_gate_title),
+                color = theme.textMain, fontSize = 19.sp, fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.bingo_3_gate_body),
+                color = theme.textMuted, fontSize = 13.sp, lineHeight = 18.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = onSeePro,
+                colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(46.dp)
+            ) { Text(stringResource(R.string.bingo_3_gate_cta), fontWeight = FontWeight.Bold) }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.bingo_3_gate_dismiss), color = theme.textDim, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+// Cuerpo del cartón (título, cuadrícula y pie). Extraído de BingoScreen al entrar el
+// selector: los dos tamaños comparten ESTE código, así que el 3×3 hereda la animación
+// del 4×4 por construcción y no por copia. Si se retoca el flip, se retoca para los dos.
+@Composable
+private fun BingoCardBody(
+    vm: BooksViewModel,
+    prefs: android.content.SharedPreferences,
+    theme: Theme,
+    c: BingoCard,
+    books: List<Book>,
+    isEs: Boolean,
+    isPro: Boolean,
+    modifier: Modifier = Modifier
+) {
+    // El alto lo fija quien llama (weight en la columna de BingoScreen): así el cartón ocupa
+    // lo que sobra bajo el selector y su scroll interno se queda dentro de ese hueco.
+    Box(modifier.fillMaxWidth()) {
+        // Feedback 13-07 (10): lado dinámico según la plantilla (9 → 3×3, 16 → 4×4)
         val side = com.lecturameter.utils.BingoManager.sideOf(c.cells.size).coerceAtLeast(3)
+        // B4 (2): el 3×3 se tiñe de rojo por tema; el 4×4 conserva su acento intacto.
+        val accent = cardTint(theme, side)
 
         // ── Fase 4 (D-003, 4): flip + glow fusionados, SOLO la primera vez ──────────
         // La celda completada gira una vez y suelta un destello que se apaga; al cerrar
@@ -129,11 +347,9 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 76.dp, start = 16.dp, end = 16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(stringResource(R.string.bingo_title), color = theme.textMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
             Text(
                 stringResource(R.string.bingo_subtitle, if (isEs) c.templateNameEs else c.templateNameEn, monthLabel),
                 color = accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
@@ -244,11 +460,16 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
             if (complete) {
                 Text(stringResource(R.string.bingo_completed), color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = { vm.ensureBingoCard(prefs, force = true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = accent),
-                    shape = RoundedCornerShape(12.dp)
-                ) { Text(stringResource(R.string.bingo_new_card), fontWeight = FontWeight.Bold) }
+                // "Nuevo cartón" rota SOLO el tamaño que estás viendo: completar el 4×4 no
+                // debe tirar tu 3×3 a medias, ni al revés. Si el trial ya caducó, el 3×3 no
+                // se puede renovar (ensureBingoCard lo corta), así que ni se ofrece.
+                if (side != com.lecturameter.utils.BingoManager.SIDE_3 || isPro) {
+                    Button(
+                        onClick = { vm.ensureBingoCard(prefs, side, force = true) },
+                        colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onCardTint(theme, side)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text(stringResource(R.string.bingo_new_card), fontWeight = FontWeight.Bold) }
+                }
             } else {
                 Text(stringResource(R.string.bingo_hint), color = theme.textMuted, fontSize = 11.5.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(2.dp))
@@ -271,6 +492,167 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 theme, onGone = { bingoTipVisible = false },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
             )
+        }
+    }
+}
+
+// ── BingoHistoryScreen (B4, 2) ────────────────────────────────────────────────
+//
+// Historial de bingos, pedido por Víctor: "que englobe a los dos tipos de bingos". Mismo
+// patrón que el historial de retos (ChallengeHistoryScreen): cabecera, chips de año y
+// tarjetas, con su vacío cuando no hay nada.
+//
+// GRATIS y completo para todos, igual que el de retos. Eso no es un descuido del paywall:
+// es lo que hace que el 3×3 que te llevas de la prueba de 7 días se pueda seguir viendo
+// después, que es justo lo que pidió Víctor. Cobrar por MIRAR lo que ya jugaste sería
+// quitar algo, y aquí no se le quita nada a nadie.
+//
+// Cada tarjeta lleva el mini cartón repintado desde `pattern` (el mismo truco que la slide
+// del Wrapped), teñido con el color de SU tamaño: acento el 4×4, rojo el 3×3.
+@Composable
+fun BingoHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit) {
+    BackHandler { onBack() }
+    val history by vm.bingoHistory.collectAsState()
+    val isEs = androidx.compose.ui.platform.LocalConfiguration.current.locales.get(0)?.language == "es"
+
+    Column(Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding().padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
+            // Pantalla nueva: se estrena con el icono no deprecado (idéntico en LTR). El resto
+            // de la app sigue con Icons.Default.ArrowBack; ese barrido no es de este encargo.
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = theme.textMain)
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.bingo_history_title), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.bingo_history_subtitle), color = theme.textMuted, fontSize = 13.sp)
+            }
+        }
+
+        if (history.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.History, null, tint = theme.textDim, modifier = Modifier.size(44.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.bingo_history_empty), color = theme.textDim,
+                        fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                }
+            }
+        } else {
+            // Los resúmenes sin monthKey válido no deberían existir, pero el historial es
+            // dato restaurado de un backup: si uno viene roto, se ignora en vez de reventar.
+            val years = remember(history) {
+                history.mapNotNull { it.monthKey.take(4).toIntOrNull() }.distinct().sortedDescending()
+            }
+            if (years.isEmpty()) return@Column
+            var selectedYear by rememberSaveable { mutableStateOf(years.first()) }
+            if (selectedYear !in years) selectedYear = years.first()
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 10.dp)
+            ) {
+                val acc = accentForTheme(theme)
+                years.forEach { y ->
+                    val selected = selectedYear == y
+                    Surface(
+                        onClick = { selectedYear = y },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (selected) acc.copy(alpha = 0.15f) else theme.surface,
+                        border = BorderStroke(1.dp, if (selected) acc else theme.border)
+                    ) {
+                        Text(
+                            "$y", color = if (selected) acc else theme.textMuted,
+                            fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            // Más reciente arriba. Dentro de un mes, primero el 4×4 (el cartón principal).
+            val visible = remember(history, selectedYear) {
+                history.filter { it.monthKey.startsWith("$selectedYear-") }
+                    .sortedWith(compareByDescending<com.lecturameter.utils.BingoMonthSummary> { it.monthKey }
+                        .thenByDescending { it.cellsTotal })
+            }
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                visible.forEach { s -> BingoHistoryCard(s, theme, isEs) }
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun BingoHistoryCard(s: com.lecturameter.utils.BingoMonthSummary, theme: Theme, isEs: Boolean) {
+    val side = com.lecturameter.utils.BingoManager.sideOfSummary(s).coerceAtLeast(3)
+    val tint = cardTint(theme, side)
+    val monthLabel = remember(s.monthKey, isEs) {
+        try {
+            val d = java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US).parse(s.monthKey)
+            java.text.SimpleDateFormat("LLLL yyyy", if (isEs) java.util.Locale("es") else java.util.Locale.ENGLISH)
+                .format(d!!).replaceFirstChar { it.uppercase() }
+        } catch (_: Exception) { s.monthKey }
+    }
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        // cardColor(): en AMOLED bgMid es negro puro y la tarjeta desaparecería
+        color = cardColor(theme),
+        border = BorderStroke(1.dp, theme.border),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Mini cartón repintado desde el patrón guardado ('1' = casilla hecha)
+            Column(Modifier.size(52.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                for (r in 0 until side) {
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        for (col in 0 until side) {
+                            val on = s.pattern.getOrNull(r * side + col) == '1'
+                            Box(
+                                Modifier.weight(1f).fillMaxHeight()
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(if (on) tint else theme.border)
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(monthLabel, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(6.dp))
+                    // Distintivo del tamaño: es lo que separa los dos bingos de un vistazo
+                    Surface(shape = RoundedCornerShape(6.dp), color = tint.copy(alpha = 0.18f)) {
+                        Text(
+                            stringResource(
+                                if (side == com.lecturameter.utils.BingoManager.SIDE_3) R.string.bingo_history_badge_3
+                                else R.string.bingo_history_badge_4
+                            ),
+                            color = tint, fontSize = 9.5.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+                Text(
+                    if (isEs) s.templateNameEs else s.templateNameEn,
+                    color = tint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    stringResource(R.string.bingo_history_row, s.cellsDone, s.cellsTotal, s.lines),
+                    color = theme.textMuted, fontSize = 11.sp
+                )
+                if (s.complete) {
+                    Text(
+                        stringResource(R.string.bingo_history_badge_completed),
+                        color = Amber, fontSize = 9.5.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

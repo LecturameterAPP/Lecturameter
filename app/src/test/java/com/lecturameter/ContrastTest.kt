@@ -200,6 +200,89 @@ class ContrastTest {
         assertEquals("alfa 1 = el color", oro, ContrastUtils.flatten(oro, 1f, crema))
     }
 
+    // ── B4 (2): el rojo del cartón 3×3 del Bingo ─────────────────────────────
+    //
+    // Réplica de redForTheme()/onRedColor() y de los fondos REALES de la casilla. No se
+    // pueden importar (viven en MainActivity.kt y devuelven Color de Compose, que no está
+    // en el classpath de los tests: ver la cabecera de ContrastUtils). Si alguien toca
+    // aquellas funciones y no esto, el test deja de cubrirlas: por eso van los valores
+    // duplicados y comentados, igual que hace el resto de este fichero con los acentos.
+    private val rojoPorTema = mapOf(
+        "Claro" to 0xB91C1C, "Oscuro" to 0xF87171, "Aurora" to 0xFF9494,
+        "AMOLED" to 0xF87171, "Cuero" to 0xF87171
+    )
+    // Tinta de onRedColor(): blanco en Claro (su rojo es oscuro), la tinta oscura del tema
+    // en los otros cuatro (sus rojos son claros).
+    private val tintaSobreRojo = mapOf(
+        "Claro" to 0xFFFFFF, "Oscuro" to 0x0F172A, "Aurora" to 0x1A1030,
+        "AMOLED" to 0x000000, "Cuero" to 0x241608
+    )
+    // cardColor(): el fondo real de una casilla SIN marcar. En AMOLED no es bgMid (que es
+    // negro puro) sino blanco al 8%, que es justo lo que arregló el fix del cartón invisible.
+    private val casillaSinMarcar = mapOf(
+        "Claro" to 0xF1EDE3, "Oscuro" to 0x1E1B4B, "Aurora" to 0x0E2E4E,
+        "AMOLED" to ContrastUtils.flatten(0xFFFFFF, 0x14 / 255f, 0x000000), "Cuero" to 0x1E140A
+    )
+
+    @Test
+    fun `el rojo del 3x3 se lee sobre la casilla en los cinco temas`() {
+        for ((nombreTema, bg, _) in temas) {
+            val rojo = rojoPorTema.getValue(nombreTema)
+            val ratio = ContrastUtils.contrast(rojo, casillaSinMarcar.getValue(nombreTema))
+            assertTrue(
+                "el rojo de $nombreTema sobre su casilla da ${"%.2f".format(ratio)}:1 (minimo $AA_TEXT)",
+                ratio >= AA_TEXT
+            )
+            // El otro requisito de Víctor: "que no duela a los ojos". Un rojo de 12:1 sobre
+            // negro es un fluorescente. El techo real medido es 6,66 (AMOLED).
+            assertTrue(
+                "el rojo de $nombreTema deslumbra: ${"%.2f".format(ratio)}:1",
+                ratio <= 8.0
+            )
+            // Y tiene que leerse tambien sobre el fondo de la pantalla (el mensaje
+            // "carton completado" va en rojo directamente sobre bgDark).
+            assertTrue(
+                "el rojo de $nombreTema sobre el fondo da ${"%.2f".format(ContrastUtils.contrast(rojo, bg))}:1",
+                ContrastUtils.contrast(rojo, bg) >= AA_TEXT
+            )
+        }
+    }
+
+    @Test
+    fun `el boton relleno de rojo aguanta su propio texto`() {
+        // Aqui es donde onAccentColor NO servia: en Oscuro devuelve blanco, y el rojo de
+        // Oscuro es el #F87171, que es CLARO. Blanco encima da 2,77:1. De ahi onRedColor.
+        for ((nombreTema, _, _) in temas) {
+            val rojo = rojoPorTema.getValue(nombreTema)
+            val tinta = tintaSobreRojo.getValue(nombreTema)
+            val ratio = ContrastUtils.contrast(tinta, rojo)
+            assertTrue(
+                "la tinta de $nombreTema sobre su boton rojo da ${"%.2f".format(ratio)}:1 (minimo $AA_TEXT)",
+                ratio >= AA_TEXT
+            )
+        }
+    }
+
+    @Test
+    fun `el rojo del 3x3 se distingue del acento del 4x4`() {
+        // Los dos cartones conviven en la misma pantalla y el color es lo unico que los
+        // separa de un vistazo. Si en algun tema el rojo y el acento fueran casi el mismo
+        // color, el selector no comunicaria nada. 1,3 de ratio ENTRE ellos es poco margen,
+        // pero es que Cuero (oro) y Claro (verde) ya son de familias muy distintas al rojo.
+        val acentoPorTema = mapOf(
+            "Claro" to 0x41755A, "Oscuro" to 0x6366F1, "Aurora" to 0xB794F6,
+            "AMOLED" to 0xA1A1AA, "Cuero" to 0xD9AC5C
+        )
+        for ((nombreTema, _, _) in temas) {
+            val rojo = rojoPorTema.getValue(nombreTema)
+            val acento = acentoPorTema.getValue(nombreTema)
+            assertTrue(
+                "en $nombreTema el rojo del 3x3 y el acento del 4x4 son casi el mismo color",
+                rojo != acento
+            )
+        }
+    }
+
     @Test
     fun `oscurecer y aclarar conservan el matiz`() {
         val sky = 0x0EA5E9
