@@ -1186,6 +1186,8 @@
 
     <!-- B-021 -->
     <string name="editions_summary">%1$d editions · each one counts as a separate book in statistics · %2$d pages in total</string>
+    <!-- P-031: page summary on each edition's COLLAPSED header -->
+    <string name="editions_pages_short">%1$d pages</string>
     <string name="func_pages_from">from %1$d</string>
     <string name="func_pages_to">to %1$d</string>
     <string name="share_library_subject">My Lecturameter library</string>
@@ -1223,4 +1225,26 @@
     <string name="add_sheet_catalog_desc">Cover, pages and ISBN already filled in</string>
     <string name="add_sheet_manual_title">Add it manually</string>
     <string name="add_sheet_manual_desc">For editions that are not in the catalog</string>
+    <!-- P-032: theme gift when the 7 day trial ends (Block 4, feature 7) -->
+    <string name="trial_gift_title">Your trial is over 🎁</string>
+    <string name="trial_gift_body">Pick one of the three Pro themes and it stays with you forever, free. The other two get locked again.</string>
+    <string name="trial_gift_kept">This is the one you had when the trial ended</string>
+    <string name="trial_gift_confirm">Keep it</string>
+    <string name="trial_gift_see_pro">See Pro</string>
+    <string name="trial_gift_granted">%1$s is yours forever</string>
+
+    <!-- P-033: gift teaser shown when STARTING the trial (unannounced, it does not exist) -->
+    <string name="trial_gift_teaser_title">And you keep a theme forever</string>
+    <string name="trial_gift_teaser_body">When the trial ends you pick one of the three Pro themes and it stays with you, free. You have 7 days to try Aurora, OLED and Leather.</string>
+
+    <!-- P-034: free date range in the Statistics filters (Pro) -->
+    <string name="filter_range_label">Range</string>
+    <string name="filter_range_placeholder">Custom dates</string>
+    <string name="filter_range_pro">PRO</string>
+    <string name="filter_range_clear">Clear range</string>
+    <string name="filter_range_from">From</string>
+    <string name="filter_range_to">To</string>
+    <string name="filter_range_hint">🔒 With Pro, filter by any date range</string>
+    <string name="filter_range_ok">OK</string>
+    <string name="filter_range_cancel">Cancel</string>
 </resources>

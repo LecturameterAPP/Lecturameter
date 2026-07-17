@@ -30,6 +30,27 @@ object Pro {
     const val TRIAL_USED_KEY = "pro_trial_used"
     const val GRANDFATHER_KEY = "pro_grandfathered_theme"
     private const val GRANDFATHER_DONE_KEY = "pro_grandfather_done"
+
+    // P-032 (Bloque 4, feature 7, opción B de Víctor): al acabar la prueba de 7 días el
+    // usuario ELIGE uno de los 3 temas de pago y se lo queda para siempre.
+    //
+    // Clave APARTE de GRANDFATHER_KEY a propósito: esa ya la usan los usuarios de la 2.7
+    // que venían con Aurora o AMOLED, y es de valor único. Si el regalo escribiera ahí,
+    // quien viniera de la 2.7 con Aurora heredado, probara el trial y eligiera Cuero,
+    // PERDERÍA el Aurora. Con dos claves, themeAllowed mira las dos y conserva ambos.
+    const val TRIAL_GIFT_KEY = "pro_trial_gift_theme"
+    /** El regalo ya se resolvió (elegido o descartado): no volver a preguntar. */
+    const val TRIAL_GIFT_DONE_KEY = "pro_trial_gift_done"
+
+    /**
+     * B-041: el tema de pago que la app tuvo que apagar al caducar la prueba.
+     *
+     * Antes, cuando el trial caducaba, BooksViewModel pisaba `theme_mode` con "dark" y el
+     * tema original se perdía PARA SIEMPRE: quien compraba Pro después no lo recuperaba y
+     * ni se acordaba de cuál era. Aquí se guarda antes de pisarlo, para devolverlo en
+     * cuanto se vuelva a tener derecho a él (compra, código o regalo del trial).
+     */
+    const val THEME_BEFORE_LOCK_KEY = "pro_theme_before_lock"
     private const val ATTEMPTS_KEY = "pro_code_attempts"
     private const val LOCKOUT_KEY = "pro_code_lockout_until"
     private const val MAX_ATTEMPTS = 5
@@ -148,10 +169,68 @@ object Pro {
 
     fun editionLimit(prefs: SharedPreferences): Int = if (isPro(prefs)) PRO_EDITIONS else FREE_EDITIONS
 
-    /** ¿Puede este usuario USAR este tema? Pro todo; gratis los no-de-pago más el tema
-     *  que ya tenía activo al actualizar (grandfathering aprobado por Víctor). */
+    /** ¿Puede este usuario USAR este tema? Pro todo; gratis los no-de-pago, más el tema
+     *  que ya tenía activo al actualizar (grandfathering aprobado por Víctor) y el que
+     *  eligió como regalo al acabar la prueba (P-032). Las dos claves son independientes:
+     *  se pueden tener las dos a la vez y ninguna pisa a la otra. */
     fun themeAllowed(prefs: SharedPreferences, mode: ThemeMode): Boolean =
-        isPro(prefs) || mode !in PAID_THEMES || prefs.getString(GRANDFATHER_KEY, null) == mode.value
+        isPro(prefs) ||
+        mode !in PAID_THEMES ||
+        prefs.getString(GRANDFATHER_KEY, null) == mode.value ||
+        prefs.getString(TRIAL_GIFT_KEY, null) == mode.value
+
+    // ── P-032: regalo de un tema al acabar la prueba ────────────────────────────
+
+    /**
+     * ¿Toca ofrecer el regalo? Solo a quien gastó la prueba y ya se le acabó, sin haber
+     * comprado Pro y sin haber elegido todavía.
+     *
+     * Ojo con el orden: a quien compra Pro NO se le pregunta, porque ya tiene los 3 temas
+     * y el regalo no le añade nada. Si algún día cancela... no puede: la compra es única.
+     */
+    fun trialGiftPending(prefs: SharedPreferences, now: Long = System.currentTimeMillis()): Boolean =
+        localFor(prefs).getBoolean(TRIAL_USED_KEY, false) &&
+        !trialActive(prefs, now) &&
+        !prefs.getBoolean(PREF_KEY, false) &&
+        !prefs.getBoolean(TRIAL_GIFT_DONE_KEY, false)
+
+    /** Concede el tema elegido para siempre y cierra el regalo. Solo temas de pago: los
+     *  gratis ya los tiene y "regalar" uno gratis sería mentirle.
+     *
+     *  Borra THEME_BEFORE_LOCK_KEY a propósito: elegir el regalo YA RESPONDE a la pregunta
+     *  "qué tema quieres". Si no se borrara, quien tenía Cuero en la prueba, eligiera Aurora
+     *  de regalo y comprara Pro meses después se encontraría con que la app le cambia solo a
+     *  Cuero, pisando el Aurora que había elegido a conciencia. */
+    fun grantTrialGiftTheme(prefs: SharedPreferences, mode: ThemeMode) {
+        if (mode !in PAID_THEMES) return
+        prefs.edit()
+            .putString(TRIAL_GIFT_KEY, mode.value)
+            .putBoolean(TRIAL_GIFT_DONE_KEY, true)
+            .remove(THEME_BEFORE_LOCK_KEY)
+            .apply()
+    }
+
+    // ── B-041: no perder el tema al caducar la prueba ───────────────────────────
+
+    /** Guarda el tema de pago que se va a apagar, para poder devolverlo luego. No pisa un
+     *  valor ya guardado: el primero es el bueno (el que el usuario eligió de verdad). */
+    fun rememberThemeBeforeLock(prefs: SharedPreferences, mode: ThemeMode) {
+        if (mode !in PAID_THEMES) return
+        if (prefs.contains(THEME_BEFORE_LOCK_KEY)) return
+        prefs.edit().putString(THEME_BEFORE_LOCK_KEY, mode.value).apply()
+    }
+
+    /**
+     * ¿Hay un tema apagado que ahora vuelva a estar permitido (compró Pro, canjeó código o
+     * lo eligió como regalo)? Lo devuelve y limpia la clave. Null si no hay nada que hacer.
+     */
+    fun reclaimThemeAfterUnlock(prefs: SharedPreferences): ThemeMode? {
+        val saved = prefs.getString(THEME_BEFORE_LOCK_KEY, null) ?: return null
+        val mode = ThemeMode.entries.firstOrNull { it.value == saved }
+        if (mode == null || !themeAllowed(prefs, mode)) return null
+        prefs.edit().remove(THEME_BEFORE_LOCK_KEY).apply()
+        return mode
+    }
 
     /** One-shot al actualizar: si el usuario venía usando Aurora o AMOLED (gratis hasta la
      *  2.7), se le respeta ESE tema para siempre. Cuero es nuevo y no se hereda. */

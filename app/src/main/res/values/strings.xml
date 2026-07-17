@@ -1194,6 +1194,8 @@
     <!-- B-021: literales que estaban hardcodeados en el código y salían en español
          con la app en inglés (mismo patrón que el worker de recaps). -->
     <string name="editions_summary">%1$d ediciones · cada una cuenta como un libro independiente en estadísticas · %2$d págs en total</string>
+    <!-- P-031: resumen de páginas en la cabecera PLEGADA de cada edición -->
+    <string name="editions_pages_short">%1$d páginas</string>
     <string name="func_pages_from">desde %1$d</string>
     <string name="func_pages_to">hasta %1$d</string>
     <string name="share_library_subject">Mi biblioteca Lecturameter</string>
@@ -1231,4 +1233,26 @@
     <string name="add_sheet_catalog_desc">Portada, páginas e ISBN ya rellenos</string>
     <string name="add_sheet_manual_title">Añadirlo a mano</string>
     <string name="add_sheet_manual_desc">Para ediciones que no están en el catálogo</string>
+    <!-- P-032: regalo de un tema al acabar la prueba de 7 días (Bloque 4, feature 7) -->
+    <string name="trial_gift_title">Se acabó la prueba 🎁</string>
+    <string name="trial_gift_body">Elige uno de los tres temas Pro y se queda contigo para siempre, sin pagar nada. Los otros dos vuelven a estar bloqueados.</string>
+    <string name="trial_gift_kept">Este es el que tenías puesto al acabar</string>
+    <string name="trial_gift_confirm">Quedármelo</string>
+    <string name="trial_gift_see_pro">Ver el Pro</string>
+    <string name="trial_gift_granted">%1$s es tuyo para siempre</string>
+
+    <!-- P-033: aviso del regalo AL EMPEZAR la prueba (si no se cuenta antes, no existe) -->
+    <string name="trial_gift_teaser_title">Y te llevas un tema para siempre</string>
+    <string name="trial_gift_teaser_body">Al terminar la prueba eliges uno de los tres temas Pro y se queda contigo, sin pagar nada. Tienes 7 días para probar Aurora, OLED y Cuero.</string>
+
+    <!-- P-034: rango libre de fechas en los filtros de Estadísticas (Pro) -->
+    <string name="filter_range_label">Rango</string>
+    <string name="filter_range_placeholder">Fechas libres</string>
+    <string name="filter_range_pro">PRO</string>
+    <string name="filter_range_clear">Quitar rango</string>
+    <string name="filter_range_from">Desde</string>
+    <string name="filter_range_to">Hasta</string>
+    <string name="filter_range_hint">🔒 Con Pro, filtra por cualquier rango de fechas</string>
+    <string name="filter_range_ok">Aceptar</string>
+    <string name="filter_range_cancel">Cancelar</string>
 </resources>
