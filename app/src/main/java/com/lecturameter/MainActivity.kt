@@ -1477,17 +1477,24 @@ private fun AuroraDivider(modifier: Modifier = Modifier) {
 }
 
 // AMOLED: los extremos son negro puro (píxel apagado), fiel al espíritu del tema.
+// QA 18-07: con un degradado de 3 paradas solo el punto central exacto llegaba al 42% y
+// decaía tan rápido que la línea no se veía. Ahora el degradado tiene MESETA central (dos
+// paradas al 55%) y solo se desvanece en los extremos: se ve, y sigue naciendo y muriendo
+// en el negro, que es lo que define a M1.
 @Composable
 private fun AmoledDivider(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth().padding(vertical = 6.dp).height(5.dp).drawBehind {
         val y = size.height / 2f
         drawLine(
             androidx.compose.ui.graphics.Brush.horizontalGradient(
-                listOf(Color.Transparent, Color.White.copy(alpha = 0.42f), Color.Transparent)
+                0f to Color.Transparent,
+                0.30f to Color.White.copy(alpha = 0.55f),
+                0.70f to Color.White.copy(alpha = 0.55f),
+                1f to Color.Transparent
             ),
             androidx.compose.ui.geometry.Offset(0f, y),
             androidx.compose.ui.geometry.Offset(size.width, y),
-            strokeWidth = 1.dp.toPx()
+            strokeWidth = 1.2.dp.toPx()
         )
     })
 }
