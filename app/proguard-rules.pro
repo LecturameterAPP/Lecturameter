@@ -99,3 +99,7 @@
 # ── Glance ────────────────────────────────────────────────────────────────────
 -keep class androidx.glance.** { *; }
 -dontwarn androidx.glance.**
+
+# ── P-035: Play In-App Updates (app-update-ktx) ───────────────────────────────
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**

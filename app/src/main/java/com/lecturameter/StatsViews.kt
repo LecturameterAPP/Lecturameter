@@ -1365,7 +1365,7 @@ fun StatsChartsView(
                 }
                 if (genreList.size > 1) {
                     Spacer(Modifier.height(10.dp))
-                    HorizontalBarChart(genreList.map { Triple(displayGenre(it.key), it.value, acc) }, theme, max = genreList.maxOf { it.value }.coerceAtLeast(1))
+                    HorizontalBarChart(genreList.mapIndexed { i, entry -> Triple(displayGenre(entry.key), entry.value, gColors[i % gColors.size]) }, theme, max = genreList.maxOf { it.value }.coerceAtLeast(1))
                 }
             }
         }
@@ -1450,7 +1450,7 @@ fun StatsChartsView(
                 }
                 if (authorList.size > 1) {
                     Spacer(Modifier.height(10.dp))
-                    HorizontalBarChart(authorList.map { Triple(it.key.split(" ").last(), it.value, Color(0xFFEC4899)) }, theme)
+                    HorizontalBarChart(authorList.mapIndexed { i, entry -> Triple(entry.key.split(" ").last(), entry.value, aColors[i % aColors.size]) }, theme)
                 }
             }
         }
@@ -1533,15 +1533,15 @@ fun StatsChartsView(
                 Text(stringResource(R.string.txt_def36a08), color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
+                    Button(
                         onClick = { exportStats(asCsv = true) },
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Green), colors = ButtonDefaults.outlinedButtonColors(contentColor = Green)
+                        colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Color.White)
                     ) { Text(stringResource(R.string.txt_cc8d68c5), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                    OutlinedButton(
+                    Button(
                         onClick = { exportStats(asCsv = false) },
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Amber), colors = ButtonDefaults.outlinedButtonColors(contentColor = Amber)
+                        colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Color.White)
                     ) { Text(stringResource(R.string.txt_0ecd11c1), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
                 }
                 exportError?.let {

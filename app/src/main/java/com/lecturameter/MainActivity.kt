@@ -409,16 +409,22 @@ val Accent  = Color(0xFF6366F1); val Accent2 = Color(0xFF8B5CF6)
 // (#B794F6, mockup aprobado) — el turquesa deja de ser necesario porque ya es el fondo.
 val AccentAurora = Color(0xFFB794F6)
 // Tema Claro r2 (18-07, mockup L1 "verde botánico" elegido por Víctor): el Claro era el
-// único tema sin color propio — llevaba el mismo índigo del Oscuro, solo que apagado. Verde
-// bosque: se aleja del azul y no pisa ningún color que ya signifique algo (el esmeralda de
-// "leído" es mucho más brillante, así que no se confunden). La familia queda repartida:
+// único tema sin color propio — llevaba el mismo índigo del Oscuro, solo que apagado. Verde:
+// se aleja del azul y no pisa ningún color que ya signifique algo (el esmeralda de "leído"
+// es mucho más brillante, así que no se confunden). La familia queda repartida:
 // índigo (Oscuro) · morado (Aurora) · gris (AMOLED) · oro (Cuero) · verde (Claro).
-val AccentLight  = Color(0xFF166534)
-// Decisión de Víctor 18-07: "en amoled los azules pueden pasar a grises". Gris claro sobre
-// negro puro: destaca sin meter color en un tema cuyo argumento es el píxel apagado. Se
-// elige un gris NEUTRO (zinc), no de la familia slate de sus textos, para que el acento no
-// se confunda con textMain (#F1F5F9) ni con textMuted (#94A3B8).
-val AccentAmoled = Color(0xFFD4D4D8)
+// Ajustado el mismo día a petición de Víctor ("el verde lo haría un poco más pastel, para
+// que pegue más con el fondo, ahora mismo es muy intenso"): del bosque saturado #166534 a
+// un verde salvia #41755A, más apagado y menos contrastado contra el papel. Sigue pasando
+// AA en las tres superficies del tema (5,36:1 sobre blanco · 5,05:1 sobre #FAF8F2 ·
+// 4,59:1 sobre #F1EDE3), que es el suelo por debajo del cual no se puede bajar más.
+val AccentLight  = Color(0xFF41755A)
+// Decisión de Víctor 18-07: "en amoled los azules pueden pasar a grises". Gris NEUTRO (zinc)
+// y no de la familia slate de sus textos. Ajustado el mismo día a petición suya ("el gris
+// podrías hacerlo un poco más oscuro? me parece demasiado claro en contraste con el negro
+// puro"): de #D4D4D8 (14,2:1 sobre negro, deslumbrante) a #A1A1AA (8,2:1). De paso mejora la
+// distinción con textMain, que era el Major que sacó la revisión (1,35:1 → 2,34:1).
+val AccentAmoled = Color(0xFFA1A1AA)
 fun accentForTheme(theme: Theme): Color = when {
     theme.accent != null                               -> theme.accent  // Dinámico (Material You)
     !theme.isDark                                      -> AccentLight   // Claro (único tema claro)
@@ -456,16 +462,30 @@ fun onAccentColor(theme: Theme): Color = when {
 fun actionIconTint(theme: Theme): Color =
     if (theme.bgDark == BgDarkC) GoldIconCuero else accentForTheme(theme)
 
-// Feedback 17-07 (Bloque 2): botones de acción RELLENOS que no son semánticos (hoy los
-// círculos de recargar y editar portada) iban en Sky fijo, y ese cian cantaba sobre el
-// marrón del Cuero y el teal de Aurora. Mismo criterio que actionIconTint: cambia en los
-// temas con acento propio y en Claro/Oscuro se queda el Sky de siempre (Sky sigue siendo el
-// color SEMÁNTICO del tiempo en chips y pills; eso no se toca en ningún tema).
-// 18-07: con los 5 temas ya con acento propio, estos círculos van en el acento de cada uno.
-// Oscuro es la única excepción: conserva el cian de siempre porque es el único tema que no
-// ha cambiado de identidad y nadie se ha quejado de él.
+// Feedback 17-07 (Bloque 2): los círculos de RECARGAR y EDITAR portada iban en Sky fijo y en
+// el acento, o sea cian e índigo: dos colores distintos que los distinguían de un vistazo. Al
+// pasar ambos al acento del tema quedaron IDÉNTICOS y Víctor lo cazó ("han quedado todos en
+// el mismo color, habría que diferenciarlos otra vez").
+//
+// No se puede recuperar la diferencia con dos matices distintos sin romper la identidad de un
+// tema monocolor (el oro del Cuero no admite un segundo tono ajeno), así que la diferencia
+// pasa a ser de INTENSIDAD dentro del mismo acento: editar (la acción principal) se queda con
+// el acento pleno y recargar con una versión oscurecida. Se distinguen entre sí y ninguno de
+// los dos mete un color extraño en el tema.
+//
+// En Oscuro se conserva el par histórico cian/índigo: es el único tema que no ha cambiado de
+// identidad, así que allí no hace falta inventar nada.
 fun actionFillColor(theme: Theme): Color =
-    if (theme.bgDark == BgDarkD) Sky else accentForTheme(theme)
+    if (theme.bgDark == BgDarkD) Sky else darken(accentForTheme(theme), 0.42f)
+
+/** Mezcla [color] con negro en [factor] (0 = igual, 1 = negro). Para derivar el tono
+ *  secundario de un acento sin salirse de su familia. */
+fun darken(color: Color, factor: Float): Color = Color(
+    red = color.red * (1f - factor),
+    green = color.green * (1f - factor),
+    blue = color.blue * (1f - factor),
+    alpha = color.alpha
+)
 
 // Feedback 17-07 (Bloque 2): los degradados decorativos índigo→violeta (barras del
 // histograma de sesiones, portada sin imagen, badge del historial de Wrapped) también
@@ -1156,6 +1176,11 @@ class MainActivity : ComponentActivity() {
         pendingCameraAction = null
     }
 
+    // P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE).
+    // Se instancia como campo, igual que los launchers de abajo, porque
+    // registerForActivityResult debe llamarse antes de que la Activity llegue a STARTED.
+    val inAppUpdate = com.lecturameter.utils.InAppUpdate(this)
+
     // Launcher para ScannerActivity — se registra antes de onCreate
     val scanIsbnLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -1209,6 +1234,9 @@ class MainActivity : ComponentActivity() {
         LmBilling.init(this)
         vm.initContext(this)
         vm.load(prefs)
+        // P-035: comprobar actualización disponible (In-App Updates, FLEXIBLE). Async y
+        // a prueba de fallos: no bloquea el arranque ni molesta si algo va mal.
+        inAppUpdate.checkForUpdate()
         // El permiso POST_NOTIFICATIONS se pide con diálogo educativo la primera vez
         // que el usuario intenta iniciar el cronómetro (en DetailScreen.startTimerWithPermCheck).
         setContent {
@@ -1313,6 +1341,27 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize().alpha(fadeAlpha.value)
                 )
             }
+            // P-035: Snackbar de aviso cuando la actualización FLEXIBLE (Play In-App
+            // Updates) ya se descargó y solo falta reiniciar para instalarla.
+            if (inAppUpdate.updateReadyToInstall.value) {
+                val updateSnackbarHostState = remember { SnackbarHostState() }
+                LaunchedEffect(Unit) {
+                    val result = updateSnackbarHostState.showSnackbar(
+                        message = getString(R.string.msg_update_ready_to_install),
+                        actionLabel = getString(R.string.btn_restart_update),
+                        duration = SnackbarDuration.Indefinite
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        inAppUpdate.completeUpdate()
+                    } else {
+                        inAppUpdate.updateReadyToInstall.value = false
+                    }
+                }
+                SnackbarHost(
+                    hostState = updateSnackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
             } // Box crossfade
         }
 
@@ -1382,10 +1431,15 @@ class MainActivity : ComponentActivity() {
         // cubre la app viva en recientes cruzando la medianoche del día 1. Comprobación
         // perezosa a propósito: nada de alarmas/workers (MIUI los mata y gastan batería).
         vm.ensureBingoCard(getSharedPreferences("lecturameter", MODE_PRIVATE))
+        // P-035: retoma el aviso de actualización si la descarga terminó mientras
+        // la app estaba en segundo plano (o en una sesión anterior).
+        inAppUpdate.onResume()
     }
 
     override fun onDestroy() {
         com.lecturameter.utils.AppLogger.log("App destruida")
+        // P-035: des-registrar el InstallStateUpdatedListener para evitar fugas.
+        inAppUpdate.onDestroy()
         super.onDestroy()
     }
 }

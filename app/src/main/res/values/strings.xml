@@ -1184,4 +1184,8 @@
     <string name="timer_resume_msg">Este libro tiene %1$s de una sesión anterior que se quedó sin guardar. Puedes seguir desde ahí o empezar de cero.</string>
     <string name="timer_resume_confirm">Retomar (%1$s)</string>
     <string name="timer_resume_fresh">Empezar de cero</string>
+
+    <!-- P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE) -->
+    <string name="msg_update_ready_to_install">Actualización lista para instalar</string>
+    <string name="btn_restart_update">Reiniciar</string>
 </resources>

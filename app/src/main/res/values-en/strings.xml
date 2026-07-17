@@ -1177,4 +1177,8 @@
     <string name="timer_resume_msg">This book has %1$s from an earlier session that was never saved. You can carry on from there or start over.</string>
     <string name="timer_resume_confirm">Resume (%1$s)</string>
     <string name="timer_resume_fresh">Start over</string>
+
+    <!-- P-035: in-app update notice (Play In-App Updates, FLEXIBLE mode) -->
+    <string name="msg_update_ready_to_install">Update ready to install</string>
+    <string name="btn_restart_update">Restart</string>
 </resources>

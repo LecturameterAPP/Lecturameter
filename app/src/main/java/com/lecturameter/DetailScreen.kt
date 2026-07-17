@@ -1147,7 +1147,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                         }
                     }, contentAlignment = Alignment.Center) {
                         if (isRefreshingCover) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Default.Refresh, null, tint = onAccentColor(theme), modifier = Modifier.size(16.dp))
+                        else Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                     if (book.noCoverFound) {
                         Box(Modifier.align(Alignment.BottomEnd).offset(x = (-72).dp).size(32.dp).clip(CircleShape).background(Amber), contentAlignment = Alignment.Center) {

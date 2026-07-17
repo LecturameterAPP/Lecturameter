@@ -586,7 +586,7 @@ fun BookCard(
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "Refresh cover",
-                            tint = onAccentColor(theme),
+                            tint = Color.White,
                             modifier = Modifier
                                 .size(13.dp)
                                 .then(if (isRefreshingCover) Modifier.rotate(rotation) else Modifier)

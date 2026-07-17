@@ -159,7 +159,7 @@ fun TutorialBookCardVisual(theme: Theme) {
                     Modifier.size(22.dp).offset(x = (-5).dp, y = 5.dp).clip(CircleShape)
                         .background(actionFillColor(theme)).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomStart),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.Refresh, null, tint = onAccentColor(theme), modifier = Modifier.size(13.dp)) }
+                ) { Icon(Icons.Default.Refresh, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
                 Box(
                     Modifier.size(22.dp).offset(x = 5.dp, y = 5.dp).clip(CircleShape)
                         .background(acc).border(2.dp, theme.surface, CircleShape).align(Alignment.BottomEnd),

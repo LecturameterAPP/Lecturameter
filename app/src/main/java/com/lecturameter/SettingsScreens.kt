@@ -1255,10 +1255,10 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
             Text(stringResource(R.string.local_backup_last, lastLocalText), color = theme.textMuted, fontSize = 12.sp)
             Text(stringResource(R.string.drive_backup_last, lastDriveText), color = theme.textMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
-                OutlinedButton(
+                Button(
                     onClick = {
-                        if (!localBackupEnabled) { showActivateLocalDialog = true; return@OutlinedButton }
-                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (!localBackupEnabled) { showActivateLocalDialog = true; return@Button }
+                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@Button }
                         saveNowLocalRunning = true; saveNowMsg = null
                         val req = OneTimeWorkRequestBuilder<JsonBackupWorker>().build()
                         val wm = WorkManager.getInstance(context)
@@ -1281,18 +1281,19 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     enabled = !saveNowLocalRunning,
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (localBackupEnabled) Green else theme.border)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (localBackupEnabled) Green else Color.Transparent, contentColor = Color.White),
+                    border = if (localBackupEnabled) null else BorderStroke(1.dp, theme.border)
                 ) {
-                    if (saveNowLocalRunning) CircularProgressIndicator(color = Green, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.Default.Save, null, tint = if (localBackupEnabled) Green else theme.textDim, modifier = Modifier.size(16.dp))
+                    if (saveNowLocalRunning) CircularProgressIndicator(color = if (localBackupEnabled) Color.White else Green, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.Save, null, tint = if (localBackupEnabled) Color.White else theme.textDim, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.settings_save_now_local), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (localBackupEnabled) Green else theme.textDim, maxLines = 1)
+                    Text(stringResource(R.string.settings_save_now_local), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (localBackupEnabled) Color.White else theme.textDim, maxLines = 1)
                 }
-                OutlinedButton(
+                Button(
                     onClick = {
-                        if (!driveBackupEnabled) { showActivateDriveDialog = true; return@OutlinedButton }
-                        if (driveAccount == null) { driveSignInLauncher.launch(driveSignInClient.signInIntent); return@OutlinedButton }
-                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (!driveBackupEnabled) { showActivateDriveDialog = true; return@Button }
+                        if (driveAccount == null) { driveSignInLauncher.launch(driveSignInClient.signInIntent); return@Button }
+                        if (books.isEmpty()) { saveNowMsg = context.getString(R.string.msg_no_data_export); return@Button }
                         saveNowDriveRunning = true; saveNowMsg = null
                         scope.launch {
                             val result = DriveBackupManager.backup(context, prefs)
@@ -1307,12 +1308,13 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     enabled = !saveNowDriveRunning,
                     modifier = Modifier.weight(1f).height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (driveBackupEnabled) Color(0xFF4285F4) else theme.border)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (driveBackupEnabled) Color(0xFF4285F4) else Color.Transparent, contentColor = Color.White),
+                    border = if (driveBackupEnabled) null else BorderStroke(1.dp, theme.border)
                 ) {
-                    if (saveNowDriveRunning) CircularProgressIndicator(color = Color(0xFF4285F4), modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.Default.CloudUpload, null, tint = if (driveBackupEnabled) Color(0xFF4285F4) else theme.textDim, modifier = Modifier.size(16.dp))
+                    if (saveNowDriveRunning) CircularProgressIndicator(color = if (driveBackupEnabled) Color.White else Color(0xFF4285F4), modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.CloudUpload, null, tint = if (driveBackupEnabled) Color.White else theme.textDim, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.settings_save_now_drive), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (driveBackupEnabled) Color(0xFF4285F4) else theme.textDim, maxLines = 1)
+                    Text(stringResource(R.string.settings_save_now_drive), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (driveBackupEnabled) Color.White else theme.textDim, maxLines = 1)
                 }
             }
             saveNowMsg?.let { msg ->
