@@ -308,28 +308,16 @@ private fun RailItem(
     onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
-    // Feedback 18-07 (tema Claro "Papel"): el 📜 del historial es de tonos crema y sobre el
-    // papel se perdía. Víctor NO quiere cambiar el emoji, así que se le pone debajo una
-    // pastilla con el acento muy diluido: el botón se lee como botón y el emoji se queda.
-    // Solo en el tema claro; sobre los fondos oscuros los dos emojis ya destacan solos.
-    val emojiPill = icon == null && !theme.isDark
-    val acc = accentForTheme(theme)
+    // 18-07: se probó a poner una pastilla bajo los dos emojis del rail para que el 📜 no se
+    // perdiera sobre el papel del tema Claro, y Víctor la descartó ("queda raro"). Vuelven a ir
+    // sueltos. El 📜 sigue costando de ver en Claro: queda PENDIENTE buscar otra vía que no
+    // sea ni cambiar el emoji ni meterlo en una caja.
     Box(
         Modifier
             .padding(vertical = 3.dp)
             .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                when {
-                    highlighted -> actionIconTint(theme).copy(alpha = 0.16f)
-                    emojiPill   -> acc.copy(alpha = 0.10f)
-                    else        -> Color.Transparent
-                }
-            )
-            .then(
-                if (emojiPill) Modifier.border(1.dp, acc.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-                else Modifier
-            )
+            .background(if (highlighted) actionIconTint(theme).copy(alpha = 0.16f) else Color.Transparent)
             .then(
                 if (enabled) Modifier.combinedClickable(onClick = onClick, onLongClick = onLongPress)
                 else Modifier
