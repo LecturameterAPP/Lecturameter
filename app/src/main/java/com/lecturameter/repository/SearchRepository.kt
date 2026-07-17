@@ -180,6 +180,13 @@ data class BookMetadata(
     val genres: List<String> = emptyList()
 )
 
+// Fuentes manga (md_ = MangaDex, kt_ = Kitsu, P-029): quedan exentas del filtro de
+// relevancia global porque ya filtran con su propio matchScore contra TODOS los
+// títulos de la serie, y el título que acaban mostrando puede no parecerse a la
+// query (se busca en español y la ficha viene en inglés o japonés).
+internal fun isMangaSourceKey(olKey: String): Boolean =
+    olKey.startsWith("md_") || olKey.startsWith("kt_")
+
 // ── Google Books search ───────────────────────────────────────────────────────
 
 private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferredLang: String = "es"): List<OpenLibraryResult> {
@@ -1057,6 +1064,226 @@ private fun fetchMangaDexMetadata(title: String, volumeNum: Int?): BookMetadata 
 
         BookMetadata(coverUrl = coverUrl, genres = bestGenreFromRawCandidates(rawGenres + listOf("manga")))
     } catch (_: Exception) { BookMetadata() }
+}
+
+// ── Kitsu JSON:API ────────────────────────────────────────────────────────────
+// P-029: cuarta fuente manga (pública, sin key, JSON:API). Nivel de SERIE, como
+// AniList y MangaUpdates: NO tiene datos por tomo (verificado contra la API real:
+// /manga/<id>/installments devuelve count=0 y los capítulos no traen thumbnail),
+// así que las portadas por tomo siguen siendo cosa de MangaDex.
+//
+// Por qué entra igualmente:
+//   1) MangaDex está bloqueado en algunas redes (la de Víctor entre ellas): cuando
+//      cae, la ruta manga se queda sin fuente propia. Kitsu la cubre.
+//   2) Aporta GÉNEROS reales vía `categories` (Action, Horror, Shounen…). MangaDex
+//      aquí mete un "Manga" fijo y nada más, y el género es justo el punto flaco
+//      de los metadatos de manga.
+//
+// Un único GET lo trae todo (verificado): filter[text] + include=categories,staff.person.
+// El dominio canónico hoy es kitsu.app (kitsu.io sigue vivo como espejo y las
+// imágenes ya se sirven desde media.kitsu.app). Solo HTTPS: la app no permite cleartext.
+private const val KITSU_API_BASE = "https://kitsu.app/api/edge"
+
+// Subtipos de Kitsu que NO son manga: son novela (ligera). No deben etiquetarse
+// como "Manga" — filter[text]=naruto, por ejemplo, devuelve "Naruto Ninden Series",
+// que es subtype=novel.
+private val KITSU_NOVEL_SUBTYPES = setOf("novel")
+
+// Con include=categories,staff.person cada resultado engorda la respuesta: 10 series
+// son ~82 KB (medido). 5 bastan (Kitsu ya ordena por relevancia) y bajan a ~40 KB,
+// que en datos móviles importa.
+private const val KITSU_PAGE_LIMIT = 5
+
+// Tope de resultados NUEVOS que Kitsu puede añadir a la lista. Enriquecer los que ya
+// están no tiene tope (eso solo suma). Buscar "Berserk" devuelve media docena de
+// series legítimamente llamadas "Berserk algo": son reales, pero no pueden sepultar
+// a OpenLibrary y Google Books, que son los que traen ediciones con ISBN y páginas.
+private const val KITSU_MAX_NEW = 3
+
+/**
+ * P-029: parseo puro de la respuesta de Kitsu → resultados normalizados.
+ * Separado de la red a propósito: los tests corren sin red (JUnitCore + android.jar,
+ * ver run_tests.ps1), así que se prueba dándole un JSON de ejemplo.
+ *
+ * Filtra por parecido de títulos igual que MangaDex (matchScore >= 0.4). Es
+ * imprescindible: la búsqueda de Kitsu NO devuelve vacío cuando no conoce el
+ * título, devuelve basura con aplomo ("El ataque de los titanes" → "Mato Seihei
+ * no Slave"). Sin este filtro, contaminaría la lista.
+ *
+ * `genreMapper` es un parámetro solo para poder testear: por defecto es el mapeo
+ * normal del proyecto, pero ese vive en MainActivity.kt y arrastra Compose, que no
+ * está en el classpath de los tests. Inyectándolo, el test prueba ESTE parseo sin
+ * cargar media app. En producción nadie pasa este parámetro.
+ */
+internal fun parseKitsuMangaResults(
+    json: String,
+    query: String,
+    preferredLang: String = "es",
+    genreMapper: (List<String>) -> List<String> = ::bestGenreFromRawCandidates
+): List<OpenLibraryResult> {
+    val out = mutableListOf<OpenLibraryResult>()
+    val root = try { JSONObject(json) } catch (_: Exception) { return emptyList() }
+    val data = root.optJSONArray("data") ?: return emptyList()
+
+    // JSON:API sirve las relaciones aparte, en `included`. Indexamos por id para
+    // resolver categorías y autores sin más llamadas.
+    val categoryById = HashMap<String, String>()
+    val personById = HashMap<String, String>()
+    val staffById = HashMap<String, Pair<String, String>>()   // id → (personId, rol)
+    root.optJSONArray("included")?.let { inc ->
+        for (i in 0 until inc.length()) {
+            val obj = inc.optJSONObject(i) ?: continue
+            val id = obj.optString("id", "")
+            val attrs = obj.optJSONObject("attributes")
+            when (obj.optString("type", "")) {
+                "categories" -> attrs?.optString("title", "")?.takeIf { it.isNotBlank() }
+                    ?.let { categoryById[id] = it }
+                "people" -> attrs?.optString("name", "")?.takeIf { it.isNotBlank() }
+                    ?.let { personById[id] = it }
+                "mediaStaff" -> {
+                    val personId = obj.optJSONObject("relationships")
+                        ?.optJSONObject("person")?.optJSONObject("data")?.optString("id", "") ?: ""
+                    if (personId.isNotBlank()) staffById[id] = personId to (attrs?.optString("role", "") ?: "")
+                }
+            }
+        }
+    }
+
+    val qNorm = normalizedEditionText(query)
+    val qTokens = qNorm.split(" ").filter { it.length >= 3 }.toSet()
+
+    for (i in 0 until data.length()) {
+        val item = data.optJSONObject(i) ?: continue
+        val id = item.optString("id", "").takeIf { it.isNotBlank() } ?: continue
+        val attrs = item.optJSONObject("attributes") ?: continue
+
+        // Todos los títulos conocidos (canónico + localizados + abreviados) para el
+        // matching. Kitsu SÍ indexa los localizados: "Ataque a los Titanes" encuentra
+        // Attack on Titan (verificado), pero solo si la query calca el título que guarda.
+        val titlesObj = attrs.optJSONObject("titles")
+        val allTitles = mutableListOf<String>()
+        val canonical = attrs.optString("canonicalTitle", "")
+        if (canonical.isNotBlank()) allTitles.add(canonical)
+        titlesObj?.keys()?.forEach { k -> titlesObj.optString(k, "").takeIf { it.isNotBlank() }?.let { allTitles.add(it) } }
+        attrs.optJSONArray("abbreviatedTitles")?.let { arr ->
+            for (j in 0 until arr.length()) arr.optString(j, "").takeIf { it.isNotBlank() }?.let { allTitles.add(it) }
+        }
+        if (allTitles.isEmpty()) continue
+
+        fun scoreOf(t: String): Double {
+            val tNorm = normalizedEditionText(t)
+            return when {
+                tNorm == qNorm -> 1.0
+                qTokens.isEmpty() -> 0.0
+                else -> qTokens.count { tNorm.contains(it) }.toDouble() / qTokens.size
+            }
+        }
+
+        // Título mostrado: el español si Kitsu lo tiene y la app está en español
+        // (mismo criterio que las ediciones de OpenLibrary). Cobertura ES real:
+        // baja, solo 1 de cada 8 series la trae, pero cuando está es la buena.
+        val localized = if (preferredLang == "es") titlesObj?.optString("es_es", "")?.ifBlank { null } else null
+        val displayTitle = localized ?: canonical.ifBlank { allTitles.first() }
+
+        // El match se mide contra el título que se va a MOSTRAR (y el canónico), no
+        // contra la lista entera de alias. Motivo, verificado contra la API real:
+        // buscar "Berserk" casa con el alias "Berserk Peerless Battle Spirit" de una
+        // serie que se muestra como "Peerless Battle Spirit", y buscar "El Imperio
+        // Final" (que no es manga) casa con el alias "El eunuco del Imperio" de
+        // "Mekkoku no Kangan". Puntuar los alias y enseñar el canónico mete ruido que
+        // el usuario no puede relacionar con lo que ha buscado.
+        // Excepción: un alias que coincide EXACTO con la query sí vale — es el caso de
+        // buscar por el título original ("Shingeki no Kyojin" → Attack on Titan).
+        val exactAlias = allTitles.any { normalizedEditionText(it) == qNorm }
+        val matchScore = maxOf(scoreOf(displayTitle), scoreOf(canonical))
+        if (!exactAlias && matchScore < 0.4) continue
+
+        // Autor vía staff → person. Kitsu solo lo tiene en ~2 de cada 3 series
+        // (Chainsaw Man, por ejemplo, no lo trae), así que puede quedar vacío.
+        // Se prefiere quien firma la historia sobre el resto del equipo.
+        val staffIds = item.optJSONObject("relationships")?.optJSONObject("staff")?.optJSONArray("data")
+        var author = ""
+        if (staffIds != null) {
+            val credits = mutableListOf<Pair<String, String>>()   // (nombre, rol)
+            for (j in 0 until staffIds.length()) {
+                val sid = staffIds.optJSONObject(j)?.optString("id", "") ?: continue
+                val (personId, role) = staffById[sid] ?: continue
+                personById[personId]?.let { credits.add(it to role) }
+            }
+            author = (credits.firstOrNull { it.second.contains("Story", ignoreCase = true) }
+                ?: credits.firstOrNull())?.first ?: ""
+        }
+
+        // Portada: original > large > medium. Kitsu las sirve por HTTPS desde
+        // media.kitsu.app, así que valen tal cual.
+        val poster = attrs.optJSONObject("posterImage")
+        val coverUrl = cleanCoverUrl(
+            poster?.optString("original")?.ifBlank { null }
+                ?: poster?.optString("large")?.ifBlank { null }
+                ?: poster?.optString("medium")?.ifBlank { null }
+        )
+
+        // Géneros: "Manga" (salvo novela ligera) + lo que digan las categorías.
+        // Máximo 2, como el resto de fuentes.
+        val subtype = attrs.optString("subtype", "").lowercase(Locale.ROOT)
+        val rawCats = mutableListOf<String>()
+        item.optJSONObject("relationships")?.optJSONObject("categories")?.optJSONArray("data")?.let { arr ->
+            for (j in 0 until arr.length()) {
+                val cid = arr.optJSONObject(j)?.optString("id", "") ?: continue
+                categoryById[cid]?.let { rawCats.add(it) }
+            }
+        }
+        val mapped = genreMapper(rawCats)
+        val genres = mutableListOf<String>()
+        if (subtype !in KITSU_NOVEL_SUBTYPES) genres.add("Manga")
+        for (g in mapped) if (g !in genres) genres.add(g)
+        val genre = genres.take(2).joinToString("; ")
+
+        val year = attrs.optString("startDate", "").take(4)
+
+        // Páginas 0 (dato de serie, no de tomo) e ISBN null: Kitsu no los tiene.
+        // language se deja en "" a propósito aunque el título mostrado sea el
+        // español: es una ficha de SERIE sin ISBN ni páginas, y marcarla "es" la
+        // colaría por encima de ediciones reales en español del comparator.
+        out.add(OpenLibraryResult(
+            title = displayTitle,
+            author = author,
+            pages = 0,
+            coverUrl = coverUrl,
+            isbn = null,
+            genre = genre,
+            publishYear = year,
+            olKey = "kt_$id",
+            language = "",
+            // Blob de scoring: todos los títulos conocidos + autor, para que la
+            // relevancia global no lo mate por buscarse en español.
+            matchAuthors = (allTitles + author).joinToString(" ").trim()
+        ))
+    }
+    return out
+}
+
+/** P-029: GET a Kitsu. Devuelve lista vacía ante cualquier fallo: la búsqueda nunca depende de esto. */
+private suspend fun fetchKitsuMangaResults(query: String, preferredLang: String): List<OpenLibraryResult> {
+    return try {
+        val encoded = URLEncoder.encode(query, "UTF-8")
+        val url = "$KITSU_API_BASE/manga?filter%5Btext%5D=$encoded&page%5Blimit%5D=$KITSU_PAGE_LIMIT" +
+            "&include=categories,staff.person"
+        ApiThrottle.gate("kitsu.app")
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
+        // Accept propio de JSON:API. Hoy Kitsu responde igual sin él (comprobado),
+        // pero es lo que pide el estándar y nos cubre si algún día lo exigen.
+        conn.setRequestProperty("Accept", "application/vnd.api+json")
+        conn.connectTimeout = 7000; conn.readTimeout = 7000
+        val code = conn.responseCode
+        if (code !in 200..299) {
+            try { conn.errorStream?.close() } catch (_: Exception) {}
+            return emptyList()
+        }
+        val body = conn.inputStream.use { it.bufferedReader().readText() }
+        parseKitsuMangaResults(body, query, preferredLang)
+    } catch (_: Exception) { emptyList() }
 }
 
 // chooseBetterGenre eliminado en v8.0; reemplazado por votación en fetchBookMetadata
@@ -2469,7 +2696,7 @@ suspend fun searchOpenLibrary(
     // en pantalla en vez de aparecer entera al final.
     fun emitPartial() {
         val cb = onPartial ?: return
-        cb(results.filter { r -> r.olKey.startsWith("md_") || relevance(r) >= 0.34 }
+        cb(results.filter { r -> isMangaSourceKey(r.olKey) || relevance(r) >= 0.34 }
             .sortedWith(comparator))
     }
 
@@ -2662,15 +2889,44 @@ suspend fun searchOpenLibrary(
         emitPartial()
     }
 
+    // 3b. Kitsu (P-029) — misma puerta que MangaDex. Va DESPUÉS a propósito: MangaDex
+    // manda en portadas (las tiene por tomo) y Kitsu solo debe rellenar huecos. Si
+    // MangaDex está caído o bloqueado por la red, esta fase es la única que responde.
+    if (queryLooksManga) {
+        val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+        val kitsuResults = fetchKitsuMangaResults(seriesQuery.ifBlank { query }, preferredLang)
+        var added = 0
+        for (kt in kitsuResults) {
+            val normKt = kt.title.lowercase().trim()
+            val dupIdx = results.indexOfFirst { it.title.lowercase().trim() == normKt }
+            if (dupIdx >= 0) {
+                val ex = results[dupIdx]
+                // Enriquecer sin pisar: portada solo si falta, autor solo si falta.
+                // El género se mejora también cuando el existente es el "Manga" pelado
+                // que pone MangaDex — Kitsu sabe si además es Terror, Romance…
+                val betterGenre = ex.genre.isBlank() || ex.genre.equals("Manga", ignoreCase = true)
+                results[dupIdx] = ex.copy(
+                    coverUrl = ex.coverUrl ?: kt.coverUrl,
+                    author   = ex.author.ifBlank { kt.author },
+                    genre    = if (betterGenre && kt.genre.isNotBlank()) kt.genre else ex.genre
+                )
+            } else if (added < KITSU_MAX_NEW) {
+                results.add(kt)
+                added++
+            }
+        }
+        emitPartial()
+    }
+
     // ── v2.6 (búsqueda r1): relevancia + idioma del usuario + portadas válidas ──
     // Sustituye la heurística de tildes (fallaba con "El hombre Iluminado", "el nombre",
     // "El Imperio Final": ninguna lleva tilde → no se detectaban como español).
     // (Relevancia y comparator definidos arriba, antes de las fases — Feedback 2.6.)
 
     // Filtro: fuera resultados sin relación con la query ("A War to Be Won" para
-    // "El Imperio Final", "Tiaztlán"…). MangaDex exento: ya filtra con matchScore
-    // propio y sus títulos principales pueden diferir del alias buscado.
-    results.removeAll { r -> !r.olKey.startsWith("md_") && relevance(r) < 0.34 }
+    // "El Imperio Final", "Tiaztlán"…). MangaDex y Kitsu exentos: ya filtran con
+    // matchScore propio y sus títulos principales pueden diferir del alias buscado.
+    results.removeAll { r -> !isMangaSourceKey(r.olKey) && relevance(r) < 0.34 }
 
     results.sortWith(comparator)
 

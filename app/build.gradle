@@ -126,6 +126,10 @@ dependencies {
 
     // ── Tests unitarios (F8) — ejecutar con run_tests.ps1 (gradle/gradle#12660) ──
     testImplementation 'junit:junit:4.13.2'
+    // P-029: org.json REAL solo para tests. El org.json de android.jar es un stub
+    // (todo método lanza "Stub!"), así que sin esto no se puede probar ningún
+    // parseo de JSON fuera del dispositivo. No entra en el APK (testImplementation).
+    testImplementation 'org.json:json:20250517'
 
     // ── ISBN Scanner — ML Kit Barcode + CameraX ───────────────────────────────
     implementation 'com.google.mlkit:barcode-scanning:17.3.0'
