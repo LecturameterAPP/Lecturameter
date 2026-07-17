@@ -440,6 +440,8 @@
     <string name="wrapped_longest_session">Longest session: %1$d pages on %2$s</string>
     <string name="wrapped_most_read_day">Most read day: %1$s (%2$d pages)</string>
     <string name="wrapped_best_month">Your best month was %1$s with %2$d pages</string>
+    <!-- B3 fase B (18-07): etiqueta sobre la barra del mejor mes (variante B1) -->
+    <string name="wrapped_best_month_tag">BEST MONTH</string>
     <string name="wrapped_pags_vs">pages vs %1$s</string>
     <string name="wrapped_history_count_one">%1$d Year Saved</string>
     <string name="wrapped_history_count_other">%1$d Years Saved</string>
@@ -1145,6 +1147,15 @@
     <string name="wclose_pages">Pages read</string>
     <string name="wclose_time">Reading time</string>
     <string name="wclose_quote">“Every page of this year is already yours.\nWhat do you want to read next year?”</string>
+    <!-- B3 fase B (18-07): 11ª pantalla, variante C1 (todo en compacto) -->
+    <string name="wclose_sessions">Sessions</string>
+    <string name="wclose_author_vs">Author of this year vs last year\'s</string>
+    <string name="wclose_book_vs">Your #1 book this year vs last year\'s</string>
+    <string name="wclose_chip_day">Best day</string>
+    <string name="wclose_chip_month">Best month</string>
+    <string name="wclose_chip_week">Best week</string>
+    <string name="wclose_chip_prev">%1$d: %2$s</string>
+    <string name="wclose_week_short">Wk %1$d</string>
     <!-- Fase 6.2: voluntary micro-survey -->
     <string name="survey_invite_title">Want to tell us how you use Lecturameter?</string>
     <string name="survey_invite_body">One question, ten seconds. Nothing is sent unless you send it.</string>

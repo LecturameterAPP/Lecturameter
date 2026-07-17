@@ -235,6 +235,23 @@ class BooksViewModel : ViewModel() {
         return frozen.mapNotNull { id -> booksInternal.find { it.id == id } }
     }
 
+    /**
+     * B3 fase B: título del libro nº1 CONGELADO de [year], en solo lectura.
+     *
+     * No usa favoritesForWrapped() a propósito: aquella rellena huecos y los persiste, y
+     * el cierre de 2026 no puede congelar de tapadillo los favoritos de 2025 por el mero
+     * hecho de mirarlos para la comparativa. Si el Wrapped de ese año nunca se guardó,
+     * devuelve "" y la fila cae al estado vacío, que es lo esperable el primer año.
+     */
+    fun wrappedTopFavoriteTitle(year: Int, prefs: android.content.SharedPreferences): String {
+        val listType = object : com.google.gson.reflect.TypeToken<List<Long>>() {}.type
+        val ids: List<Long> = prefs.getString("wrapped_favs_$year", null)?.let {
+            try { gson.fromJson<List<Long>>(it, listType) } catch (_: Exception) { null }
+        } ?: wrappedForYear(year)?.favoriteBookIds ?: emptyList()
+        val id = ids.firstOrNull() ?: return ""
+        return booksInternal.find { it.id == id }?.title ?: ""
+    }
+
     // ── Retos de lectura (v2.4 rework) ─────────────────────────────────────────
     // Fase 1.2/D-004: migrado de mutableStateOf a StateFlow (la UI colecciona en su raíz)
     private val _challenges = kotlinx.coroutines.flow.MutableStateFlow<List<Challenge>>(emptyList())
@@ -2007,10 +2024,29 @@ class BooksViewModel : ViewModel() {
         val previousYearBooks = prevYearFinished.size + prevRereads.size
         val previousYearPages = prevYearFinished.sumOf { it.pages } + prevRereads.sumOf { (b, _) -> b.pages }
         // Sesiones y racha del año anterior (mismo criterio que el año en curso)
-        val previousYearSessions = sessionsInternal.count { it.date.startsWith((year - 1).toString()) }
+        val prevSessionsInYear = sessionsInternal.filter { it.date.startsWith((year - 1).toString()) }
+        val previousYearSessions = prevSessionsInYear.size
         val previousYearStreak = longestFinishStreak(prevYearFinished.map { it.endDate!! })
         val previousYearGenre = prevYearFinished.flatMap { b -> b.genres.map { g -> g to b } }
             .groupBy({ it.first }, { it.second }).maxByOrNull { it.value.size }?.key ?: ""
+        // B3 fase B: autor / mejor día / mejor mes / mejor semana del año anterior, para
+        // la 11ª pantalla (C1). Cada uno replica literalmente el cálculo de su gemelo de
+        // arriba: favAuthorEntry, mostReadDay, pagesPerMonth y bestWeek.
+        val previousYearAuthor = prevYearFinished.filter { it.author.isNotBlank() }
+            .groupBy { it.author }.maxByOrNull { it.value.size }?.key ?: ""
+        val prevPagesByDay = prevSessionsInYear.groupBy { it.date }.mapValues { (_, lst) -> lst.sumOf { it.pages } }
+        val previousYearMostReadDay = prevPagesByDay.maxByOrNull { it.value }?.key ?: ""
+        val prevPagesPerMonth = IntArray(12)
+        prevSessionsInYear.forEach { s ->
+            val m = s.date.substring(5, 7).toIntOrNull()?.minus(1)
+            if (m != null && m in 0..11) prevPagesPerMonth[m] += s.pages
+        }
+        // 1-basado (0 = sin datos): ver el comentario del campo en YearWrapped.
+        val previousYearBestMonth = (prevPagesPerMonth.indices
+            .filter { prevPagesPerMonth[it] > 0 }.maxByOrNull { prevPagesPerMonth[it] }?.plus(1)) ?: 0
+        // Semana natural (lunes-domingo) con más páginas, a ambos lados. Ver bestNaturalWeek.
+        val bestWeek = bestNaturalWeek(pagesByDay)
+        val prevBestWeek = bestNaturalWeek(prevPagesByDay)
 
         // v18.5: distribución por género (género principal de cada libro, top 6 para donut)
         val genreCountsTop6 = finished
@@ -2077,7 +2113,16 @@ class BooksViewModel : ViewModel() {
             bestDaySessions = bestDaySessions,
             bestDayBooks = bestDayBooks,
             bestDayPagesPerMin = bestDayPagesPerMin,
-            pagesPerTimeSlot = pagesPerTimeSlot.toList()
+            pagesPerTimeSlot = pagesPerTimeSlot.toList(),
+            previousYearAuthor = previousYearAuthor,
+            previousYearMostReadDay = previousYearMostReadDay,
+            previousYearBestMonth = previousYearBestMonth,
+            bestWeekStart = bestWeek?.startDate ?: "",
+            bestWeekNumber = bestWeek?.weekNumber ?: 0,
+            bestWeekPages = bestWeek?.pages ?: 0,
+            previousYearBestWeekStart = prevBestWeek?.startDate ?: "",
+            previousYearBestWeekNumber = prevBestWeek?.weekNumber ?: 0,
+            previousYearBestWeekPages = prevBestWeek?.pages ?: 0
         )
     }
 

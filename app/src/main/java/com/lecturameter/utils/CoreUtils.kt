@@ -84,6 +84,99 @@ fun fmtDays(days: Int): String = if (days == 1) "1 día" else "$days días"
 fun fmtDate(date: String): String =
     try { SimpleDateFormat("d MMMM yyyy", appDisplayLocale).format(sdf.parse(date)!!) } catch (_: Exception) { date }
 
+// B3 fase B: la rejilla de la 6ª pantalla y los chips de la 11ª necesitan la fecha
+// sin año ("6 jun"): el año ya lo dice la cabecera del Wrapped y repetirlo 12 veces
+// era justo lo que no dejaba encoger la celda. Mismo locale que fmtDate.
+fun fmtDateShort(date: String): String =
+    try { SimpleDateFormat("d MMM", appDisplayLocale).format(sdf.parse(date)!!) } catch (_: Exception) { date }
+
+// ── Semanas naturales (B3 fase B) ─────────────────────────────────────────────
+// "La semana que más leíste" es semana NATURAL lunes-domingo (decisión de Víctor).
+//
+// Se calcula con aritmética de días desde la época y NO con Calendar a propósito:
+// Calendar arrastra el firstDayOfWeek del locale (en EE.UU. la semana empieza en
+// domingo), y este dato no puede cambiar de significado según el idioma de la app.
+// Con la app en inglés la "semana" seguiría siendo lunes-domingo.
+
+/** Días desde 1970-01-01 (algoritmo civil de Howard Hinnant, sin dependencias). */
+private fun civilToEpochDay(year: Int, month: Int, day: Int): Long {
+    val y = if (month <= 2) year - 1 else year
+    val era = (if (y >= 0) y else y - 399) / 400
+    val yoe = (y - era * 400).toLong()                                              // [0, 399]
+    val doy = ((153 * (if (month > 2) month - 3 else month + 9) + 2) / 5 + day - 1).toLong()
+    val doe = yoe * 365 + yoe / 4 - yoe / 100 + doy                                 // [0, 146096]
+    return era * 146097L + doe - 719468L
+}
+
+/** Inversa de [civilToEpochDay]: (año, mes 1-12, día). */
+private fun epochDayToCivil(epochDay: Long): Triple<Int, Int, Int> {
+    val z = epochDay + 719468L
+    val era = (if (z >= 0) z else z - 146096) / 146097
+    val doe = z - era * 146097
+    val yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    val y = yoe + era * 400
+    val doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    val mp = (5 * doy + 2) / 153
+    val d = (doy - (153 * mp + 2) / 5 + 1).toInt()
+    val m = (if (mp < 10) mp + 3 else mp - 9).toInt()
+    return Triple((if (m <= 2) y + 1 else y).toInt(), m, d)
+}
+
+/** Días desde 1970-01-01 de una fecha "yyyy-MM-dd", o null si no se entiende. */
+fun epochDayOf(date: String): Long? {
+    val p = date.split("-")
+    if (p.size != 3) return null
+    val y = p[0].toIntOrNull() ?: return null
+    val m = p[1].toIntOrNull() ?: return null
+    val d = p[2].toIntOrNull() ?: return null
+    if (m !in 1..12 || d !in 1..31) return null
+    return civilToEpochDay(y, m, d)
+}
+
+/** Lunes (yyyy-MM-dd) de la semana natural a la que pertenece [date]. null si no se entiende. */
+fun weekStartOf(date: String): String? {
+    val ed = epochDayOf(date) ?: return null
+    // 1970-01-01 (día 0) fue jueves, así que +3 alinea el módulo con 0 = lunes.
+    val dow = Math.floorMod(ed + 3, 7)
+    val (y, m, d) = epochDayToCivil(ed - dow)
+    return "%04d-%02d-%02d".format(y, m, d)
+}
+
+/** Número de semana ISO-8601 (1..53): la semana 1 es la que contiene el primer jueves del año. */
+fun isoWeekNumber(date: String): Int {
+    val ed = epochDayOf(date) ?: return 0
+    val dow = Math.floorMod(ed + 3, 7)
+    // El jueves de la semana decide a qué año ISO pertenece; por eso una semana de
+    // finales de diciembre puede ser la "semana 1" del año siguiente.
+    val thursday = ed - dow + 3
+    val (ty, _, _) = epochDayToCivil(thursday)
+    return ((thursday - civilToEpochDay(ty, 1, 1)) / 7).toInt() + 1
+}
+
+/** La semana natural con más páginas: su lunes, su número ISO y las páginas del tramo. */
+data class NaturalWeek(val startDate: String, val weekNumber: Int, val pages: Int)
+
+/**
+ * Semana natural (lunes-domingo) con más páginas de [pagesByDay] (clave "yyyy-MM-dd").
+ * Empate: gana la más antigua, mismo criterio que el resto de "mejores" del Wrapped.
+ *
+ * Las semanas a caballo del 1 de enero suman solo los días que [pagesByDay] aporta:
+ * quien llama pasa las sesiones de UN año. Es el precio de que el dato de un año no
+ * se coma páginas de otro, y se aplica igual a los dos lados de la comparativa, que
+ * es lo que importa (ver el bug de las relecturas que solo contaban en un lado).
+ */
+fun bestNaturalWeek(pagesByDay: Map<String, Int>): NaturalWeek? {
+    val byWeek = HashMap<String, Int>()
+    pagesByDay.forEach { (date, pages) ->
+        val start = weekStartOf(date) ?: return@forEach
+        byWeek[start] = (byWeek[start] ?: 0) + pages
+    }
+    val best = byWeek.entries.filter { it.value > 0 }
+        .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+        .firstOrNull() ?: return null
+    return NaturalWeek(best.key, isoWeekNumber(best.key), best.value)
+}
+
 // Only FINISHED books get pagesPerDay — no estimates for READING
 // Books with same startDate and endDate are excluded from pagesPerDay (same-day = unreliable speed)
 fun getStats(book: Book): BookStats? = when {

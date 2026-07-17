@@ -440,6 +440,9 @@
     <string name="wrapped_longest_session">Sesión más larga: %1$d páginas el %2$s</string>
     <string name="wrapped_most_read_day">Día más leído: %1$s (%2$d págs)</string>
     <string name="wrapped_best_month">Tu mejor mes fue %1$s con %2$d páginas</string>
+    <!-- B3 fase B (18-07): etiqueta sobre la barra del mejor mes (variante B1). En
+         mayúsculas: es una insignia, no una frase. -->
+    <string name="wrapped_best_month_tag">MEJOR MES</string>
     <string name="wrapped_pags_vs">págs vs %1$s</string>
     <string name="wrapped_history_count_one">%1$d Año Guardado</string>
     <string name="wrapped_history_count_other">%1$d Años Guardados</string>
@@ -1151,6 +1154,15 @@
     <string name="wclose_pages">Páginas leídas</string>
     <string name="wclose_time">Tiempo de lectura</string>
     <string name="wclose_quote">«Cada página de este año ya es tuya.\n¿Qué quieres leer el que viene?»</string>
+    <!-- B3 fase B (18-07): 11ª pantalla, variante C1 (todo en compacto) -->
+    <string name="wclose_sessions">Sesiones</string>
+    <string name="wclose_author_vs">Autor de este año vs el del año pasado</string>
+    <string name="wclose_book_vs">Tu libro nº1 de este año vs el del pasado</string>
+    <string name="wclose_chip_day">Mejor día</string>
+    <string name="wclose_chip_month">Mejor mes</string>
+    <string name="wclose_chip_week">Mejor semana</string>
+    <string name="wclose_chip_prev">%1$d: %2$s</string>
+    <string name="wclose_week_short">Sem. %1$d</string>
     <!-- Fase 6.2: micro-encuesta voluntaria -->
     <string name="survey_invite_title">¿Nos cuentas cómo usas Lecturameter?</string>
     <string name="survey_invite_body">Una pregunta, diez segundos. Nada se envía sin que tú lo mandes.</string>
