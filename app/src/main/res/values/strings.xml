@@ -1140,8 +1140,8 @@
     <string name="tut5_battery_desc">Desactiva la optimización de batería para que el cronómetro nunca se detenga.</string>
     <string name="tut5_battery_cta">Abrir ajustes de batería</string>
     <!-- Fase 5 (P-023): Recap semanal R-1 -->
-    <string name="recap_card_line">📅 Tu semana: %1$d págs · %2$d ses.</string>
-    <string name="recap_title">📅 Tu semana</string>
+    <string name="recap_card_line">Tu semana: %1$d págs · %2$d ses.</string>
+    <string name="recap_title">Tu semana</string>
     <string name="recap_sessions">Sesiones</string>
     <string name="recap_pages">Páginas</string>
     <string name="recap_time">Tiempo</string>
@@ -1156,11 +1156,12 @@
     </plurals>
     <string name="recap_best_day">Mejor día · %1$d p</string>
     <string name="recap_longest">Sesión más larga</string>
-    <string name="recap_finished_started_value">%1$d ✅ · %2$d 📖</string>
+    <string name="recap_finished_started_value">%1$d · %2$d</string>
     <string name="recap_finished_started">Terminados · empezados</string>
-    <string name="recap_challenges_bingo_value">🎯 +%1$d · ▦ +%2$d</string>
+    <string name="recap_challenges_bingo_value">+%1$d · +%2$d</string>
     <string name="recap_challenges_bingo">Retos avanzados · casillas bingo</string>
     <string name="recap_book_of_week">Libro de la semana · %1$d páginas</string>
+    <string name="recap_share_text">Mi resumen semanal en Lecturameter</string>
     <!-- Fase 6.4: Recap mensual M-1 -->
     <string name="recapm_card_line">📆 Tu %1$s, en un vistazo</string>
     <string name="recapm_title">📆 Tu %1$s</string>

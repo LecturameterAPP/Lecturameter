@@ -197,8 +197,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
             com.lecturameter.utils.computeWeeklyRecap(books, sessions, vm.bingoCard.value, vm.challenges.value, today())
         }
         val monthlyRecap = remember(books, sessions) {
-            val dayOfMonth = today().takeLast(2).toIntOrNull() ?: 99
-            if (dayOfMonth <= 7) com.lecturameter.utils.computeMonthlyRecap(books, sessions, today()) else null
+            com.lecturameter.utils.computeMonthlyRecap(books, sessions, today())
         }
         val recapCards: @Composable () -> Unit = {
             Column {
@@ -210,6 +209,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                         modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
                     ) {
                         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.DateRange, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text(
                                 stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
                                 color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,

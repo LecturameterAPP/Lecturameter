@@ -27,8 +27,14 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import com.lecturameter.model.*
 import com.lecturameter.utils.*
 import androidx.navigation.compose.composable
@@ -40,6 +46,7 @@ import androidx.navigation.compose.composable
 
 data class SagaStat(val name: String, val books: Int, val minutes: Int, val pages: Int)
 data class SpeedOutlier(val book: Book, val ppd: Double, val deltaPct: Int)
+private data class RecapMiniData(val value: String, val label: String, val color: Color? = null, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null)
 
 /** Detecta la saga desde el título: "Título (Nombre de Saga, #3)" o "(Saga #3)". */
 private val SAGA_REGEX = Regex("""\(([^()#]+?),?\s*#\s*\d+\)""")
@@ -271,13 +278,17 @@ private fun fmtWeekdayName(iso: String): String = try {
 } catch (_: Exception) { iso }
 
 @Composable
-private fun RecapMini(value: String, label: String, valueColor: Color?, theme: Theme, modifier: Modifier) {
+private fun RecapMini(value: String, label: String, valueColor: Color?, theme: Theme, modifier: Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
     Surface(shape = RoundedCornerShape(12.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = modifier.fillMaxHeight()) {
         Column(
-            Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
+            Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            if (icon != null) {
+                Icon(icon, null, tint = theme.textMuted, modifier = Modifier.size(13.dp))
+                Spacer(Modifier.height(2.dp))
+            }
             AutoSizeText(value, color = valueColor ?: theme.textMain, maxFontSize = 16.sp, minFontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             Text(label, color = theme.textDim, fontSize = 9.sp, textAlign = TextAlign.Center, maxLines = 2, lineHeight = 11.sp, overflow = TextOverflow.Ellipsis)
         }
@@ -346,16 +357,16 @@ fun MonthlyRecapScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
         if (recap == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📆", fontSize = 48.sp) }
         } else {
-            val minis = buildList {
-                add(Triple(recap.finishedCount.toString(), stringResource(R.string.recapm_finished), null as Color?))
-                add(Triple(recap.startedCount.toString(), stringResource(R.string.recapm_started), null))
-                add(Triple(recap.droppedCount.toString(), stringResource(R.string.recapm_dropped), null))
-                add(Triple(recap.pages.toString(), stringResource(R.string.recap_pages), null))
-                recap.minutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_time), null)) }
-                recap.pagesPerMin?.let { add(Triple(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), null)) }
+            val minis = buildList<RecapMiniData> {
+                add(RecapMiniData(recap.finishedCount.toString(), stringResource(R.string.recapm_finished)))
+                add(RecapMiniData(recap.startedCount.toString(), stringResource(R.string.recapm_started)))
+                add(RecapMiniData(recap.droppedCount.toString(), stringResource(R.string.recapm_dropped)))
+                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages)))
+                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time))) }
+                recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed))) }
                 recap.deltaPages?.let { d ->
                     val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
-                    add(Triple(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
+                    add(RecapMiniData(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
                 }
             }
             Column(
@@ -364,7 +375,7 @@ fun MonthlyRecapScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             ) {
                 minis.chunked(3).forEach { rowItems ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                        rowItems.forEach { (v, l, c) -> RecapMini(v, l, c, theme, Modifier.weight(1f)) }
+                        rowItems.forEach { item -> RecapMini(item.value, item.label, item.color, theme, Modifier.weight(1f), item.icon) }
                         repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
@@ -419,6 +430,46 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
         com.lecturameter.utils.computeWeeklyRecap(books, sessions, bingoCard, challenges, today())
     }
     val streak = remember(sessions) { vm.currentReadingStreak() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+
+    fun shareRecap() {
+        if (sharing) return
+        sharing = true
+        scope.launch {
+            try {
+                val activity = context as? android.app.Activity ?: throw Exception("No Activity")
+                val window = activity.window
+                val rootView = window.decorView
+                val bmp = android.graphics.Bitmap.createBitmap(rootView.width, rootView.height, android.graphics.Bitmap.Config.ARGB_8888)
+                val captured = kotlinx.coroutines.suspendCancellableCoroutine<android.graphics.Bitmap> { cont ->
+                    android.view.PixelCopy.request(window, bmp, { result ->
+                        if (result == android.view.PixelCopy.SUCCESS) cont.resume(bmp) {}
+                        else cont.resumeWithException(Exception("PixelCopy error $result"))
+                    }, android.os.Handler(android.os.Looper.getMainLooper()))
+                }
+                val file = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val f = java.io.File(context.cacheDir, "recap_weekly.png")
+                    java.io.FileOutputStream(f).use { out -> captured.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out) }
+                    captured.recycle()
+                    f
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    putExtra(android.content.Intent.EXTRA_TEXT, context.getString(R.string.recap_share_text))
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.recap_title)))
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, context.getString(R.string.msg_share_error, e.message), android.widget.Toast.LENGTH_SHORT).show()
+            } finally { sharing = false }
+        }
+    }
+
+    val acc = accentForTheme(theme)
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
@@ -430,27 +481,30 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
                     Text("${fmtDayMonth(recap.weekStartIso)} – ${fmtDayMonth(recap.weekEndIso)}", color = theme.textMuted, fontSize = 13.sp)
                 }
             }
+            IconButton(onClick = { shareRecap() }, enabled = !sharing) {
+                Icon(Icons.Default.Share, null, tint = acc)
+            }
         }
 
         if (recap == null) {
             // Solo alcanzable por estados intermedios: la tarjeta de acceso ya filtra
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📅", fontSize = 48.sp) }
         } else {
-            val minis = buildList {
-                add(Triple(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions), null as Color?))
-                add(Triple(recap.pages.toString(), stringResource(R.string.recap_pages), null))
-                recap.minutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_time), null)) }
-                recap.pagesPerMin?.let { add(Triple(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), null)) }
-                recap.topSlotStartHour?.let { add(Triple(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot), null)) }
+            val minis = buildList<RecapMiniData> {
+                add(RecapMiniData(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions)))
+                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages)))
+                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time))) }
+                recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed))) }
+                recap.topSlotStartHour?.let { add(RecapMiniData(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot))) }
                 recap.deltaPages?.let { d ->
                     val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
-                    add(Triple(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
+                    add(RecapMiniData(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
                 }
-                if (streak > 0) add(Triple(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Amber))
-                recap.bestDayIso?.let { add(Triple(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), null)) }
-                recap.longestSessionMinutes?.let { add(Triple(fmtMinutes(it), stringResource(R.string.recap_longest), null)) }
-                add(Triple(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null))
-                add(Triple(stringResource(R.string.recap_challenges_bingo_value, recap.challengesAdvanced, recap.bingoCellsCompleted), stringResource(R.string.recap_challenges_bingo), null))
+                if (streak > 0) add(RecapMiniData(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Amber))
+                recap.bestDayIso?.let { add(RecapMiniData(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages))) }
+                recap.longestSessionMinutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_longest))) }
+                add(RecapMiniData(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null, Icons.Default.AutoStories))
+                add(RecapMiniData(stringResource(R.string.recap_challenges_bingo_value, recap.challengesAdvanced, recap.bingoCellsCompleted), stringResource(R.string.recap_challenges_bingo), null, Icons.Default.EmojiEvents))
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -458,7 +512,7 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
             ) {
                 minis.chunked(3).forEach { rowItems ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                        rowItems.forEach { (v, l, c) -> RecapMini(v, l, c, theme, Modifier.weight(1f)) }
+                        rowItems.forEach { item -> RecapMini(item.value, item.label, item.color, theme, Modifier.weight(1f), item.icon) }
                         repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
