@@ -33,6 +33,7 @@ import kotlinx.coroutines.withContext
 
 const val WIDGET_PREFS = "widget_book_selection"
 const val WIDGET_BOOK_KEY = "selected_book_id"
+const val WIDGET_EDITION_KEY = "selected_edition_id"
 
 // ── v2.4 rework: personalización de chips por appWidgetId ─────────────────────
 data class WidgetDisplayConfig(
@@ -96,10 +97,12 @@ internal data class WidgetThemeColors(
     val accentChipDrawable: Int = R.drawable.widget_accent_bg_chip,
     val accentCoverDrawable: Int = R.drawable.widget_accent_bg_cover,
     val progressColor: Int = 0xFF0EA5E9.toInt(),
-    // El carril de la barra iba en blanco al 25% fijo: sobre los fondos oscuros se ve, pero
-    // sobre el crema del Claro r2 quedaba a 1.02:1 de contraste, o sea invisible, y la barra
-    // parecía un trozo de color flotando sin referencia (revisión 18-07).
-    val progressTrackColor: Int = 0x40FFFFFF
+    val progressTrackColor: Int = 0x40FFFFFF,
+    val hSepDrawable: Int = R.drawable.widget_sep_h_dark,
+    val vSepDrawable: Int = R.drawable.widget_sep_v_dark,
+    val hasDiamondSep: Boolean = false,
+    // P-036: la onda con halo de Aurora necesita una caja mas alta que la linea plana
+    val hasWaveSep: Boolean = false
 )
 
 internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
@@ -121,15 +124,18 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
         "light"  -> WidgetThemeColors(
             R.drawable.widget_background_light, 0xFF22201B.toInt(), 0xFF5A5648.toInt(),
             R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF41755A.toInt(),
-            // sobre crema el carril tiene que ser oscuro, no blanco
-            progressTrackColor = 0x22000000
+            progressTrackColor = 0x22000000,
+            hSepDrawable = R.drawable.widget_sep_h_light,
+            vSepDrawable = R.drawable.widget_sep_v_light
         )
         // Fase 3 (Aurora C): textos teal claro a juego con el rediseño teal→púrpura
         "aurora" -> WidgetThemeColors(
             R.drawable.widget_background_aurora, 0xFFF0FDFB.toInt(), 0xFF9CCFC8.toInt(),
             R.drawable.widget_accent_bg_chip_aurora, R.drawable.widget_accent_bg_cover_aurora, 0xFFB794F6.toInt(),
-            // el carril en blanco frío rompe el teal, igual que rompía el cuero
-            progressTrackColor = 0x40C8FFF8
+            progressTrackColor = 0x40C8FFF8,
+            hSepDrawable = R.drawable.widget_sep_h_aurora_wave,
+            vSepDrawable = R.drawable.widget_sep_v_aurora,
+            hasWaveSep = true
         )
         // QA r2 12-07: Dinámico eliminado — "dynamic" residual cae al else (oscuro)
         // 18-07: en AMOLED los azules pasan a gris (decisión de Víctor). Mismo caso que el
@@ -137,32 +143,38 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
         // claro en contraste con el negro puro").
         "amoled" -> WidgetThemeColors(
             R.drawable.widget_background_amoled, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt(),
-            R.drawable.widget_accent_bg_chip_amoled, R.drawable.widget_accent_bg_cover_amoled, 0xFFA1A1AA.toInt()
+            R.drawable.widget_accent_bg_chip_amoled, R.drawable.widget_accent_bg_cover_amoled, 0xFFA1A1AA.toInt(),
+            hSepDrawable = R.drawable.widget_sep_h_amoled,
+            vSepDrawable = R.drawable.widget_sep_v_amoled
         )
         // D-015 (Cuero): fondo marrón cuero + textos crema del mockup r3, acento oro
         "cuero"  -> WidgetThemeColors(
             R.drawable.widget_background_cuero, 0xFFFAF3E3.toInt(), 0xFFD6C7A5.toInt(),
             R.drawable.widget_accent_bg_chip_cuero, R.drawable.widget_accent_bg_cover_cuero, 0xFFD9AC5C.toInt(),
-            // QA en dispositivo 18-07: el carril blanco al 25% sobre el cuero da un GRIS frío,
-            // el único elemento del widget fuera de la familia marrón/oro/crema. Va en crema,
-            // que es la misma decisión que ya se tomó para bgSurf en el tema ("crema
-            // translúcida, no blanco frío, para no romper la calidez del cuero").
-            progressTrackColor = 0x40FAF3E3
+            progressTrackColor = 0x40FAF3E3,
+            hSepDrawable = R.drawable.widget_sep_h_cuero,
+            vSepDrawable = R.drawable.widget_sep_v_cuero,
+            hasDiamondSep = true
         )
         else     -> WidgetThemeColors(R.drawable.widget_background_dark, 0xFFF1F5F9.toInt(), 0xFF94A3B8.toInt())
     }
 }
 
-fun saveWidgetBook(context: Context, bookId: Long) {
+fun saveWidgetBook(context: Context, bookId: Long, editionId: Long = -1L) {
     context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
         .edit()
         .putLong(WIDGET_BOOK_KEY, bookId)
+        .putLong(WIDGET_EDITION_KEY, editionId)
         .commit()
 }
 
 fun loadWidgetBook(context: Context): Long =
     context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
         .getLong(WIDGET_BOOK_KEY, -1L)
+
+fun loadWidgetEdition(context: Context): Long =
+    context.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
+        .getLong(WIDGET_EDITION_KEY, -1L)
 
 fun clearWidgetCoverCache(context: Context) {
     try {
@@ -235,6 +247,31 @@ internal fun appLocalizedContext(context: Context): Context {
         context.createConfigurationContext(config)
     } catch (_: Exception) {
         context
+    }
+}
+
+// ── Stats Widget Pro: refresh helpers ────────────────────────────────────────
+
+fun requestStatsWidgetUpdate(context: Context) {
+    val appContext = context.applicationContext
+    widgetUpdateScope.launch {
+        try {
+            updateStatsWidgets(appContext)
+        } catch (_: Exception) {
+        }
+    }
+}
+
+suspend fun updateStatsWidgets(context: Context) = withContext(Dispatchers.IO) {
+    val appContext = context.applicationContext
+    val widget = StatsGlanceWidget()
+    val ids = androidx.glance.appwidget.GlanceAppWidgetManager(appContext)
+        .getGlanceIds(StatsGlanceWidget::class.java)
+    ids.forEach { id ->
+        androidx.glance.appwidget.state.updateAppWidgetState(appContext, id) { prefs ->
+            prefs[WIDGET_REFRESH_TICK] = System.currentTimeMillis()
+        }
+        widget.update(appContext, id)
     }
 }
 

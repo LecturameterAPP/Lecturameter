@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -31,6 +32,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -53,6 +55,13 @@ internal data class WidgetTexts(
     val sessionsLabel: String
 )
 
+// Colores de los iconos de las pills, misma paleta que las celdas del widget de stats
+private val ChipDays     = Color(0xFF0EA5E9)
+private val ChipTime     = Color(0xFFF59E0B)
+private val ChipSessions = Color(0xFF8B5CF6)
+private val ChipPages    = Color(0xFF10B981)
+private val ChipPercent  = Color(0xFFEC4899)
+
 class BookGlanceWidget : GlanceAppWidget() {
 
     // Exact para conocer el ancho real y compactar pills como hacía v2.3b
@@ -70,10 +79,14 @@ class BookGlanceWidget : GlanceAppWidget() {
             // ligero (prefs+Gson+bitmap cacheado) es seguro.
             androidx.glance.currentState(WIDGET_REFRESH_TICK)
             val bookId = loadWidgetBook(appContext)
+            val editionId = loadWidgetEdition(appContext)
             val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
             val sessions = if (book == null) emptyList() else loadSessions(appContext)
-            val cover: Bitmap? = book?.coverUrl?.let { loadCoverBitmapBlocking(appContext, it) }
-            val stats: WidgetStats? = book?.let { computeWidgetStats(it, sessions) }
+            val activeEdition = if (editionId != -1L) book?.editions?.firstOrNull { it.id == editionId } else null
+            val coverUrl = activeEdition?.coverUrl ?: book?.coverUrl
+            val cover: Bitmap? = coverUrl?.let { loadCoverBitmapBlocking(appContext, it) }
+            val stats: WidgetStats? = book?.let { computeWidgetStats(it, sessions, editionId) }
+            val displayTitle = activeEdition?.title?.takeIf { it.isNotBlank() } ?: book?.title
             val theme = resolveWidgetTheme(appContext)
             val cfg = loadWidgetDisplayConfig(appContext)
             val ctx = appLocalizedContext(appContext)
@@ -86,7 +99,7 @@ class BookGlanceWidget : GlanceAppWidget() {
             // B-010: con poca altura no caben título+autor+chips+barra+hora — el host
             // recorta por abajo. Modo "mini": solo título, autor y barra de progreso.
             val mini = LocalSize.current.height < 90.dp
-            WidgetContent(book, stats, cover, theme, cfg, texts, updated, compact, mini)
+            WidgetContent(book, displayTitle, stats, cover, theme, cfg, texts, updated, compact, mini)
         }
     }
 }
@@ -94,6 +107,7 @@ class BookGlanceWidget : GlanceAppWidget() {
 @Composable
 private fun WidgetContent(
     book: Book?,
+    displayTitle: String?,
     stats: WidgetStats?,
     cover: Bitmap?,
     theme: WidgetThemeColors,
@@ -152,7 +166,7 @@ private fun WidgetContent(
             verticalAlignment = Alignment.Vertical.CenterVertically
         ) {
             Text(
-                text = book?.title ?: "Lecturameter",
+                text = displayTitle ?: "Lecturameter",
                 style = TextStyle(fontSize = if (mini) 13.sp else 15.sp, fontWeight = FontWeight.Bold, color = textMain),
                 maxLines = if (mini) 1 else 2
             )
@@ -164,26 +178,41 @@ private fun WidgetContent(
             )
 
             if (book != null && stats != null && !mini) {
-                fun emo(e: String) = if (cfg.showEmojis) "$e " else ""
+                // P-038: los emojis de las pills pasan a iconos Material tintados, cada uno
+                // con su color (misma paleta que las celdas del widget de stats). El toggle
+                // showEmojis sigue controlando su visibilidad.
                 val chips = listOfNotNull(
-                    if (cfg.showDays) "${emo("📅")}${stats.days} d" else null,
-                    if (cfg.showTime) stats.lastSessionMinutes?.let { "${emo("⏱️")}${formatMinutes(it)}" } else null,
-                    if (cfg.showSessions) "${emo("📖")}${stats.sessions} ${texts.sessionsLabel}" else null,
-                    if (cfg.showPages) stats.lastSessionPages?.let { "${emo("📄")}${it}p" } else null,
-                    if (cfg.showPercent) stats.completionPct?.let { "${emo("📊")}${it}%" } else null
+                    if (cfg.showDays) Triple(R.drawable.widget_ic_calendar, ChipDays, "${stats.days} d") else null,
+                    if (cfg.showTime) stats.lastSessionMinutes?.let { Triple(R.drawable.widget_ic_timer, ChipTime, formatMinutes(it)) } else null,
+                    if (cfg.showSessions) Triple(R.drawable.widget_ic_book, ChipSessions, "${stats.sessions} ${texts.sessionsLabel}") else null,
+                    if (cfg.showPages) stats.lastSessionPages?.let { Triple(R.drawable.widget_ic_pages, ChipPages, "${it}p") } else null,
+                    if (cfg.showPercent) stats.completionPct?.let { Triple(R.drawable.widget_ic_percent, ChipPercent, "${it}%") } else null
                 )
                 if (chips.isNotEmpty()) {
                     Row(modifier = GlanceModifier.padding(top = 6.dp)) {
-                        chips.forEach { label ->
+                        chips.forEach { (iconRes, iconTint, label) ->
                             Box(modifier = GlanceModifier.padding(end = 2.dp)) {
-                                Text(
-                                    text = label,
-                                    style = TextStyle(fontSize = if (compact) 10.sp else 12.sp, color = textMain),
-                                    maxLines = 1,
+                                Row(
                                     modifier = GlanceModifier
                                         .background(ImageProvider(theme.accentChipDrawable))
-                                        .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = 3.dp)
-                                )
+                                        .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.Vertical.CenterVertically
+                                ) {
+                                    if (cfg.showEmojis) {
+                                        Image(
+                                            provider = ImageProvider(iconRes),
+                                            contentDescription = null,
+                                            modifier = GlanceModifier.width(11.dp).height(11.dp),
+                                            colorFilter = ColorFilter.tint(ColorProvider(iconTint))
+                                        )
+                                        Spacer(GlanceModifier.width(3.dp))
+                                    }
+                                    Text(
+                                        text = label,
+                                        style = TextStyle(fontSize = if (compact) 10.sp else 12.sp, color = textMain),
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

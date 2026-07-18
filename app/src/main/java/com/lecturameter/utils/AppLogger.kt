@@ -28,12 +28,17 @@ object AppLogger {
     fun log(message: String, tag: String = "Lecturameter") {
         if (!isEnabled) return
         try {
+            // Auditoria 18-07: TODO mensaje pasa por el filtro de secretos, no solo los stack
+            // traces de logError. Los mensajes de excepcion de HttpURLConnection incluyen la
+            // URL completa, y con withGbKey() la URL lleva la API key: sin esto la clave
+            // acababa en el fichero que el usuario puede adjuntar al feedback.
+            val clean = redactSecrets(message)
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date())
-            val entry = "[$timestamp] $tag: $message\n"
+            val entry = "[$timestamp] $tag: $clean\n"
             if (::logFile.isInitialized) {
                 FileWriter(logFile, true).use { it.append(entry) }
             }
-            Log.d(tag, message)
+            Log.d(tag, clean)
         } catch (e: Exception) {
             Log.e("AppLogger", "Error writing log", e)
         }
@@ -51,18 +56,23 @@ object AppLogger {
      *  - Direcciones de email
      * Y trunca a las primeras 40 líneas (suficiente para diagnóstico).
      */
-    private fun sanitize(stack: String): String {
-        val patterns = listOf(
-            Regex("(?i)(authorization\\s*:?\\s*bearer\\s+)\\S+") to "$1<REDACTED>",
-            Regex("(?i)(bearer\\s+)[A-Za-z0-9._\\-]+") to "$1<REDACTED>",
-            Regex("(?i)(access_token|refresh_token|id_token|api_key|key)=\\S+") to "$1=<REDACTED>",
-            Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}") to "<EMAIL_REDACTED>",
-            Regex("ya29\\.[A-Za-z0-9._\\-]+") to "<OAUTH_TOKEN_REDACTED>"
-        )
-        var clean = stack
-        for ((re, rep) in patterns) clean = clean.replace(re, rep)
-        return clean.lineSequence().take(40).joinToString("\n")
+    private val SECRET_PATTERNS = listOf(
+        Regex("(?i)(authorization\\s*:?\\s*bearer\\s+)\\S+") to "$1<REDACTED>",
+        Regex("(?i)(bearer\\s+)[A-Za-z0-9._\\-]+") to "$1<REDACTED>",
+        Regex("(?i)(access_token|refresh_token|id_token|api_key|key)=\\S+") to "$1=<REDACTED>",
+        Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}") to "<EMAIL_REDACTED>",
+        Regex("ya29\\.[A-Za-z0-9._\\-]+") to "<OAUTH_TOKEN_REDACTED>",
+        Regex("AIza[A-Za-z0-9._\\-]+") to "<API_KEY_REDACTED>"
+    )
+
+    private fun redactSecrets(text: String): String {
+        var clean = text
+        for ((re, rep) in SECRET_PATTERNS) clean = clean.replace(re, rep)
+        return clean
     }
+
+    private fun sanitize(stack: String): String =
+        redactSecrets(stack).lineSequence().take(40).joinToString("\n")
 
     fun getLogs(): String = try {
         if (::logFile.isInitialized && logFile.exists()) logFile.readText()

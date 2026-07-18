@@ -1419,9 +1419,9 @@ internal fun refreshWidgetForBookIfSelected(context: Context, bookId: Long, clea
     com.lecturameter.widget.requestBookWidgetUpdate(appContext)
 }
 
-internal fun showBookInWidget(context: Context, bookId: Long) {
+internal fun showBookInWidget(context: Context, bookId: Long, editionId: Long = -1L) {
     val appContext = context.applicationContext
-    com.lecturameter.widget.saveWidgetBook(appContext, bookId)
+    com.lecturameter.widget.saveWidgetBook(appContext, bookId, editionId)
     com.lecturameter.widget.clearWidgetCoverCache(appContext)
     com.lecturameter.widget.requestBookWidgetUpdate(appContext)
 }
@@ -1707,6 +1707,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Refresh all Lecturameter home screen widgets when the app is opened.
         com.lecturameter.widget.requestBookWidgetUpdate(applicationContext)
+        com.lecturameter.widget.requestStatsWidgetUpdate(applicationContext)
         // Si el móvil estaba bloqueado al terminar la sesión, al desbloquear
         // onResume dispara el bridge para que LecturaMeterApp navegue al detail.
         WidgetIntentBridge.onNewIntent?.invoke()
@@ -1986,6 +1987,8 @@ sealed class Screen {
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
     object WeeklyRecap : Screen()
     object MonthlyRecap : Screen()
+    // Config del widget Pro de estadísticas (antes 4 switches inline en Ajustes)
+    object StatsWidgetConfig : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
     data class AuthorBooks(val author: String) : Screen()
     data class Wrapped(val year: Int) : Screen()
@@ -2012,6 +2015,7 @@ private fun Screen.route(): String = when (this) {
     is Screen.BingoHistory -> "bingo_history"
     is Screen.WeeklyRecap -> "weekly_recap"
     is Screen.MonthlyRecap -> "monthly_recap"
+    is Screen.StatsWidgetConfig -> "stats_widget_config"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
     is Screen.AuthorBooks -> "author/${Uri.encode(author)}"
     is Screen.Wrapped -> "wrapped/$year"
@@ -2529,7 +2533,8 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                 composable("monthly_recap") { WideScreenCenter { MonthlyRecapScreen(vm, prefs, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
-                composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }, onPrivacyPolicy = { navigateTo(Screen.PrivacyPolicy) }) } }
+                composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }, onPrivacyPolicy = { navigateTo(Screen.PrivacyPolicy) }, onStatsWidgetConfig = { navigateTo(Screen.StatsWidgetConfig) }) } }
+                composable("stats_widget_config") { WideScreenCenter { StatsWidgetConfigScreen(prefs, theme, onBack = { goBack() }) } }
                 // TAREA 1 (lanzamiento): política de privacidad in-app
                 composable("privacy_policy") { WideScreenCenter { PrivacyPolicyScreen(theme, onBack = { goBack() }) } }
                 composable("challenges") { WideScreenCenter { ChallengesScreen(vm, prefs, theme, onBack = { goBack() }, onHistory = { navigateTo(Screen.ChallengeHistory) }) } }

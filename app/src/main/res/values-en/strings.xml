@@ -968,7 +968,7 @@
     <string name="settings_import_export_subtitle">Goodreads, CSV, JSON backup and restore from Drive</string>
     <!-- v2.4 rework: customizable widget -->
     <string name="widget_config_title">Customize widget</string>
-    <string name="widget_cfg_emojis">😊 Show emojis in chips</string>
+    <string name="widget_cfg_emojis">Show icons in chips</string>
     <string name="widget_cfg_days">📅 Show days reading</string>
     <string name="widget_cfg_time">⏱️ Show last session time</string>
     <string name="widget_cfg_sessions">📖 Show sessions</string>
@@ -1040,7 +1040,7 @@
         <item quantity="other">Your reading streak was just as long (%1$d days)</item>
     </plurals>
     <string name="wrapped_record_line">Record: %1$d pages in one session</string>
-    <string name="settings_widget_customize_sub">Choose which chips and emojis are shown</string>
+    <string name="settings_widget_customize_sub">Choose which chips and icons are shown</string>
     <string name="history_stat_global_ppd">Global avg pages/day</string>
     <string name="challenge_filter_hint">Filter by series or title (optional, e.g. Wheel of Time)</string>
     <string name="err_date_start_after_end">Start date cannot be after the end date</string>
@@ -1112,6 +1112,8 @@
     <string name="tip_unvisited_action">Open</string>
     <string name="tip_widget_title">Put your current book on your home screen</string>
     <string name="tip_widget_body">Add the Lecturameter widget from your launcher.</string>
+    <string name="tip_favorites_title">Swipe on a card to mark it as a favorite</string>
+    <string name="tip_favorites_body">Then filter by favorites with the star icon.</string>
     <!-- Fase 4 (D-009): 5-slide philosophical tutorial -->
     <string name="tut5_value_title">Your reading, letter by letter</string>
     <string name="tut5_value_desc">Lecturameter measures how you read: your books, your sessions and your pace.</string>
@@ -1281,4 +1283,73 @@
     <string name="filter_range_hint">🔒 With Pro, filter by any date range</string>
     <string name="filter_range_ok">OK</string>
     <string name="filter_range_cancel">Cancel</string>
+
+    <!-- Stats Widget Pro -->
+    <string name="stats_widget_name">Lecturameter Stats</string>
+    <string name="stats_widget_description">Reading statistics (Pro)</string>
+    <string name="sw_pro_gate">Unlock Lecturameter Pro to see your global reading statistics</string>
+    <string name="sw_label_books">Books</string>
+    <string name="sw_label_pages">Pages</string>
+    <string name="sw_label_time">Time</string>
+    <string name="sw_label_active_days">Active days</string>
+    <string name="sw_label_streak">Streak</string>
+    <string name="sw_label_best">Best</string>
+    <string name="sw_label_peak_hour">Peak hour</string>
+    <string name="sw_label_fav_genre">Fav. genre</string>
+    <string name="sw_monthly_comparison">This month vs Last month</string>
+    <!-- Stats Widget settings -->
+    <string name="sw_config_title">Stats widget</string>
+    <string name="sw_config_subtitle">Configure the Pro global stats widget</string>
+    <string name="sw_label_pages_short">Pages</string>
+    <string name="sw_label_time_short">Time</string>
+    <string name="sw_label_streak_short">Streak</string>
+    <string name="sw_label_sessions_short">Sessions</string>
+    <string name="sw_config_bars_title">Comparison bars</string>
+    <string name="sw_config_bars_subtitle">Hide the bars you don\'t need</string>
+    <string name="sw_config_entry_title">Pro widget: monthly comparison</string>
+    <string name="sw_config_entry_subtitle">Choose which bars the stats widget shows</string>
+    <!-- Stats Widget phrases (EN) -->
+    <string name="sw_phrase_01">You have read the equivalent of %1$d copies of The Little Prince</string>
+    <string name="sw_phrase_02">You have read %1$d full novels in pages</string>
+    <string name="sw_phrase_03">%1$d books finished. Each one, a new world.</string>
+    <string name="sw_phrase_04">%1$d days with a reading session. Pure consistency.</string>
+    <string name="sw_phrase_05">%1$d hours reading. Time well spent.</string>
+    <string name="sw_phrase_06">You are on a %1$d-day reading streak. Keep going.</string>
+    <string name="sw_phrase_07">Your best streak: %1$d days. Go for the next record.</string>
+    <string name="sw_phrase_08">You have read the equivalent of %1$d bibles in pages</string>
+    <string name="sw_phrase_09">Your books stacked would measure %1$d meters</string>
+    <string name="sw_phrase_10">You have read the equivalent of %1$d movies in time</string>
+    <string name="sw_phrase_11">%1$d pages. Each one was a moment with yourself.</string>
+    <string name="sw_phrase_12">You have covered %1$d Harry Potters in pages</string>
+    <string name="sw_phrase_13">You have spent %1$d full days reading</string>
+    <string name="sw_phrase_14">You have read the equivalent of %1$d podcast episodes</string>
+    <string name="sw_phrase_15">Your pages would fill %1$d encyclopedias</string>
+    <string name="sw_phrase_16">%1$d days opening a book. The habit is built.</string>
+    <string name="sw_phrase_17">You have read the equivalent of %1$d Don Quixotes in pages</string>
+    <string name="sw_phrase_18">You have invested the time of %1$d university lectures</string>
+    <string name="sw_phrase_19">With %1$d books you already have a personal library</string>
+    <string name="sw_phrase_20">%1$d hundreds of pages. Quite a collection of stories.</string>
+    <string name="sw_phrase_21">You have spent the time of %1$d TV episodes reading</string>
+    <string name="sw_phrase_22">You have spent more time reading than watching %1$d football matches</string>
+    <string name="sw_phrase_23">You have read more than %1$d Lord of the Rings movies</string>
+    <string name="sw_phrase_24">If each page were a step, you would have walked %1$d km</string>
+    <string name="sw_phrase_25">You have read the equivalent of %1$d episodes of your favorite show</string>
+    <string name="sw_phrase_26">Your reading hours surpass %1$d transatlantic flights</string>
+    <string name="sw_phrase_27">Your books in a row would measure %1$d meters of shelf</string>
+    <string name="sw_phrase_28">You have consumed %1$d kg of printed words</string>
+    <string name="sw_phrase_29">You have read more minutes than %1$d legendary naps</string>
+    <string name="sw_phrase_30">Your pages would weigh about %1$d kg in paper</string>
+    <string name="sw_phrase_31">You have read the equivalent of %1$d times War and Peace</string>
+    <string name="sw_phrase_32">You have invested %1$d full workdays reading</string>
+    <string name="sw_phrase_33">You have covered %1$d One Hundred Years of Solitude in pages</string>
+    <string name="sw_phrase_34">You have lived a thousand lives without leaving home</string>
+    <string name="sw_phrase_35">Every page is a door. You have already opened hundreds.</string>
+    <string name="sw_phrase_36">Books don\'t change the world, they change those who do</string>
+    <string name="sw_phrase_37">Reading is the only way to travel without moving</string>
+    <string name="sw_phrase_38">Your future self will thank every page you read today</string>
+    <string name="sw_phrase_39">There is no better investment than an open book</string>
+    <string name="sw_phrase_40">Every finished book is a better version of you</string>
+    <string name="sw_phrase_41">You don\'t count pages. You collect memories.</string>
+    <string name="sw_phrase_42">Some read books. You build universes.</string>
+    <string name="sw_phrase_43">Ink runs through your veins. You are a true reader.</string>
 </resources>

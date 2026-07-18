@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Icons: donut_large. Sin tint en XML; se tinta en runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,5.08L11,2c-5,0.5 -9,4.81 -9,10s4,9.5 9,10v-3.08c-3,-0.48 -6,-3.4 -6,-6.92s3,-6.44 6,-6.92zM18.97,11L22,11c-0.47,-5 -4,-8.53 -9,-9v3.08c3,0.43 5.54,2.92 5.97,5.92zM13,18.92L13,22c5,-0.47 8.53,-4 9,-9h-3.03c-0.43,3 -2.97,5.49 -5.97,5.92z"/>
+</vector>

@@ -41,3 +41,11 @@ app/imagen_*.jpg
 
 # Archivos de prueba
 app/src/main/assets/test.html
+
+# Keystores y secretos de firma
+*.jks
+*.keystore
+ADMIN_SECRET*.txt
+ADMIN_SECRET*.local
+mapping.txt
+*.ks

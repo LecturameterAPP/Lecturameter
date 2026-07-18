@@ -53,6 +53,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
     val sessions by vm.sessions.collectAsState()
     val context = LocalContext.current
     val acc = accentForTheme(theme)
+    val coroutineScope = rememberCoroutineScope()
     var importMsg by remember { mutableStateOf<String?>(null) }
     var exportMsg by remember { mutableStateOf<String?>(null) }
     var isExporting by remember { mutableStateOf(false) }
@@ -154,9 +155,13 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            val (ok, msg) = importFullBackup(context, uri, vm, prefs)
-            backupMsg = if (ok) "✅ $msg" else "❌ $msg"
-            importMsg = null; exportMsg = null
+            coroutineScope.launch(Dispatchers.IO) {
+                val (ok, msg) = importFullBackup(context, uri, vm, prefs)
+                withContext(Dispatchers.Main) {
+                    backupMsg = if (ok) "✅ $msg" else "❌ $msg"
+                    importMsg = null; exportMsg = null
+                }
+            }
         }
     }
 

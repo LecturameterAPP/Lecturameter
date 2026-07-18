@@ -70,7 +70,7 @@ object WrappedRepository {
      * un tipo declarado no-nulo. Cada campo nuevo del cierre-comparativa añade una ocasión
      * más de que pase, así que se corta aquí, en el único sitio por el que entran.
      */
-    private fun sanitizeWrapped(w: YearWrapped): YearWrapped = w.copy(
+    internal fun sanitizeWrapped(w: YearWrapped): YearWrapped = w.copy(
         favoriteAuthor = w.favoriteAuthor ?: "",
         favoriteGenre = w.favoriteGenre ?: "",
         fastestBookTitle = w.fastestBookTitle ?: "",

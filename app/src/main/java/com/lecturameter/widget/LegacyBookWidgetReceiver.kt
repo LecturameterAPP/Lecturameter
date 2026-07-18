@@ -64,9 +64,12 @@ suspend fun updateBookWidgetsLegacy(context: Context) = withContext(Dispatchers.
     if (ids.isEmpty()) return@withContext
 
     val bookId = loadWidgetBook(appContext)
+    val editionId = loadWidgetEdition(appContext)
     val book = if (bookId == -1L) null else loadBookById(appContext, bookId)
     val sessions = if (book == null) emptyList() else loadSessions(appContext)
-    val coverBitmap = book?.coverUrl?.let { loadCoverBitmap(appContext, it) }
+    val activeEdition = if (editionId != -1L) book?.editions?.firstOrNull { it.id == editionId } else null
+    val coverUrl = activeEdition?.coverUrl ?: book?.coverUrl
+    val coverBitmap = coverUrl?.let { loadCoverBitmap(appContext, it) }
 
     ids.forEach { appWidgetId ->
         val minWidthDp = try {
@@ -77,7 +80,7 @@ suspend fun updateBookWidgetsLegacy(context: Context) = withContext(Dispatchers.
         val cfg = loadWidgetDisplayConfig(appContext, appWidgetId)
         manager.updateAppWidget(
             appWidgetId,
-            buildWidgetViews(appContext, book, sessions, coverBitmap, compact, cfg)
+            buildWidgetViews(appContext, book, sessions, coverBitmap, compact, cfg, editionId)
         )
     }
 }
@@ -88,7 +91,8 @@ private fun buildWidgetViews(
     sessions: List<ReadingSession>,
     coverBitmap: Bitmap?,
     compact: Boolean = false,
-    cfg: WidgetDisplayConfig = WidgetDisplayConfig()
+    cfg: WidgetDisplayConfig = WidgetDisplayConfig(),
+    editionId: Long = -1L
 ): RemoteViews {
     // ctx garantiza strings en el idioma de la app, no del sistema
     val ctx = appLocalizedContext(context)
@@ -154,8 +158,10 @@ private fun buildWidgetViews(
         return views
     }
 
-    val stats = computeWidgetStats(book, sessions)
-    views.setTextViewText(R.id.widget_title, book.title)
+    val stats = computeWidgetStats(book, sessions, editionId)
+    val activeEd = if (editionId != -1L) book.editions.firstOrNull { it.id == editionId } else null
+    val displayTitle = activeEd?.title?.takeIf { it.isNotBlank() } ?: book.title
+    views.setTextViewText(R.id.widget_title, displayTitle)
     views.setTextViewText(R.id.widget_author, book.author)
     views.setTextViewText(R.id.widget_updated, currentTime())
     views.setViewVisibility(R.id.widget_chips_row, View.VISIBLE)

@@ -71,7 +71,14 @@ class TimerService : Service() {
                         TimerStateHolder.activeBookId = savedBook
                         TimerStateHolder.seconds = savedSecs
                         TimerStateHolder.activeBookTitle = runPrefs.getString("running_book_title", "") ?: ""
-                        startTimer()
+                        if (runPrefs.getBoolean("is_paused", false)) {
+                            // Restore in paused state -- do not resume counting
+                            TimerStateHolder.running = true
+                            TimerStateHolder.paused = true
+                            ensureForeground()
+                        } else {
+                            startTimer()
+                        }
                     }
                 }
             }
@@ -89,6 +96,7 @@ class TimerService : Service() {
 
         runPrefs.edit()
             .putBoolean("is_running", true)
+            .putBoolean("is_paused", false)
             .putLong("running_book_id", TimerStateHolder.activeBookId)
             .putLong("running_seconds", pausedSeconds)
             .putString("running_book_title", TimerStateHolder.activeBookTitle)
@@ -120,6 +128,7 @@ class TimerService : Service() {
         tickJob?.cancel()
         getSharedPreferences(TIMER_PREFS, MODE_PRIVATE).edit()
             .putLong("running_seconds", TimerStateHolder.seconds)
+            .putBoolean("is_paused", true)
             .apply()
         updateNotification()
     }
@@ -131,6 +140,7 @@ class TimerService : Service() {
         tickJob?.cancel()
         getSharedPreferences(TIMER_PREFS, MODE_PRIVATE).edit()
             .remove("is_running")
+            .remove("is_paused")
             .remove("running_book_id")
             .remove("running_seconds")
             .apply()

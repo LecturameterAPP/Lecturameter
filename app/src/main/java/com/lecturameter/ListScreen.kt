@@ -327,6 +327,7 @@ fun ListScreen(
     val tipWidget = TipSnack(Tips.WIDGET, stringResource(R.string.tip_widget_title), stringResource(R.string.tip_widget_body))
     val tipRecap = TipSnack(Tips.FIRST_RECAP, stringResource(R.string.tip_recap_title), stringResource(R.string.tip_recap_body), stringResource(R.string.tip_recap_action)) { onWeeklyRecap() }
     val tipUnvisited = TipSnack(Tips.UNVISITED, stringResource(R.string.tip_unvisited_title), "", stringResource(R.string.tip_unvisited_action)) { onStats() }
+    val tipFavorites = TipSnack(Tips.FAVORITES, stringResource(R.string.tip_favorites_title), stringResource(R.string.tip_favorites_body))
     // Fase 6.2: micro-encuesta voluntaria (invitación por el mismo canal de snackbars)
     var showSurveyDialog by remember { mutableStateOf(false) }
     var showSurveyFeedback by remember { mutableStateOf(false) }
@@ -342,6 +343,7 @@ fun ListScreen(
             !Tips.seen(prefs, Tips.WIDGET) && sessionsForTips.size == 1 -> tipWidget
             !Tips.seen(prefs, Tips.FIRST_RECAP) && recapReady -> tipRecap
             !Tips.seen(prefs, Tips.UNVISITED) && !prefs.getBoolean("stats_opened", false) && daysSinceFirst >= 7 -> tipUnvisited
+            !Tips.seen(prefs, Tips.FAVORITES) && booksAll.size >= 5 -> tipFavorites
             else -> null
         }
         if (candidate != null) {

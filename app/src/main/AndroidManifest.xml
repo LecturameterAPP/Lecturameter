@@ -8,9 +8,18 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <!-- mediaPlayback es el tipo correcto para un cronómetro de lectura en Android 10-14 -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- USE_FULL_SCREEN_INTENT: omitido intencionadamente.
+         Desde Android 14 solo se concede a apps de llamadas/alarmas; Play Console
+         exige justificación. Sin el permiso, setFullScreenIntent() degrada a
+         heads-up notification, que es suficiente para avisar de fin de sesión. -->
+    <!-- <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" /> -->
+    <!-- specialUse: el cronómetro de lectura no reproduce audio/vídeo, así que
+         mediaPlayback no aplica y Play Console lo rechazaría con targetSdk 35.
+         specialUse requiere justificación en la ficha de Play Console:
+         "Foreground timer that tracks active reading sessions; the user starts
+         and stops it explicitly; it must survive backgrounding to keep an
+         accurate elapsed-time count." -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -106,6 +115,19 @@
                 android:resource="@xml/book_widget_info" />
         </receiver>
 
+        <!-- ── Stats Widget Pro ────────────────────────────────────────── -->
+        <receiver
+            android:name=".widget.StatsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/stats_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stats_widget_info" />
+        </receiver>
+
         <!-- Widget configuration activity (book picker) -->
         <activity
             android:name=".widget.WidgetConfigActivity"
@@ -121,7 +143,14 @@
             android:name=".TimerService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="specialUse">
+            <!-- Play Console justification for specialUse:
+                 Reading-session chronometer that must keep running while
+                 the app is backgrounded so elapsed time stays accurate. -->
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="reading_timer" />
+        </service>
 
         <!-- ── ISBN Scanner ───────────────────────────────────────────────────── -->
         <activity

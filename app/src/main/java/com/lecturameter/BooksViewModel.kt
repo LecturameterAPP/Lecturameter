@@ -1175,9 +1175,12 @@ class BooksViewModel : ViewModel() {
     fun setThemeMode(mode: ThemeMode, prefs: android.content.SharedPreferences, context: android.content.Context? = null) {
         themeMode = mode
         prefs.edit().putString("theme_mode", mode.value).apply()
-        // Bug fix v21.14: el widget no seguía el tema de la app — refrescarlo aquí también
+        // Bug fix v21.14: el widget no seguia el tema de la app, refrescarlo aqui tambien.
+        // El widget de stats tiene su propio pipeline de update: sin esta segunda llamada
+        // se quedaba con el tema viejo hasta el siguiente onResume.
         if (context != null) {
             viewModelScope.launch { com.lecturameter.widget.updateBookWidgets(context) }
+            com.lecturameter.widget.requestStatsWidgetUpdate(context)
         }
     }
     /**
@@ -1599,6 +1602,14 @@ class BooksViewModel : ViewModel() {
             )
         }
         save(prefs)
+        appContext?.let { ctx ->
+            if (com.lecturameter.widget.loadWidgetBook(ctx) == bookId) {
+                com.lecturameter.widget.saveWidgetBook(ctx, bookId, editionId)
+                com.lecturameter.widget.clearWidgetCoverCache(ctx)
+                com.lecturameter.widget.requestBookWidgetUpdate(ctx)
+            }
+            com.lecturameter.widget.requestStatsWidgetUpdate(ctx)
+        }
     }
 
     /** Recarga la portada para una edición concreta */
@@ -1862,6 +1873,7 @@ class BooksViewModel : ViewModel() {
                 com.lecturameter.widget.saveWidgetBook(ctx, -1L)
                 com.lecturameter.widget.requestBookWidgetUpdate(ctx)
             }
+            if (ctx != null) com.lecturameter.widget.requestStatsWidgetUpdate(ctx)
         }
         save(prefs)
     }

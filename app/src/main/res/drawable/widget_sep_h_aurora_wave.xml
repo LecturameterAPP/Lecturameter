@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- P-036 r4: nervio de Aurora para el widget. Misma onda S que AuroraDivider de la app
+     (amplitud 2dp, control al doble por la Bezier cuadratica) con el halo dibujado como
+     trazos anchos translucidos superpuestos. El viewport 360 aproxima el ancho real del
+     widget en dp para que el escalado del trazo sea casi uniforme. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="360dp"
+    android:height="11dp"
+    android:viewportWidth="360"
+    android:viewportHeight="11">
+    <path
+        android:pathData="M0,5.5 Q90,1.5 180,5.5 Q270,9.5 360,5.5"
+        android:strokeWidth="7"
+        android:strokeAlpha="0.12"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="5.5"
+                android:endX="360" android:endY="5.5">
+                <item android:offset="0" android:color="#FF5EEAD4"/>
+                <item android:offset="1" android:color="#FFB794F6"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M0,5.5 Q90,1.5 180,5.5 Q270,9.5 360,5.5"
+        android:strokeWidth="4"
+        android:strokeAlpha="0.22"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="5.5"
+                android:endX="360" android:endY="5.5">
+                <item android:offset="0" android:color="#FF5EEAD4"/>
+                <item android:offset="1" android:color="#FFB794F6"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M0,5.5 Q90,1.5 180,5.5 Q270,9.5 360,5.5"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="5.5"
+                android:endX="360" android:endY="5.5">
+                <item android:offset="0" android:color="#FF5EEAD4"/>
+                <item android:offset="1" android:color="#FFB794F6"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

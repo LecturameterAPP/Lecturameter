@@ -485,18 +485,26 @@ fun importFullBackupFromJson(
         vm.setBooks(vm.books.value.map { existing ->
             val fromBackup = backupBookById2[existing.id]
             if (fromBackup != null) {
-                val restoredEditions2 = if (fromBackup.editions.isNotEmpty())
+                // RC-1: merge editions additively (same pattern as challenges/bingo).
+                // Keep all local editions; add backup editions only when no local
+                // edition shares the same id OR same language code.
+                val localEditionIds = existing.editions.map { it.id }.toSet()
+                val localEditionLangs = existing.editions.map { it.language }.toSet()
+                val incomingEditions = fromBackup.editions
+                    .filter { it.id !in localEditionIds && it.language !in localEditionLangs }
+                val mergedEditions = existing.editions + incomingEditions
+                val restoredEditions2 = if (mergedEditions.isNotEmpty())
                     restoreLocalCoversFromBackup(context, listOf(
-                        existing.copy(editions = fromBackup.editions)
+                        existing.copy(editions = mergedEditions)
                     )).first().editions
                 else existing.editions
                 val restoredCover2 = if (fromBackup.coverUrl?.startsWith("data:image") == true)
                     restoreLocalCoversFromBackup(context, listOf(fromBackup)).first().coverUrl
                 else fromBackup.coverUrl ?: existing.coverUrl
                 existing.copy(
-                    firstFunctionalPage = fromBackup.firstFunctionalPage,
-                    lastFunctionalPage  = fromBackup.lastFunctionalPage,
-                    coverUrl  = restoredCover2,
+                    firstFunctionalPage = existing.firstFunctionalPage ?: fromBackup.firstFunctionalPage,
+                    lastFunctionalPage  = existing.lastFunctionalPage  ?: fromBackup.lastFunctionalPage,
+                    coverUrl  = existing.coverUrl ?: restoredCover2,
                     editions  = restoredEditions2
                 )
             } else existing
@@ -505,13 +513,14 @@ fun importFullBackupFromJson(
         vm.setSessions(vm.sessions.value.map { existing ->
             val fromBackup = backupSessionById2[existing.id]
             if (fromBackup != null) existing.copy(
-                startPage = fromBackup.startPage ?: existing.startPage,
-                endPage   = fromBackup.endPage   ?: existing.endPage,
-                pages     = fromBackup.pages
+                startPage = existing.startPage ?: fromBackup.startPage,
+                endPage   = existing.endPage   ?: fromBackup.endPage,
+                pages     = existing.pages      // rm-7: keep local corrections
             ) else existing
         } + newSessions)
         val existingYears = vm.wrappedHistory.value.map { it.year }.toSet()
         val newWrapped = backupWrapped2.filter { it.year !in existingYears }
+            .map { com.lecturameter.repository.WrappedRepository.sanitizeWrapped(it) }
         vm.setWrappedHistory(vm.wrappedHistory.value + newWrapped)
         prefs.edit()
             .putString("books", gson.toJson(vm.books.value))

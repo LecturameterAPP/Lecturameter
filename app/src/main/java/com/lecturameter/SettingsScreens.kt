@@ -728,7 +728,7 @@ object FeedbackSender {
 }
 
 @Composable
-fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onBulkReload: (String) -> Unit = {}, onResetTutorial: () -> Unit = {}, onImportExport: () -> Unit = {}, onPrivacyPolicy: () -> Unit = {}) {
+fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onBulkReload: (String) -> Unit = {}, onResetTutorial: () -> Unit = {}, onImportExport: () -> Unit = {}, onPrivacyPolicy: () -> Unit = {}, onStatsWidgetConfig: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val context = LocalContext.current
@@ -1381,6 +1381,37 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.widget_config_title), color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Text(stringResource(R.string.settings_widget_customize_sub), color = theme.textMuted, fontSize = 11.sp)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
+                }
+            }
+            // Stats widget config (Pro): entrada que navega a su pantalla propia,
+            // mismo patrón que la entrada del widget de libro de arriba. Sin Pro
+            // abre el upsell, como los temas de pago y el icono dorado.
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = theme.surface,
+                border = BorderStroke(1.dp, theme.border),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                onClick = {
+                    if (!com.lecturameter.utils.Pro.isPro(prefs)) showProUpsell = true
+                    else onStatsWidgetConfig()
+                }
+            ) {
+                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("📊", fontSize = 16.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.sw_config_entry_title), color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(5.dp))
+                            Text("⭐", fontSize = 11.sp)
+                        }
+                        Text(stringResource(R.string.sw_config_bars_subtitle), color = theme.textMuted, fontSize = 11.sp)
+                    }
+                    if (!com.lecturameter.utils.Pro.isPro(prefs)) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(6.dp))
                     }
                     Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
                 }

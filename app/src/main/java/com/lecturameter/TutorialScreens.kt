@@ -56,7 +56,8 @@ object Tips {
     const val WIDGET = "tip_widget_shown"
     // D-016: los retos completados o vencidos se archivan al historial (cambio de comportamiento)
     const val CHALLENGE_ARCHIVE = "tip_challenge_archive_shown"
-    val ALL = listOf(RAIL, HISTORY, FIRST_BOOK, FIRST_RECAP, BINGO_DONE, UNVISITED, WIDGET, CHALLENGE_ARCHIVE)
+    const val FAVORITES = "tip_favorites_shown"
+    val ALL = listOf(RAIL, HISTORY, FIRST_BOOK, FIRST_RECAP, BINGO_DONE, UNVISITED, WIDGET, CHALLENGE_ARCHIVE, FAVORITES)
     /** Si dos hitos coinciden, el segundo espera a la siguiente apertura. */
     var snackShownThisLaunch = false
     fun seen(prefs: android.content.SharedPreferences, key: String) = prefs.getBoolean(key, false)

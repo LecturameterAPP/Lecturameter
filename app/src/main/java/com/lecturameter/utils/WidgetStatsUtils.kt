@@ -19,49 +19,58 @@ data class WidgetStats(
     val completionPct: Int?
 )
 
-fun computeWidgetStats(book: Book, sessions: List<ReadingSession>): WidgetStats {
+fun computeWidgetStats(
+    book: Book,
+    sessions: List<ReadingSession>,
+    editionId: Long = -1L
+): WidgetStats {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = sdf.format(Date())
-    val bookSessions = sessions.filter { it.bookId == book.id }
+    val allBookSessions = sessions.filter { it.bookId == book.id }
+    val bookSessions = if (editionId != -1L) {
+        allBookSessions.filter { it.editionId == editionId || it.editionId == null }
+    } else {
+        allBookSessions
+    }
     val lastSessionDate = bookSessions.mapNotNull { it.date }.filter { it.isNotBlank() }.maxOrNull()
+    val firstSessionDate = bookSessions.mapNotNull { it.date }.filter { it.isNotBlank() }.minOrNull()
 
-    // Fecha inicio efectiva del ciclo actual:
-    // REREADING → fecha del último evento "reread" en dateEvents (o startDate si no hay)
-    // READING   → startDate
-    val effectiveStart: String? = when (book.status) {
-        BookStatus.REREADING -> {
-            book.dateEvents
-                .filter { it.type == "reread" }
-                .mapNotNull { it.date }
-                .filter { it.isNotBlank() }
-                .maxOrNull()
-                ?: book.startDate
-        }
-        else -> book.startDate
-    }
-
-    // Fecha fin efectiva:
-    // FINISHED  → endDate > última sesión > startDate
-    // REREADING → hoy (lectura en curso)
-    // otros     → hoy
-    val endRef = when {
-        book.status == BookStatus.FINISHED && !book.endDate.isNullOrBlank() -> book.endDate
-        book.status == BookStatus.FINISHED && lastSessionDate != null -> lastSessionDate
-        book.status == BookStatus.FINISHED && !book.startDate.isNullOrBlank() -> book.startDate
-        else -> today
-    }
-
-    val days = if (!effectiveStart.isNullOrBlank()) {
+    val days = if (editionId != -1L && firstSessionDate != null) {
         try {
-            val start = sdf.parse(effectiveStart)!!
-            val end = sdf.parse(endRef)!!
+            val start = sdf.parse(firstSessionDate)!!
+            val endStr = lastSessionDate ?: today
+            val end = sdf.parse(endStr)!!
             val diff = ceil((end.time - start.time) / 86400000.0).toInt()
             diff.coerceAtLeast(1)
         } catch (_: Exception) {
             1
         }
     } else {
-        1
+        val effectiveStart: String? = when (book.status) {
+            BookStatus.REREADING -> {
+                book.dateEvents
+                    .filter { it.type == "reread" }
+                    .mapNotNull { it.date }
+                    .filter { it.isNotBlank() }
+                    .maxOrNull()
+                    ?: book.startDate
+            }
+            else -> book.startDate
+        }
+        val endRef = when {
+            book.status == BookStatus.FINISHED && !book.endDate.isNullOrBlank() -> book.endDate
+            book.status == BookStatus.FINISHED && lastSessionDate != null -> lastSessionDate
+            book.status == BookStatus.FINISHED && !book.startDate.isNullOrBlank() -> book.startDate
+            else -> today
+        }
+        if (!effectiveStart.isNullOrBlank()) {
+            try {
+                val start = sdf.parse(effectiveStart)!!
+                val end = sdf.parse(endRef)!!
+                val diff = ceil((end.time - start.time) / 86400000.0).toInt()
+                diff.coerceAtLeast(1)
+            } catch (_: Exception) { 1 }
+        } else { 1 }
     }
 
     val sortedSessions = bookSessions
@@ -69,13 +78,16 @@ fun computeWidgetStats(book: Book, sessions: List<ReadingSession>): WidgetStats 
     val lastMins = sortedSessions
         .firstOrNull { (it.minutes ?: 0) > 0 }
         ?.minutes
-    // v20.9: páginas de la sesión más reciente (por fecha+id)
     val lastSessionPages = sortedSessions
         .firstOrNull { it.pages > 0 }
         ?.pages
         ?.takeIf { it > 0 }
     val pagesRead = bookSessions.sumOf { it.pages }
+
+    val edition = if (editionId != -1L) book.editions.firstOrNull { it.id == editionId } else null
+    val editionPages = edition?.pages?.takeIf { it > 0 }
     val effectiveTotal = when {
+        editionPages != null -> editionPages
         book.firstFunctionalPage != null && book.lastFunctionalPage != null ->
             (book.lastFunctionalPage - book.firstFunctionalPage + 1).coerceAtLeast(1)
         book.lastFunctionalPage != null -> book.lastFunctionalPage

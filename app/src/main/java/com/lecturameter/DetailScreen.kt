@@ -7,6 +7,7 @@ package com.lecturameter
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
@@ -512,6 +513,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     }
                 }
             )
+        }
+        BackHandler {
+            showChangeEditionSheet = false
+            showAddEditionSheet = false
+            scannedEditionLanguageUncertain = false
         }
         AlertDialog(
             onDismissRequest = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false },
@@ -1471,7 +1477,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                 if (isCurrentWidget) {
                                     showRemoveWidgetDialog = true
                                 } else {
-                                    showBookInWidget(context, book.id)
+                                    showBookInWidget(context, book.id, activeEdition?.id ?: -1L)
                                     widgetBookId = book.id
                                     android.widget.Toast.makeText(context, context.getString(R.string.msg_now_displayed_widget), android.widget.Toast.LENGTH_SHORT).show()
                                 }
