@@ -60,10 +60,20 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
-    val book = books.find { it.id == id } ?: run { onBack(); return }
+    val context = LocalContext.current
+    val book = books.find { it.id == id } ?: run {
+        // rm-4: si este era el libro con sesión pendiente, limpiar prefs para evitar loop
+        val tp = context.getSharedPreferences(TimerService.TIMER_PREFS, android.content.Context.MODE_PRIVATE)
+        if (tp.getLong("book_id", -1L) == id) {
+            tp.edit().clear().apply()
+            TimerStateHolder.shouldOpenDialog = false
+            TimerStateHolder.activeBookId = -1L
+        }
+        onBack()
+        return
+    }
     val stats = getStats(book)
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     // Theming: acento del tema activo (oro en Cuero, morado en Aurora) y su color de contenido
     val acc = accentForTheme(theme)
     val onAcc = onAccentColor(theme)
