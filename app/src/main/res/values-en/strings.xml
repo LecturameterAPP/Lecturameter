@@ -1226,6 +1226,9 @@
     <string name="editions_pages_short">%1$d pages</string>
     <string name="func_pages_from">from %1$d</string>
     <string name="func_pages_to">to %1$d</string>
+    <string name="func_pages_onboarding_title">Functional pages</string>
+    <string name="func_pages_onboarding_body">Some books have extra pages at the beginning or end (title pages, indices, blank pages). Setting the first and last page of real content makes the reading percentage and finish predictor more accurate.\n\nYou can set them any time from the lower section of this screen.</string>
+    <string name="func_pages_onboarding_cta">Got it</string>
     <string name="share_library_subject">My Lecturameter library</string>
     <string name="share_library_text">Here is my library exported from Lecturameter (%1$d books).</string>
     <string name="share_library_chooser">Share library</string>

@@ -106,6 +106,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     var showNotifPermDialog by remember { mutableStateOf(false) }
     var showNotifPermDeniedDialog by remember { mutableStateOf(false) }
     var pendingTimerAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showFuncPagesOnboarding by remember { mutableStateOf(!prefs.getBoolean("func_pages_onboarding_done", false)) }
     val notifPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -149,6 +150,23 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
                 TextButton(onClick = { showNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
+            }
+        )
+    }
+    if (showFuncPagesOnboarding) {
+        AlertDialog(
+            onDismissRequest = {
+                showFuncPagesOnboarding = false
+                prefs.edit().putBoolean("func_pages_onboarding_done", true).apply()
+            },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.func_pages_onboarding_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.func_pages_onboarding_body), color = theme.textMuted, fontSize = 13.sp) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showFuncPagesOnboarding = false
+                    prefs.edit().putBoolean("func_pages_onboarding_done", true).apply()
+                }) { Text(stringResource(R.string.func_pages_onboarding_cta), color = acc, fontWeight = FontWeight.Bold) }
             }
         )
     }

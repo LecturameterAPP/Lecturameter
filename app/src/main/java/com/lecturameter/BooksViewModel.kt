@@ -152,7 +152,10 @@ class BooksViewModel : ViewModel() {
     }
     fun resetTutorial(prefs: android.content.SharedPreferences) {
         tutorialCompleted = false
-        prefs.edit().putBoolean("tutorial_completed", false).apply()
+        prefs.edit()
+            .putBoolean("tutorial_completed", false)
+            .putBoolean("func_pages_onboarding_done", false)
+            .apply()
     }
     fun loadTutorialStatus(prefs: android.content.SharedPreferences) {
         tutorialCompleted = prefs.getBoolean("tutorial_completed", false)

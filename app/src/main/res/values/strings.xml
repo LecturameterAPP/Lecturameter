@@ -1233,6 +1233,9 @@
     <string name="editions_pages_short">%1$d páginas</string>
     <string name="func_pages_from">desde %1$d</string>
     <string name="func_pages_to">hasta %1$d</string>
+    <string name="func_pages_onboarding_title">Páginas funcionales</string>
+    <string name="func_pages_onboarding_body">Algunos libros tienen páginas de más al principio o al final (portadillas, índices, páginas en blanco). Si indicas la primera y última página de contenido real, el porcentaje leído y el predictor de finalización serán más precisos.\n\nPuedes configurarlas en cualquier momento desde la sección inferior de esta pantalla.</string>
+    <string name="func_pages_onboarding_cta">Entendido</string>
     <string name="share_library_subject">Mi biblioteca Lecturameter</string>
     <string name="share_library_text">Aquí tienes mi biblioteca exportada desde Lecturameter (%1$d libros).</string>
     <string name="share_library_chooser">Compartir biblioteca</string>
