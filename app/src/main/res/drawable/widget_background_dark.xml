@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v21.35: #1a1e2e (gris-azulado oscuro) en vez de #1E1B4B (muy morado) -->
+<!-- Alinea con el degradado del tema Oscuro de la app: BgDarkD(#0F172A) -> BgMidD(#1E1B4B) -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#1a1e2e" />
+    <gradient
+        android:angle="270"
+        android:startColor="#0F172A"
+        android:endColor="#1E1B4B"
+        android:type="linear" />
     <corners android:radius="20dp" />
 </shape>
