@@ -106,7 +106,8 @@ data class WeeklyRecap(
     val challengesAdvanced: Int,    // retos cuya métrica avanzó esta semana
     val bingoCellsCompleted: Int,   // celdas con completedAt en la semana (0 si el cartón es antiguo)
     val bookOfWeekId: Long?,
-    val bookOfWeekPages: Int
+    val bookOfWeekPages: Int,
+    val topGenre: String?            // género con más páginas leídas esta semana; null si ningún libro tiene género
 )
 
 // ── Recap mensual (6.4) ───────────────────────────────────────────────────────
@@ -230,6 +231,14 @@ fun computeWeeklyRecap(
     val byBook = week.groupBy { it.bookId }.mapValues { (_, s) -> s.sumOf { it.pages } }
     val topBook = byBook.filterValues { it > 0 }.maxByOrNull { it.value }
 
+    val bookMap = books.associateBy { it.id }
+    val byGenre = mutableMapOf<String, Int>()
+    week.forEach { s ->
+        val book = bookMap[s.bookId] ?: return@forEach
+        book.genres.forEach { g -> if (g.isNotBlank()) byGenre[g] = (byGenre[g] ?: 0) + s.pages }
+    }
+    val topGenre = byGenre.maxByOrNull { it.value }?.key
+
     return WeeklyRecap(
         weekStartIso = start, weekEndIso = end,
         sessionsCount = week.size, pages = pages,
@@ -241,6 +250,7 @@ fun computeWeeklyRecap(
         finishedCount = finished, startedCount = started,
         challengesAdvanced = advanced,
         bingoCellsCompleted = bingoWeek,
-        bookOfWeekId = topBook?.key, bookOfWeekPages = topBook?.value ?: 0
+        bookOfWeekId = topBook?.key, bookOfWeekPages = topBook?.value ?: 0,
+        topGenre = topGenre
     )
 }

@@ -56,7 +56,7 @@ import com.lecturameter.utils.*
 import androidx.navigation.compose.composable
 
 @Composable
-fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}, onWeeklyRecap: () -> Unit = {}, onMonthlyRecap: () -> Unit = {}) {
+fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onWrapped: (Int) -> Unit, onWrappedHistory: () -> Unit, onDetail: (Long) -> Unit = {}, onDetailWithDate: (Long, String) -> Unit = { _, _ -> }, onDailySessions: (String) -> Unit = {}, onWeeklyRecap: () -> Unit = {}) {
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
@@ -196,45 +196,23 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
         val weeklyRecap = remember(books, sessions) {
             com.lecturameter.utils.computeWeeklyRecap(books, sessions, vm.bingoCard.value, vm.challenges.value, today())
         }
-        val monthlyRecap = remember(books, sessions) {
-            com.lecturameter.utils.computeMonthlyRecap(books, sessions, today())
-        }
         val recapCards: @Composable () -> Unit = {
-            Column {
-                if (weeklyRecap != null) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = theme.surface,
-                        border = BorderStroke(1.dp, theme.border),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
-                    ) {
-                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.DateRange, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
-                                color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
-                        }
-                    }
-                }
-                if (monthlyRecap != null) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = theme.surface,
-                        border = BorderStroke(1.dp, accentForTheme(theme).copy(alpha = 0.45f)),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onMonthlyRecap() }
-                    ) {
-                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                stringResource(R.string.recapm_card_line, fmtMonthName(monthlyRecap.monthKey)),
-                                color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
-                        }
+            if (weeklyRecap != null) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = theme.surface,
+                    border = BorderStroke(1.dp, theme.border),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp).clickable { onWeeklyRecap() }
+                ) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DateRange, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.recap_card_line, weeklyRecap.pages, weeklyRecap.sessionsCount),
+                            color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted)
                     }
                 }
             }

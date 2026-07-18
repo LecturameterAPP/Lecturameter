@@ -1986,7 +1986,6 @@ sealed class Screen {
     object BingoHistory : Screen()
     // Fase 5: recap semanal (R-1 + acceso A/C aprobados 14-07)
     object WeeklyRecap : Screen()
-    object MonthlyRecap : Screen()
     // Config del widget Pro de estadísticas (antes 4 switches inline en Ajustes)
     object StatsWidgetConfig : Screen()
     data class Detail(val id: Long, val highlightDate: String? = null) : Screen()
@@ -2014,7 +2013,6 @@ private fun Screen.route(): String = when (this) {
     is Screen.ChallengeHistory -> "challenge_history"
     is Screen.BingoHistory -> "bingo_history"
     is Screen.WeeklyRecap -> "weekly_recap"
-    is Screen.MonthlyRecap -> "monthly_recap"
     is Screen.StatsWidgetConfig -> "stats_widget_config"
     is Screen.Detail -> if (highlightDate != null) "detail/$id?highlightDate=${Uri.encode(highlightDate)}" else "detail/$id"
     is Screen.AuthorBooks -> "author/${Uri.encode(author)}"
@@ -2054,7 +2052,7 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         if (uri.scheme != "lecturameter" || uri.host != "recap") return null
         return when (uri.pathSegments.firstOrNull()) {
             "weekly" -> Screen.WeeklyRecap
-            "monthly" -> Screen.MonthlyRecap
+            "monthly" -> Screen.WeeklyRecap
             "wrapped" -> Screen.Wrapped(
                 uri.lastPathSegment?.toIntOrNull()
                     ?: wrappedWindowYear().takeIf { it != -1 }
@@ -2528,9 +2526,8 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
                             )
                     }
                 }
-                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }, onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) }, onMonthlyRecap = { navigateTo(Screen.MonthlyRecap) }) } }
+                composable("stats") { WideScreenCenter { StatsScreen(vm, prefs, theme, onBack = { goBack() }, onWrapped = { y -> navigateTo(Screen.Wrapped(y)) }, onWrappedHistory = { navigateTo(Screen.WrappedHistory) }, onDetail = { navigateTo(Screen.Detail(it)) }, onDetailWithDate = { bookId, date -> navigateTo(Screen.Detail(bookId, date)) }, onDailySessions = { date -> navigateTo(Screen.DailySessions(date)) }, onWeeklyRecap = { navigateTo(Screen.WeeklyRecap) }) } }
                 composable("weekly_recap") { WideScreenCenter { WeeklyRecapScreen(vm, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
-                composable("monthly_recap") { WideScreenCenter { MonthlyRecapScreen(vm, prefs, theme, onBack = { goBack() }, onDetail = { navigateTo(Screen.Detail(it)) }) } }
                 composable("import_export") { WideScreenCenter { ImportExportScreen(vm, prefs, theme, onBack = { goBack() }) } }
                 composable("wrapped_history") { WideScreenCenter { WrappedHistoryScreen(vm, theme, onBack = { goBack() }, onOpen = { y -> navigateTo(Screen.Wrapped(y)) }) } }
                 composable("settings") { WideScreenCenter { SettingsScreen(vm, prefs, theme, onBack = { goBack() }, onBulkReload = { type -> navigateTo(Screen.BulkReload(type)) }, onResetTutorial = { navigateTo(Screen.List) }, onImportExport = { navigateTo(Screen.ImportExport) }, onPrivacyPolicy = { navigateTo(Screen.PrivacyPolicy) }, onStatsWidgetConfig = { navigateTo(Screen.StatsWidgetConfig) }) } }

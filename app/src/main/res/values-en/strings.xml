@@ -1156,6 +1156,7 @@
     <string name="recap_challenges_bingo">Challenges advanced · bingo cells</string>
     <string name="recap_book_of_week">Book of the week · %1$d pages</string>
     <string name="recap_share_text">My weekly recap in Lecturameter</string>
+    <string name="recap_top_genre">Genre of the week</string>
     <!-- Fase 6.4: Monthly recap M-1 -->
     <string name="recapm_card_line">📆 Your %1$s at a glance</string>
     <string name="recapm_title">📆 Your %1$s</string>

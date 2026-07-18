@@ -286,7 +286,7 @@ private fun RecapMini(value: String, label: String, valueColor: Color?, theme: T
             verticalArrangement = Arrangement.Center
         ) {
             if (icon != null) {
-                Icon(icon, null, tint = theme.textMuted, modifier = Modifier.size(13.dp))
+                Icon(icon, null, tint = accentForTheme(theme), modifier = Modifier.size(13.dp))
                 Spacer(Modifier.height(2.dp))
             }
             AutoSizeText(value, color = valueColor ?: theme.textMain, maxFontSize = 16.sp, minFontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -294,11 +294,6 @@ private fun RecapMini(value: String, label: String, valueColor: Color?, theme: T
         }
     }
 }
-
-// ── Fase 6.4: Recap mensual — mes CERRADO, mockup M-1 aprobado 14-07 ──────────
-// Ajustes de Víctor: sin emoji de medalla en "mejor semana"; la banda del Bingo
-// usa el icono Material (GridView, el del rail); el libro del mes lleva PORTADA
-// real y navega a su detalle.
 
 // Nombre del mes en el idioma de la app, tal como lo da el locale (en ES minúscula:
 // "julio" — los meses en español no se capitalizan a mitad de frase). Donde el mes
@@ -322,100 +317,6 @@ private fun RecapBand(theme: Theme, icon: @Composable () -> Unit, title: String,
                 Text(sub, color = theme.textMuted, fontSize = 11.5.sp)
             }
             trailing?.invoke()
-        }
-    }
-}
-
-@Composable
-fun MonthlyRecapScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit, onDetail: (Long) -> Unit) {
-    val books by vm.books.collectAsState()
-    val sessions by vm.sessions.collectAsState()
-    val recap = remember(books, sessions) {
-        com.lecturameter.utils.computeMonthlyRecap(books, sessions, today())
-    }
-    val bingoMonth = remember(recap?.monthKey) {
-        recap?.let { r ->
-            com.lecturameter.utils.BingoManager.loadMonthSummaries(prefs).filter { it.monthKey == r.monthKey }
-        } ?: emptyList()
-    }
-
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 32.dp, bottom = 16.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
-            Spacer(Modifier.width(8.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.recapm_title, recap?.monthKey?.let { fmtMonthName(it) } ?: ""),
-                    color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold
-                )
-                if (recap != null) {
-                    Text("${fmtDayMonth(recap.startIso)} – ${fmtDayMonth(recap.endIso)}", color = theme.textMuted, fontSize = 13.sp)
-                }
-            }
-        }
-
-        if (recap == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📆", fontSize = 48.sp) }
-        } else {
-            val minis = buildList<RecapMiniData> {
-                add(RecapMiniData(recap.finishedCount.toString(), stringResource(R.string.recapm_finished)))
-                add(RecapMiniData(recap.startedCount.toString(), stringResource(R.string.recapm_started)))
-                add(RecapMiniData(recap.droppedCount.toString(), stringResource(R.string.recapm_dropped)))
-                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages)))
-                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time))) }
-                recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed))) }
-                recap.deltaPages?.let { d ->
-                    val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
-                    add(RecapMiniData(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
-                }
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState())
-            ) {
-                minis.chunked(3).forEach { rowItems ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                        rowItems.forEach { item -> RecapMini(item.value, item.label, item.color, theme, Modifier.weight(1f), item.icon) }
-                        repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-                // Mejor semana (sin emoji — ajuste de Víctor); solo con ≥2 semanas con sesiones
-                recap.bestWeekStartIso?.let { ws ->
-                    RecapBand(
-                        theme,
-                        icon = { Icon(Icons.Default.DateRange, null, tint = accentForTheme(theme), modifier = Modifier.size(22.dp)) },
-                        title = stringResource(R.string.recapm_best_week_title, fmtDayMonth(ws), fmtDayMonth(com.lecturameter.utils.isoPlusDays(ws, 6))),
-                        sub = stringResource(R.string.recapm_best_week_sub, recap.bestWeekPages)
-                    )
-                }
-                // Bingo del mes — icono Material GridView (ajuste de Víctor)
-                if (bingoMonth.isNotEmpty()) {
-                    val cells = bingoMonth.sumOf { it.cellsDone }
-                    val lines = bingoMonth.sumOf { it.lines }
-                    val completed = bingoMonth.any { it.complete }
-                    RecapBand(
-                        theme,
-                        icon = { Icon(Icons.Default.GridView, null, tint = accentForTheme(theme), modifier = Modifier.size(22.dp)) },
-                        title = stringResource(R.string.recapm_bingo_title, fmtMonthName(recap.monthKey)),
-                        sub = stringResource(R.string.recapm_bingo_sub, cells, lines) +
-                              if (completed) stringResource(R.string.recapm_bingo_completed_suffix) else ""
-                    )
-                }
-                // Libro del mes — PORTADA real, clicable al detalle (ajuste de Víctor)
-                recap.bookOfMonthId?.let { id ->
-                    books.find { it.id == id }?.let { b ->
-                        RecapBand(
-                            theme,
-                            icon = { BookCover(b.coverUrl, b.title, size = 40, isbnFallback = b.isbn) },
-                            title = b.title,
-                            sub = stringResource(R.string.recapm_book, recap.bookOfMonthPages),
-                            onClick = { onDetail(b.id) },
-                            trailing = { Icon(Icons.Default.ChevronRight, null, tint = theme.textMuted) }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(24.dp))
-            }
         }
     }
 }
@@ -491,20 +392,21 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📅", fontSize = 48.sp) }
         } else {
             val minis = buildList<RecapMiniData> {
-                add(RecapMiniData(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions)))
-                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages)))
-                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time))) }
-                recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed))) }
-                recap.topSlotStartHour?.let { add(RecapMiniData(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot))) }
+                add(RecapMiniData(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions), acc))
+                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages), acc))
+                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time), acc)) }
+                recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), Green)) }
+                recap.topSlotStartHour?.let { add(RecapMiniData(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot), acc)) }
                 recap.deltaPages?.let { d ->
                     val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
                     add(RecapMiniData(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
                 }
                 if (streak > 0) add(RecapMiniData(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Amber))
-                recap.bestDayIso?.let { add(RecapMiniData(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages))) }
-                recap.longestSessionMinutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_longest))) }
+                recap.bestDayIso?.let { add(RecapMiniData(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), acc)) }
+                recap.longestSessionMinutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_longest), acc)) }
                 add(RecapMiniData(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null, Icons.Default.AutoStories))
                 add(RecapMiniData(stringResource(R.string.recap_challenges_bingo_value, recap.challengesAdvanced, recap.bingoCellsCompleted), stringResource(R.string.recap_challenges_bingo), null, Icons.Default.EmojiEvents))
+                recap.topGenre?.let { add(RecapMiniData(displayGenre(it), stringResource(R.string.recap_top_genre), acc, Icons.Default.Category)) }
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),

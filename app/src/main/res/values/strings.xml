@@ -1162,6 +1162,7 @@
     <string name="recap_challenges_bingo">Retos avanzados · casillas bingo</string>
     <string name="recap_book_of_week">Libro de la semana · %1$d páginas</string>
     <string name="recap_share_text">Mi resumen semanal en Lecturameter</string>
+    <string name="recap_top_genre">Género de la semana</string>
     <!-- Fase 6.4: Recap mensual M-1 -->
     <string name="recapm_card_line">📆 Tu %1$s, en un vistazo</string>
     <string name="recapm_title">📆 Tu %1$s</string>
