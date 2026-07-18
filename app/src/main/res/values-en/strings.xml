@@ -921,7 +921,7 @@
     <string name="pro_icon_label">App icon</string>
     <string name="pro_icon_classic">Classic</string>
     <string name="pro_icon_gold">Golden</string>
-    <string name="pro_icon_applied">Icon changed. The launcher may take a few seconds to refresh and some phones ask to place the shortcut again.</string>
+    <string name="pro_icon_applied">Icon changed. May take a few seconds to refresh.</string>
     <string name="support_code_hint">If your donation reaches the price of Pro, write to me and I will send you a Pro code (one for each multiple).</string>
     <string name="pro_buy_button">Buy for %1$s</string>
     <string name="pro_buy_unavailable">Available on Google Play</string>

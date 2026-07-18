@@ -286,7 +286,7 @@ private fun RecapMini(value: String, label: String, valueColor: Color?, theme: T
             verticalArrangement = Arrangement.Center
         ) {
             if (icon != null) {
-                Icon(icon, null, tint = accentForTheme(theme), modifier = Modifier.size(13.dp))
+                Icon(icon, null, tint = valueColor ?: accentForTheme(theme), modifier = Modifier.size(13.dp))
                 Spacer(Modifier.height(2.dp))
             }
             AutoSizeText(value, color = valueColor ?: theme.textMain, maxFontSize = 16.sp, minFontSize = 10.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

@@ -922,7 +922,7 @@
     <string name="pro_icon_label">Icono de la app</string>
     <string name="pro_icon_classic">Clásico</string>
     <string name="pro_icon_gold">Dorado</string>
-    <string name="pro_icon_applied">Icono cambiado. El launcher puede tardar unos segundos en refrescar y algunos móviles piden recolocar el acceso directo.</string>
+    <string name="pro_icon_applied">Icono cambiado. Puede tardar unos segundos en refrescar.</string>
     <string name="support_code_hint">Si tu donación llega al precio de Pro, escríbeme y te doy un código de Pro (uno por cada múltiplo).</string>
     <string name="pro_buy_button">Comprar por %1$s</string>
     <string name="pro_buy_unavailable">Disponible en Google Play</string>
