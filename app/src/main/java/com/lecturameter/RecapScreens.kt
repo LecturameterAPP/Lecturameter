@@ -392,21 +392,21 @@ fun WeeklyRecapScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, onDe
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("📅", fontSize = 48.sp) }
         } else {
             val minis = buildList<RecapMiniData> {
-                add(RecapMiniData(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions), acc))
-                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages), acc))
-                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time), acc)) }
+                add(RecapMiniData(recap.sessionsCount.toString(), stringResource(R.string.recap_sessions), Sky))
+                add(RecapMiniData(recap.pages.toString(), stringResource(R.string.recap_pages), Green))
+                recap.minutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_time), Amber)) }
                 recap.pagesPerMin?.let { add(RecapMiniData(String.format(appDisplayLocale, "%.1f", it), stringResource(R.string.recap_speed), Green)) }
-                recap.topSlotStartHour?.let { add(RecapMiniData(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot), acc)) }
+                recap.topSlotStartHour?.let { add(RecapMiniData(stringResource(R.string.recap_slot_value, it, it + 3), stringResource(R.string.recap_slot), Color(0xFFEC4899))) }
                 recap.deltaPages?.let { d ->
                     val txt = when { d > 0 -> "▲ +$d"; d < 0 -> "▼ $d"; else -> "＝ 0" }
                     add(RecapMiniData(txt, stringResource(R.string.recap_delta), when { d > 0 -> Green; d < 0 -> Red; else -> null }))
                 }
-                if (streak > 0) add(RecapMiniData(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Amber))
-                recap.bestDayIso?.let { add(RecapMiniData(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), acc)) }
-                recap.longestSessionMinutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_longest), acc)) }
+                if (streak > 0) add(RecapMiniData(androidx.compose.ui.res.pluralStringResource(R.plurals.recap_streak_value, streak, streak), stringResource(R.string.recap_streak), Color(0xFFEF4444)))
+                recap.bestDayIso?.let { add(RecapMiniData(fmtWeekdayName(it), stringResource(R.string.recap_best_day, recap.bestDayPages), Accent)) }
+                recap.longestSessionMinutes?.let { add(RecapMiniData(fmtMinutes(it), stringResource(R.string.recap_longest), Amber)) }
                 add(RecapMiniData(stringResource(R.string.recap_finished_started_value, recap.finishedCount, recap.startedCount), stringResource(R.string.recap_finished_started), null, Icons.Default.AutoStories))
                 add(RecapMiniData(stringResource(R.string.recap_challenges_bingo_value, recap.challengesAdvanced, recap.bingoCellsCompleted), stringResource(R.string.recap_challenges_bingo), null, Icons.Default.EmojiEvents))
-                recap.topGenre?.let { add(RecapMiniData(displayGenre(it), stringResource(R.string.recap_top_genre), acc, Icons.Default.Category)) }
+                recap.topGenre?.let { add(RecapMiniData(displayGenre(it), stringResource(R.string.recap_top_genre), Color(0xFF06B6D4), Icons.Default.Category)) }
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
