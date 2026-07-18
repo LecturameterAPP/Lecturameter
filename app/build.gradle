@@ -11,9 +11,9 @@ android {
         applicationId "com.lecturameter.public"
         minSdk 26
         targetSdk 35
-        // 10032: candidato de LANZAMIENTO (Pro completo + privacidad + B-029/034 + wrapped)
-        versionCode 10032
-        versionName "3.0"
+        // 10033: v3.1 — noche 7: género semana, iconos recap, widget oscuro, toast, fixes
+        versionCode 10033
+        versionName "3.1"
         multiDexEnabled true
 
         // Fase 7: API key de Google Books desde local.properties (GOOGLE_BOOKS_API_KEY).

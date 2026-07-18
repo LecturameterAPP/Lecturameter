@@ -71,7 +71,7 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
         !it.importedFromGoodreads
     }
 
-    val wrappedYear  = wrappedWindowYear()
+    val wrappedYear  = remember { wrappedWindowYear() }
     val inWindow     = wrappedYear != -1
 
     // Filter state

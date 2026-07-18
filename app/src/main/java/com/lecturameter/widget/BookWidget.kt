@@ -113,14 +113,7 @@ internal fun resolveWidgetTheme(context: Context): WidgetThemeColors {
     val mode = com.lecturameter.ThemeMode.values().firstOrNull { it.value == saved }
     val effective = if (mode != null && !com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) "dark" else saved
     return when (effective) {
-        // Claro r2 "Papel" (18-07): textos en marrón tinta y acento verde botánico, a juego
-        // con el rediseño del tema (antes: textos azul pizarra y overlays índigo)
-        // Claro r2 "Papel" (18-07): textos en marrón tinta y acento verde, a juego con el
-        // rediseño del tema (antes: textos azul pizarra y overlays índigo).
-        // QA en dispositivo 18-07: el acento se había quedado en el #166534 botánico ORIGINAL.
-        // Víctor lo ajustó a salvia #41755A el mismo día ("el verde lo haría un poco más
-        // pastel") pero el cambio no llegó aquí: el widget tiene su propia paleta en enteros
-        // y no puede importar AccentLight, así que se queda atrás sin que nada lo avise.
+        // Claro r2 "Papel" (18-07): textos marrón tinta (#22201B/#5A5648), acento salvia #41755A.
         "light"  -> WidgetThemeColors(
             R.drawable.widget_background_light, 0xFF22201B.toInt(), 0xFF5A5648.toInt(),
             R.drawable.widget_accent_bg_chip_light, R.drawable.widget_accent_bg_cover_light, 0xFF41755A.toInt(),
