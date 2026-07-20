@@ -1,12 +1,9 @@
 package com.lecturameter
 
-// F8: tests de RecapUtils (predictor + recap semanal + recap mensual).
+// F8: tests de RecapUtils (predictor + recap semanal).
 // Pendiente desde Fase 5 ("Tests de RecapUtils → Fase 8").
 
-import com.lecturameter.model.Book
-import com.lecturameter.model.BookStatus
 import com.lecturameter.model.ReadingSession
-import com.lecturameter.utils.computeMonthlyRecap
 import com.lecturameter.utils.computeWeeklyRecap
 import com.lecturameter.utils.predictFinish
 import org.junit.Assert.assertEquals
@@ -18,11 +15,6 @@ class RecapUtilsTest {
 
     private fun session(date: String, pages: Int, minutes: Int? = null, bookId: Long = 1L, id: Long = System.nanoTime()) =
         ReadingSession(id = id, bookId = bookId, date = date, pages = pages, minutes = minutes)
-
-    private fun book(
-        id: Long = 1L, status: BookStatus = BookStatus.READING,
-        start: String? = "2026-07-01", end: String? = null
-    ) = Book(id = id, title = "T", author = "A", pages = 300, startDate = start, endDate = end, status = status)
 
     // ── predictFinish ─────────────────────────────────────────────────────────
 
@@ -123,36 +115,5 @@ class RecapUtilsTest {
         val r = computeWeeklyRecap(emptyList(), sessions, null, emptyList(), "2026-07-15")
         assertEquals(2L, r!!.bookOfWeekId)
         assertEquals(50, r.bookOfWeekPages)
-    }
-
-    // ── computeMonthlyRecap ───────────────────────────────────────────────────
-
-    @Test fun recap_mensual_es_del_mes_cerrado() {
-        val sessions = listOf(
-            session("2026-06-10", 100, 60),
-            session("2026-06-20", 50),
-            session("2026-07-01", 999)   // mes en curso: fuera
-        )
-        val r = computeMonthlyRecap(emptyList(), sessions, "2026-07-15")
-        assertNotNull(r)
-        assertEquals("2026-06", r!!.monthKey)
-        assertEquals(150, r.pages)
-        assertEquals(60, r.minutes)
-    }
-
-    @Test fun recap_mensual_null_si_junio_vacio() {
-        val sessions = listOf(session("2026-07-01", 10))
-        assertNull(computeMonthlyRecap(emptyList(), sessions, "2026-07-15"))
-    }
-
-    @Test fun recap_mensual_libros_terminados_y_empezados() {
-        val books = listOf(
-            book(id = 1L, status = BookStatus.FINISHED, start = "2026-05-01", end = "2026-06-15"),
-            book(id = 2L, status = BookStatus.READING, start = "2026-06-20")
-        )
-        val sessions = listOf(session("2026-06-10", 10))
-        val r = computeMonthlyRecap(books, sessions, "2026-07-15")
-        assertEquals(1, r!!.finishedCount)
-        assertEquals(1, r.startedCount)
     }
 }

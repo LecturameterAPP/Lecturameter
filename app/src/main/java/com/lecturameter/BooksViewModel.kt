@@ -162,21 +162,17 @@ class BooksViewModel : ViewModel() {
     }
     var currentLanguage by mutableStateOf("es")
         private set
-    var languageChosen by mutableStateOf(false)
-        private set
     fun setLanguage(lang: String, prefs: android.content.SharedPreferences) {
         currentLanguage = lang
         prefs.edit().putString("app_language", lang).commit()
         // Feedback 11-07: las fechas visibles (fmtDate) siguen el idioma de la app
         com.lecturameter.utils.appDisplayLocale = java.util.Locale(lang.take(2))
     }
-    fun setLanguageChosen(prefs: android.content.SharedPreferences) {
-        languageChosen = true
-        prefs.edit().putBoolean("language_chosen", true).apply()
-    }
+    // 20-07: ya no hay pantalla de elección de idioma en el primer arranque; el idioma sale
+    // de la pref si el usuario la fijó en Ajustes y, si no, del sistema (es/en). La pref
+    // language_chosen quedó obsoleta y ya no se lee.
     fun loadLanguageStatus(prefs: android.content.SharedPreferences) {
-        currentLanguage = prefs.getString("app_language", "es") ?: "es"
-        languageChosen  = prefs.getBoolean("language_chosen", false)
+        currentLanguage = com.lecturameter.utils.LanguageHelper.resolveLanguage(prefs)
         com.lecturameter.utils.appDisplayLocale = java.util.Locale(currentLanguage.take(2))
     }
     // Persisted list state
@@ -414,7 +410,7 @@ class BooksViewModel : ViewModel() {
             ?.let { it.cells.size != cur.cells.size } ?: true
         if (!force && cur != null && cur.monthKey == month && !stale) return
         // Fase 6.3/6.4: al retirar un cartón con progreso se guarda su resumen mensual
-        // (lo consumen la tarjeta anual del Wrapped, el recap mensual y el historial)
+        // (lo consumen la tarjeta anual del Wrapped y el historial)
         if (cur != null) {
             com.lecturameter.utils.BingoManager.appendMonthSummary(prefs, cur)
             loadBingoHistory(prefs)

@@ -108,7 +108,14 @@ class StatsWidgetReceiver : GlanceAppWidgetReceiver() {
 private fun ProGateContent(theme: WidgetThemeColors, ctx: Context) {
     val textMain = ColorProvider(Color(theme.textMain))
     val textMuted = ColorProvider(Color(theme.textMuted))
-    val openIntent = Intent(ctx, MainActivity::class.java).apply {
+    // Deep link directo a la hoja de venta Pro (lecturameter://pro), no a la Home.
+    // Lo maneja MainActivity vía ProSheetTrigger sobre la pantalla de Ajustes.
+    val openIntent = Intent(
+        Intent.ACTION_VIEW,
+        android.net.Uri.parse("lecturameter://pro"),
+        ctx,
+        MainActivity::class.java
+    ).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
@@ -186,35 +193,41 @@ private fun StatsWidgetContent(
 
         ThemedHSep(theme, hSepHeight)
 
+        // Todas las celdas miran solo al mes en curso: el titulo promete "mes actual vs
+        // mes anterior", asi que las globales no pintaban nada aqui. Cada celda numerica
+        // lleva delante su marca + / - / = frente al mes pasado, del color del propio
+        // stat para que la celda entera lea como una unidad.
         // Row 1: Books, Pages, Time, Active Days. Weighted: the stat rows absorb all
         // the free height so the widget never shows dead space below the delta bars.
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-            StatCell(stats.totalBooks.toString(), ctx.getString(R.string.sw_label_books), R.drawable.widget_ic_book, StatBooks, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthBooks, stats.lastMonthBooks) { it.toString() }, ctx.getString(R.string.sw_label_books), R.drawable.widget_ic_book, StatBooks, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthBooks, stats.lastMonthBooks))
             VerticalSep(theme)
-            StatCell(formatCompact(stats.totalPages), ctx.getString(R.string.sw_label_pages), R.drawable.widget_ic_pages, StatPages, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthPages, stats.lastMonthPages) { formatCompact(it) }, ctx.getString(R.string.sw_label_pages), R.drawable.widget_ic_pages, StatPages, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthPages, stats.lastMonthPages))
             VerticalSep(theme)
-            StatCell(if (stats.totalMinutes > 0) formatMinutes(stats.totalMinutes) else "-", ctx.getString(R.string.sw_label_time), R.drawable.widget_ic_timer, StatTime, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthMinutes, stats.lastMonthMinutes) { formatMinutesCompact(it) }, ctx.getString(R.string.sw_label_time), R.drawable.widget_ic_timer, StatTime, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthMinutes, stats.lastMonthMinutes))
             VerticalSep(theme)
-            StatCell(stats.activeDays.toString(), ctx.getString(R.string.sw_label_active_days), R.drawable.widget_ic_calendar, StatDays, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthActiveDays, stats.lastMonthActiveDays) { it.toString() }, ctx.getString(R.string.sw_label_active_days), R.drawable.widget_ic_calendar, StatDays, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthActiveDays, stats.lastMonthActiveDays))
         }
 
         // Themed horizontal separator (with diamonds in Cuero)
         ThemedHSep(theme, hSepHeight)
 
-        // Row 2: Streak, Best, Peak Hour, Fav Genre
+        // Row 2: Streak, Sessions, Peak Hour, Fav Genre.
+        // Sesiones sustituye al viejo "Mejor" (racha historica): era la unica celda que
+        // no encajaba en una comparativa mensual. Hora pico y genero no llevan marca
+        // porque son categoricos, no van "mejor" ni "peor".
         Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
-            StatCell(if (stats.currentStreak > 0) stats.currentStreak.toString() else "-", ctx.getString(R.string.sw_label_streak), R.drawable.widget_ic_fire, StatStreak, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthStreak, stats.lastMonthStreak) { it.toString() }, ctx.getString(R.string.sw_label_streak), R.drawable.widget_ic_fire, StatStreak, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthStreak, stats.lastMonthStreak))
             VerticalSep(theme)
-            StatCell(if (stats.bestStreak > 0) stats.bestStreak.toString() else "-", ctx.getString(R.string.sw_label_best), R.drawable.widget_ic_trophy, StatBest, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(monthValue(stats.thisMonthSessionCount, stats.lastMonthSessionCount) { it.toString() }, ctx.getString(R.string.sw_label_sessions_short), R.drawable.widget_ic_sessions, StatBest, textMuted, cellBg, GlanceModifier.defaultWeight(), deltaMark(stats.thisMonthSessionCount, stats.lastMonthSessionCount))
             VerticalSep(theme)
-            StatCell(formatPeakHourSlot(stats.peakHourSlot), ctx.getString(R.string.sw_label_peak_hour), R.drawable.widget_ic_timer, StatPeak, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(formatPeakHourSlot(stats.monthPeakHourSlot), ctx.getString(R.string.sw_label_peak_hour), R.drawable.widget_ic_timer, StatPeak, textMuted, cellBg, GlanceModifier.defaultWeight(), null)
             VerticalSep(theme)
-            StatCell(stats.favoriteGenre?.take(8) ?: "-", ctx.getString(R.string.sw_label_fav_genre), R.drawable.widget_ic_genre, StatGenre, textMuted, cellBg, GlanceModifier.defaultWeight())
+            StatCell(stats.monthFavoriteGenre?.take(8) ?: "-", ctx.getString(R.string.sw_label_fav_genre), R.drawable.widget_ic_genre, StatGenre, textMuted, cellBg, GlanceModifier.defaultWeight(), null)
         }
 
         // Delta bars wrapped in a single Column to stay under Glance's 10-child limit.
-        // Padding superior de 4.dp: sin la frase footer las barras quedaban pegadas
-        // al separador de las celdas.
+        // Padding superior de 4.dp para separar las barras del separador de las celdas.
         if (barsVisible > 0) {
             ThemedHSep(theme, hSepHeight)
             Column(modifier = GlanceModifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -233,6 +246,20 @@ private fun StatsWidgetContent(
                     DeltaBar(ctx.getString(R.string.sw_label_sessions_short), stats.thisMonthSessionCount, stats.lastMonthSessionCount, trackColor, textMuted, barMaxWidth)
                 }
             }
+        }
+
+        // Frase rotativa "leído" (P-034): equivalencias de lectura, cambia cada día.
+        // Motor determinista por día del año en StatsWidgetPhrases (43 frases ES/EN).
+        // Solo si hay datos: evita frases tipo "0 ejemplares" a un Pro recién estrenado.
+        val phrase = if (stats.totalPages > 0 || stats.totalBooks > 0)
+            StatsWidgetPhrases.selectPhrase(ctx, stats) else ""
+        if (phrase.isNotEmpty()) {
+            Text(
+                text = phrase,
+                style = TextStyle(fontSize = 9.sp, color = textMuted, textAlign = TextAlign.Center),
+                maxLines = 2,
+                modifier = GlanceModifier.fillMaxWidth().padding(top = 3.dp, start = 4.dp, end = 4.dp)
+            )
         }
     }
 }
@@ -286,6 +313,29 @@ private fun ThemedHSep(theme: WidgetThemeColors, height: Dp) {
     }
 }
 
+/**
+ * Marca de evolucion de una celda frente al mes anterior.
+ * null = no se pinta marca: o no hay datos en ninguno de los dos meses, o el mes en
+ * curso esta a cero (un "-0" se lee fatal, mejor un 0 pelado).
+ * 1 = mejor, -1 = peor, 0 = igual.
+ */
+private fun deltaMark(thisMonth: Int, lastMonth: Int): Int? = when {
+    thisMonth == 0 -> null
+    thisMonth > lastMonth -> 1
+    thisMonth < lastMonth -> -1
+    else -> 0
+}
+
+/**
+ * Valor de la celda: si no hay nada ni este mes ni el pasado no hay comparativa que
+ * contar, asi que la celda se queda en un "-" pelado y sin marca (deltaMark da null).
+ */
+private inline fun monthValue(thisMonth: Int, lastMonth: Int, format: (Int) -> String): String = when {
+    thisMonth == 0 && lastMonth == 0 -> "-"
+    thisMonth == 0 -> "0"   // sin "0m" ni "0h": un cero pelado se lee mejor
+    else -> format(thisMonth)
+}
+
 @Composable
 private fun StatCell(
     value: String,
@@ -294,18 +344,31 @@ private fun StatCell(
     valueColor: Color,
     labelColor: ColorProvider,
     cellBg: ColorProvider,
-    modifier: GlanceModifier
+    modifier: GlanceModifier,
+    delta: Int?
 ) {
     Column(
         modifier = modifier.fillMaxHeight().background(cellBg).padding(horizontal = 1.dp),
         horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
         verticalAlignment = Alignment.Vertical.CenterVertically
     ) {
-        Text(
-            text = value,
-            style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = ColorProvider(valueColor)),
-            maxLines = 1
-        )
+        // Feedback 20-07: la marca va DELANTE del numero, del mismo tamano y del mismo
+        // color que el stat. La celda entera queda de un color y el signo se lee de
+        // un vistazo; el verde/rojo se queda solo en las barras de abajo.
+        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+            if (delta != null) {
+                Text(
+                    text = if (delta > 0) "+" else if (delta < 0) "-" else "=",
+                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ColorProvider(valueColor)),
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = value,
+                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold, color = ColorProvider(valueColor)),
+                maxLines = 1
+            )
+        }
         // P-038: icono Material tintado con el color del stat, delante de la etiqueta
         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
             Image(
@@ -392,6 +455,16 @@ private fun formatPeakHourSlot(slot: Int?): String {
     val start = slot * 3
     val end = (start + 3) % 24
     return "${start.toString().padStart(2, '0')}-${end.toString().padStart(2, '0')}h"
+}
+
+/**
+ * Como formatMinutes pero sin la "m" final cuando hay horas ("5h15" en vez de "5h15m"):
+ * la celda tiene que dejar sitio a la marca +/- sin que se corte el valor.
+ */
+private fun formatMinutesCompact(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (h == 0) "${m}m" else if (m == 0) "${h}h" else "${h}h$m"
 }
 
 private fun formatCompact(n: Int): String = when {

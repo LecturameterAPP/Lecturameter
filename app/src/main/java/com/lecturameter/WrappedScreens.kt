@@ -177,21 +177,9 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
                 }
             }
             if (wrapped != null) {
-                // v2.6: guardar simulación en historial (solo si este año aún no está guardado)
-                // Feedback 15-07 ("el guardado sobra"): en la slide 8 (CIERRE, el resumen final
-                // de páginas/libros/racha/récord/autor/sin terminar) el icono de guardar sobra
-                // — es el único candidato de guardado/compartir de esa slide y ahí se oculta;
-                // en el resto de slides se conserva tal cual.
-                if (vm.wrappedForYear(year) == null && pagerState.currentPage != 8) {
-                    IconButton(onClick = {
-                        vm.saveWrappedForYear(wrapped, prefs)
-                        android.widget.Toast.makeText(context,
-                            context.getString(R.string.wrapped_sim_saved, year),
-                            android.widget.Toast.LENGTH_SHORT).show()
-                    }) {
-                        Icon(Icons.Default.BookmarkAdd, contentDescription = stringResource(R.string.wrapped_sim_save), tint = Amber)
-                    }
-                }
+                // Feedback 20-07: fuera el botón de guardar. El wrapped se guarda solo al
+                // cerrarse la ventana oficial, así que pedirle al usuario que lo archive a
+                // mano sobraba y confundía.
                 // v2.4 rework: el slide de favoritos no tiene tarjeta share (renderer 0-6)
                 IconButton(onClick = { shareScreenshot() }, enabled = !sharing) {
                     Icon(if (sharing) Icons.Default.Refresh else Icons.Default.Share, null,

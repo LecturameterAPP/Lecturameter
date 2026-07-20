@@ -233,7 +233,7 @@ class BookWidgetReceiver : androidx.glance.appwidget.GlanceAppWidgetReceiver() {
 internal fun appLocalizedContext(context: Context): Context {
     return try {
         val prefs = context.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
-        val lang = prefs.getString("app_language", "es") ?: "es"
+        val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(prefs)
         val locale = java.util.Locale(lang)
         val config = android.content.res.Configuration(context.resources.configuration)
         config.setLocale(locale)

@@ -29,7 +29,12 @@ data class GlobalStats(
     val thisMonthStreak: Int,
     val lastMonthStreak: Int,
     val thisMonthSessionCount: Int,
-    val lastMonthSessionCount: Int
+    val lastMonthSessionCount: Int,
+    val thisMonthActiveDays: Int,
+    val lastMonthActiveDays: Int,
+    // Categoricos del mes en curso: no admiten delta, solo reemplazan al global
+    val monthPeakHourSlot: Int?,
+    val monthFavoriteGenre: String?
 )
 
 object StatsWidgetDataProvider {
@@ -103,6 +108,11 @@ object StatsWidgetDataProvider {
         val thisMonthStreak = computeBestStreakInSet(thisMonthDates)
         val lastMonthStreak = computeBestStreakInSet(lastMonthDates)
 
+        // Hora pico y genero favorito del mes en curso: el widget compara meses,
+        // asi que estas dos celdas tambien tienen que mirar solo al mes actual.
+        val monthPeakHourSlot = computePeakHourSlot(thisMonthSessions)
+        val monthFavoriteGenre = computeFavoriteGenre(books, thisMonthSessions)
+
         return GlobalStats(
             totalBooks = totalBooks,
             totalPages = totalPages,
@@ -121,7 +131,11 @@ object StatsWidgetDataProvider {
             thisMonthStreak = thisMonthStreak,
             lastMonthStreak = lastMonthStreak,
             thisMonthSessionCount = thisMonthSessions.size,
-            lastMonthSessionCount = lastMonthSessions.size
+            lastMonthSessionCount = lastMonthSessions.size,
+            thisMonthActiveDays = thisMonthDates.size,
+            lastMonthActiveDays = lastMonthDates.size,
+            monthPeakHourSlot = monthPeakHourSlot,
+            monthFavoriteGenre = monthFavoriteGenre
         )
     }
 
@@ -187,6 +201,20 @@ object StatsWidgetDataProvider {
             }
         }
         return best
+    }
+
+    /** Genero mas leido en un conjunto de sesiones, ponderado por paginas. */
+    private fun computeFavoriteGenre(books: List<Book>, sessions: List<ReadingSession>): String? {
+        if (sessions.isEmpty()) return null
+        val genresByBook = books.associate { it.id to it.genres.filter { g -> g.isNotBlank() } }
+        val pagesByGenre = HashMap<String, Int>()
+        for (s in sessions) {
+            val genres = genresByBook[s.bookId] ?: continue
+            for (g in genres) {
+                pagesByGenre[g] = (pagesByGenre[g] ?: 0) + s.pages
+            }
+        }
+        return pagesByGenre.maxByOrNull { it.value }?.key
     }
 
     private fun computePeakHourSlot(sessions: List<ReadingSession>): Int? {

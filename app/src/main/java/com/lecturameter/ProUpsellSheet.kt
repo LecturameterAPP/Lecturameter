@@ -67,21 +67,25 @@ fun ProUpsellSheet(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isPro) {
+            if (showCodeEntry) {
+                CodeEntry(theme, prefs, acc, onBack = { showCodeEntry = false }, onRedeemed = { showCodeEntry = false; refresh++; onProChanged() })
+            } else if (isPro) {
                 Text(stringResource(R.string.pro_active_title), color = theme.textMain, fontSize = 19.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(6.dp))
-                val statusLine = when {
-                    Pro.trialActive(prefs) && !prefs.getBoolean(Pro.PREF_KEY, false) ->
-                        stringResource(R.string.pro_status_trial, Pro.trialDaysLeft(prefs))
-                    else -> stringResource(R.string.pro_active_body)
-                }
+                val isTrial = Pro.trialActive(prefs) && !prefs.getBoolean(Pro.PREF_KEY, false)
+                val statusLine = if (isTrial) stringResource(R.string.pro_status_trial, Pro.trialDaysLeft(prefs))
+                                 else stringResource(R.string.pro_active_body)
                 Text(statusLine, color = theme.textMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(20.dp))
                 OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, acc)) {
                     Text(stringResource(R.string.pro_close), color = acc)
                 }
-            } else if (showCodeEntry) {
-                CodeEntry(theme, prefs, acc, onBack = { showCodeEntry = false }, onRedeemed = { refresh++; onProChanged() })
+                if (isTrial) {
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = { showCodeEntry = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.pro_have_code), color = acc, fontSize = 13.sp)
+                    }
+                }
             } else {
                 Text(stringResource(R.string.pro_title), color = theme.textMain, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(4.dp))

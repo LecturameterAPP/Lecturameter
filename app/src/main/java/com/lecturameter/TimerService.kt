@@ -28,7 +28,7 @@ class TimerService : Service() {
     // v1.4: el Service corre con el locale del sistema; fuerza el idioma elegido en la app
     private fun lctx(): Context = try {
         val prefs = getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
-        val lang = prefs.getString("app_language", "es") ?: "es"
+        val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(prefs)
         val config = android.content.res.Configuration(resources.configuration)
         config.setLocale(java.util.Locale(lang))
         createConfigurationContext(config)
@@ -181,6 +181,7 @@ class TimerService : Service() {
             }
             val notif = NotificationCompat.Builder(this, SESSION_END_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
+                .setLargeIcon(launcherIconBitmap())
                 .setContentTitle(lctx().getString(R.string.notif_session_done))
                 .setContentText(lctx().getString(R.string.txt_390674e3))
                 .setContentIntent(openPI)
@@ -289,6 +290,7 @@ class TimerService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(launcherIconBitmap())
             .setContentTitle(if (cleanedTitle.isNotBlank()) cleanedTitle else "Lecturameter")
             .setContentText(statusText)
             .setStyle(
@@ -321,6 +323,12 @@ class TimerService : Service() {
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun launcherIconBitmap(): android.graphics.Bitmap {
+        val prefs = getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+        val iconRes = if (prefs.getString("app_icon", "classic") == "gold") R.mipmap.ic_launcher_pro else R.mipmap.ic_launcher
+        return android.graphics.BitmapFactory.decodeResource(resources, iconRes)
     }
 
     companion object {

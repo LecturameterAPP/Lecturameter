@@ -15,7 +15,6 @@ import com.lecturameter.repository.BingoRepository
 import com.lecturameter.repository.BookRepository
 import com.lecturameter.repository.ChallengeRepository
 import com.lecturameter.repository.SessionRepository
-import com.lecturameter.utils.computeMonthlyRecap
 import com.lecturameter.utils.computeWeeklyRecap
 import com.lecturameter.utils.isoPlusDays
 import com.lecturameter.utils.mondayOf
@@ -26,7 +25,6 @@ import java.util.Locale
 /**
  * Worker periódico diario que notifica los resúmenes cuando están disponibles:
  *  - Semanal: la última semana cerrada sin notificar (en domingo, la que termina hoy).
- *  - Mensual: los primeros días del mes, si el mes cerrado tiene sesiones (regla 6.4).
  *  - Wrapped anual: al abrirse la ventana (26-dic → 26-ene), si el año tiene sesiones.
  * Cada aviso se emite UNA vez por periodo (claves recap_notified_* en prefs).
  * La notificación abre la pantalla correspondiente vía lecturameter://recap/{tipo}.
@@ -36,11 +34,13 @@ class RecapNotificationWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(ctx, workerParams) {
 
-    // Los textos siguen el idioma elegido EN LA APP (pref app_language), no el del
-    // sistema — mismo patrón que TimerService/WidgetConfigActivity/BookWidget.
+    // Los textos siguen el idioma de la app: la pref app_language si el usuario la eligió
+    // en Ajustes y, si no, el idioma del sistema acotado a es/en (LanguageHelper).
+    // Mismo patrón que TimerService/WidgetConfigActivity/BookWidget.
     private val locCtx: Context by lazy {
-        val lang = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
-            .getString("app_language", "es") ?: "es"
+        val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(
+            ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+        )
         val config = android.content.res.Configuration(ctx.resources.configuration)
         config.setLocale(java.util.Locale(lang))
         ctx.createConfigurationContext(config)
@@ -63,35 +63,33 @@ class RecapNotificationWorker(
             // semana cerrada: en domingo es hoy (comportamiento de siempre) y de lunes a
             // sábado el domingo anterior. `recap_notified_week` sigue evitando repetirla, y
             // como solo se mira una semana atrás no pueden salir notificaciones rancias.
+            //
+            // Ventana horaria (20-07): en domingo, solo se notifica a partir de las 20:00
+            // hora local — evita despertar con el recap si el ciclo de 24h cae por la mañana.
+            // Si el domingo cae antes de esa hora no se pierde: el filtro SOLO aplica cuando
+            // es domingo, así que el siguiente ciclo (domingo más tarde, o ya lunes con el
+            // domingo anterior de ancla) notifica sin restricción y recupera la semana con,
+            // como mucho, un día de retraso. El dedupe por `recap_notified_week` es idéntico.
             run {
-                val weeklyAnchor = if (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) todayIso
+                val isSunday = cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+                val weeklyAnchor = if (isSunday) todayIso
                                    else isoPlusDays(mondayOf(todayIso), -1)
-                val recap = computeWeeklyRecap(
-                    books, sessions,
-                    BingoRepository.loadOrNull(prefs),
-                    ChallengeRepository.loadOrNull(prefs) ?: emptyList(),
-                    weeklyAnchor
-                )
-                if (recap != null && prefs.getString("recap_notified_week", null) != recap.weekStartIso) {
-                    notify(
-                        NOTIF_ID_WEEKLY, "weekly", "📅",
-                        locCtx.getString(R.string.recap_notif_weekly_title),
-                        locCtx.getString(R.string.recap_notif_weekly_body, recap.pages, recap.sessionsCount)
+                val withinWeeklyWindow = !isSunday || cal.get(Calendar.HOUR_OF_DAY) >= 20
+                if (withinWeeklyWindow) {
+                    val recap = computeWeeklyRecap(
+                        books, sessions,
+                        BingoRepository.loadOrNull(prefs),
+                        ChallengeRepository.loadOrNull(prefs) ?: emptyList(),
+                        weeklyAnchor
                     )
-                    prefs.edit().putString("recap_notified_week", recap.weekStartIso).apply()
-                }
-            }
-
-            // ── Mensual: primeros 7 días del mes, mes cerrado con sesiones ──
-            if (cal.get(Calendar.DAY_OF_MONTH) <= 7) {
-                val recap = computeMonthlyRecap(books, sessions, todayIso)
-                if (recap != null && prefs.getString("recap_notified_month", null) != recap.monthKey) {
-                    notify(
-                        NOTIF_ID_MONTHLY, "monthly", "📆",
-                        locCtx.getString(R.string.recap_notif_monthly_title),
-                        locCtx.getString(R.string.recap_notif_monthly_body, recap.pages)
-                    )
-                    prefs.edit().putString("recap_notified_month", recap.monthKey).apply()
+                    if (recap != null && prefs.getString("recap_notified_week", null) != recap.weekStartIso) {
+                        notify(
+                            NOTIF_ID_WEEKLY, "weekly", "📅",
+                            locCtx.getString(R.string.recap_notif_weekly_title),
+                            locCtx.getString(R.string.recap_notif_weekly_body, recap.pages, recap.sessionsCount)
+                        )
+                        prefs.edit().putString("recap_notified_week", recap.weekStartIso).apply()
+                    }
                 }
             }
 
@@ -144,9 +142,13 @@ class RecapNotificationWorker(
             ctx, id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val goldActive = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+            .getString("app_icon", "classic") == "gold"
+        val launcherIconRes = if (goldActive) R.mipmap.ic_launcher_pro else R.mipmap.ic_launcher
+        val launcherBmp = android.graphics.BitmapFactory.decodeResource(ctx.resources, launcherIconRes)
         val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setLargeIcon(emojiLargeIcon(emoji))
+            .setLargeIcon(launcherBmp)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -164,7 +166,6 @@ class RecapNotificationWorker(
     companion object {
         const val CHANNEL_ID = "recaps"
         const val NOTIF_ID_WEEKLY = 201
-        const val NOTIF_ID_MONTHLY = 202
         const val NOTIF_ID_WRAPPED = 203
     }
 }

@@ -1491,8 +1491,9 @@ class MainActivity : ComponentActivity() {
     // y los problemas de cambio de idioma reportados por usuarios. El contexto
     // creado aquí es inmutable y lo heredan también las ventanas de los diálogos.
     override fun attachBaseContext(newBase: android.content.Context) {
-        val lang = newBase.getSharedPreferences("lecturameter", MODE_PRIVATE)
-            .getString("app_language", "es") ?: "es"
+        val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(
+            newBase.getSharedPreferences("lecturameter", MODE_PRIVATE)
+        )
         val locale = java.util.Locale(lang)
         java.util.Locale.setDefault(locale)
         val config = android.content.res.Configuration(newBase.resources.configuration)
@@ -1573,38 +1574,30 @@ class MainActivity : ComponentActivity() {
             val theme = remember(displayedThemeMode) { normalizeThemeDeep(buildTheme(displayedThemeMode)) }
             Box {
             LecturaMeterTheme(theme) {
-                // Primera apertura: selección de idioma
-                if (!vm.languageChosen) {
-                    LanguageSelectionScreen(theme = theme) { lang ->
-                        // v1.0: commit() garantiza escritura en disco ANTES de recreate()
-                        // apply() es async — recreate podría ejecutarse antes de que se guarde
-                        vm.setLanguage(lang, prefs)
-                        prefs.edit().putBoolean("language_chosen", true).commit()
-                        recreate()
-                    }
-                } else {
-                    LecturaMeterApp(vm, prefs, theme)
-                    // Diálogo educativo de permiso de cámara
-                    if (showCameraPermDialog.value) {
-                        AlertDialog(
-                            onDismissRequest = { showCameraPermDialog.value = false },
-                            containerColor = theme.bgMid,
-                            title = { Text(stringResource(R.string.txt_135a16f2), color = theme.textMain, fontWeight = FontWeight.Bold) },
-                            text = { Text(stringResource(R.string.txt_79f555a5), color = theme.textMuted, fontSize = 13.sp) },
-                            confirmButton = {
-                                TextButton(onClick = {
-                                    showCameraPermDialog.value = false
-                                    cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
-                                }) { Text(stringResource(R.string.txt_64b46771), color = accentForTheme(theme), fontWeight = FontWeight.Bold) }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = {
-                                    showCameraPermDialog.value = false
-                                    pendingCameraAction = null
-                                }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
-                            }
-                        )
-                    }
+                // El idioma ya no se pregunta en el primer arranque (20-07): se resuelve del
+                // sistema (español si el dispositivo está en español, inglés en cualquier otro
+                // caso) y se cambia desde Ajustes. Ver LanguageHelper.resolveLanguage.
+                LecturaMeterApp(vm, prefs, theme)
+                // Diálogo educativo de permiso de cámara
+                if (showCameraPermDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = { showCameraPermDialog.value = false },
+                        containerColor = theme.bgMid,
+                        title = { Text(stringResource(R.string.txt_135a16f2), color = theme.textMain, fontWeight = FontWeight.Bold) },
+                        text = { Text(stringResource(R.string.txt_79f555a5), color = theme.textMuted, fontSize = 13.sp) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showCameraPermDialog.value = false
+                                cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
+                            }) { Text(stringResource(R.string.txt_64b46771), color = accentForTheme(theme), fontWeight = FontWeight.Bold) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                showCameraPermDialog.value = false
+                                pendingCameraAction = null
+                            }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
+                        }
+                    )
                 }
             }
             // Overlay del crossfade: el frame del tema anterior fundiéndose
@@ -1724,6 +1717,14 @@ class MainActivity : ComponentActivity() {
         // Volver a primer plano es el momento natural de reintentarlo. No hace nada si ya
         // está conectado.
         LmBilling.reconnect()
+        val goldActive = getSharedPreferences("lecturameter", MODE_PRIVATE).getString("app_icon", "classic") == "gold"
+        val taskIconRes = if (goldActive) R.mipmap.ic_launcher_pro else R.mipmap.ic_launcher
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            setTaskDescription(android.app.ActivityManager.TaskDescription.Builder().setIcon(taskIconRes).build())
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            @Suppress("DEPRECATION")
+            setTaskDescription(android.app.ActivityManager.TaskDescription(null, taskIconRes))
+        }
     }
 
     override fun onDestroy() {
@@ -1995,6 +1996,13 @@ sealed class Screen {
     data class DailySessions(val date: String) : Screen()
 }
 
+// Puente para abrir la hoja de venta Pro desde el deep link "lecturameter://pro"
+// (candado del widget Pro). Lo consume la pantalla de Ajustes, que es quien aloja
+// ProUpsellSheet — mismo patrón de objeto @Volatile que TimerStateHolder.
+object ProSheetTrigger {
+    @Volatile var pending: Boolean = false
+}
+
 // Fase 1.4: navegación migrada a Compose Navigation (NavController).
 // Screen sigue siendo el vocabulario de destinos; route() lo serializa a la ruta string.
 // El NavController persiste el backstack en SavedState (rotación y muerte de proceso),
@@ -2046,13 +2054,12 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
     }
 
     // Deep link de las notificaciones de resúmenes:
-    // "lecturameter://recap/{weekly|monthly|wrapped/{año}}"
+    // "lecturameter://recap/{weekly|wrapped/{año}}"
     fun readRecapFromIntent(): Screen? {
         val uri = activity?.intent?.data ?: return null
         if (uri.scheme != "lecturameter" || uri.host != "recap") return null
         return when (uri.pathSegments.firstOrNull()) {
             "weekly" -> Screen.WeeklyRecap
-            "monthly" -> Screen.WeeklyRecap
             "wrapped" -> Screen.Wrapped(
                 uri.lastPathSegment?.toIntOrNull()
                     ?: wrappedWindowYear().takeIf { it != -1 }
@@ -2060,6 +2067,13 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             )
             else -> null
         }
+    }
+
+    // Deep link del candado del widget Pro: abre la hoja de venta Pro.
+    // "lecturameter://pro"
+    fun isProDeepLink(): Boolean {
+        val uri = activity?.intent?.data ?: return false
+        return uri.scheme == "lecturameter" && uri.host == "pro"
     }
 
     // Limpia el intent para que un cambio de configuración (rotación, tema oscuro...)
@@ -2101,7 +2115,12 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
             TimerStateHolder.activeBookId = bookId
             TimerStateHolder.seconds = timerPrefs.getLong("seconds", 0L)
             Screen.Detail(bookId)
-        // Prioridad 3: deep link del widget o de una notificación de recap
+        // Prioridad 3: deep link del widget Pro (candado) → hoja de venta sobre Ajustes
+        } else if (isProDeepLink()) {
+            consumeIntentBookId()
+            ProSheetTrigger.pending = true
+            Screen.Settings
+        // Prioridad 3b: deep link del widget o de una notificación de recap
         } else {
             val recapScreen = readRecapFromIntent()
             val bookId = readBookIdFromIntent()
@@ -2212,6 +2231,12 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
         // Deep link del widget o de una notificación de recap (solo si es un intent
         // real, no la composición inicial)
         if (intentTrigger.value == 0) return@LaunchedEffect
+        if (isProDeepLink()) {
+            consumeIntentBookId()
+            ProSheetTrigger.pending = true
+            navigateTo(Screen.Settings)
+            return@LaunchedEffect
+        }
         val recapScreen = readRecapFromIntent()
         if (recapScreen != null) {
             consumeIntentBookId()

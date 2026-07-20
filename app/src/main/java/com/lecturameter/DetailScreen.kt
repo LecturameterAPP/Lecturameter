@@ -2281,6 +2281,7 @@ internal fun SessionSaveDialog(
     var sessionError by remember { mutableStateOf("") }
     val fromTimer = autoSessionMinutes != null
     var sessionDate by remember { mutableStateOf(todayDisplay()) }
+    var showFinishedQuery by remember { mutableStateOf(false) }
 
     val totalPages = if (pageEnd.toIntOrNull() != null && pageStart.toIntOrNull() != null) (pageEnd.toIntOrNull()!! - pageStart.toIntOrNull()!! + 1).coerceAtLeast(0) else 0
     val mins = if (fromTimer) autoSessionMinutes else sessionMinutes.toIntOrNull()
@@ -2427,7 +2428,14 @@ internal fun SessionSaveDialog(
                         else null
                     ), prefs)
                     refreshWidgetForBookIfSelected(context, id)
-                    onSaved()
+                    val effectiveMax = book.lastFunctionalPage ?: book.pages
+                    val reachedEnd = end != null && end >= effectiveMax
+                    val canAskFinish = book.status == BookStatus.READING || book.status == BookStatus.REREADING
+                    if (reachedEnd && canAskFinish) {
+                        showFinishedQuery = true
+                    } else {
+                        onSaved()
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAcc),
                 shape = RoundedCornerShape(10.dp)
@@ -2435,4 +2443,29 @@ internal fun SessionSaveDialog(
         },
         dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }
     )
+
+    if (showFinishedQuery) {
+        AlertDialog(
+            onDismissRequest = { showFinishedQuery = false; onSaved() },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.finished_book_query_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.finished_book_query_body, book.title), color = theme.textMuted) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.updateStatus(id, BookStatus.FINISHED, prefs)
+                        showFinishedQuery = false
+                        onSaved()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAcc),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text(stringResource(R.string.finished_book_yes)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFinishedQuery = false; onSaved() }) {
+                    Text(stringResource(R.string.finished_book_no), color = theme.textDim)
+                }
+            }
+        )
+    }
 }

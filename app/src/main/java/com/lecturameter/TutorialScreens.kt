@@ -267,8 +267,9 @@ fun TutorialHistoryRowVisual(theme: Theme) {
 fun TutorialWidgetVisual(theme: Theme) {
     // v1.0: captura real del widget según idioma de la app
     val ctx = LocalContext.current
-    val lang = ctx.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
-        .getString("app_language", "es") ?: "es"
+    val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(
+        ctx.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
+    )
     val resId = if (lang == "en") R.drawable.tutorial_widget_en else R.drawable.tutorial_widget_es
     androidx.compose.foundation.Image(
         painter = androidx.compose.ui.res.painterResource(id = resId),

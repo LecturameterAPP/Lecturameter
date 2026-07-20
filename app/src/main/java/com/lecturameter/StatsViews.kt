@@ -424,7 +424,16 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                 modifier = Modifier.weight(1f)
             ) { page ->
                 val pageItems = challenges.drop(page * perPage).take(perPage)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+                // 20-07: scroll vertical dentro de la página. El pager coge el alto que sobra
+                // (weight(1f)) tras cabecera, tip y botón, así que con el TipCard visible los 5
+                // retos de una página llena no caben y el último quedaba tapado por los dots y
+                // el botón, sin forma de llegar a él. Con scroll se resuelve tanto ese caso como
+                // cualquier otro desbordamiento (fuente grande, nombres largos, otros idiomas).
+                // El eje vertical no interfiere con el gesto horizontal del pager.
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                ) {
                     pageItems.forEach { challenge ->
                 val (current, target) = vm.challengeProgress(challenge)
                 val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)

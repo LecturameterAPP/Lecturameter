@@ -56,11 +56,18 @@
                 <data android:scheme="lecturameter" android:host="book"/>
             </intent-filter>
             <!-- Deep link desde las notificaciones de resúmenes:
-                 lecturameter://recap/{weekly|monthly|wrapped/{año}} -->
+                 lecturameter://recap/{weekly|wrapped/{año}} -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="lecturameter" android:host="recap"/>
+            </intent-filter>
+            <!-- Deep link del candado del widget Pro a la hoja de venta:
+                 lecturameter://pro -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="lecturameter" android:host="pro"/>
             </intent-filter>
         </activity>
         <activity-alias

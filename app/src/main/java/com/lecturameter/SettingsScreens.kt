@@ -930,6 +930,13 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         // D-013: upsell de Pro (lo abren los temas de pago y la sección Pro de abajo)
         var showProUpsell by remember { mutableStateOf(false) }
         var proRefresh by remember { mutableStateOf(0) }
+        // Deep link "lecturameter://pro" (candado del widget Pro): abre la hoja al entrar.
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            if (ProSheetTrigger.pending) {
+                ProSheetTrigger.pending = false
+                showProUpsell = true
+            }
+        }
         if (showProUpsell) {
             // B-041: al ganar Pro en caliente (compra, canje o trial), devolver el tema que
             // la caducidad de la prueba tuvo que apagar. Sin esto no volvería hasta reiniciar.
@@ -951,10 +958,16 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     ThemeMode.CUERO  to stringResource(R.string.theme_cuero)
                 ).forEach { (mode, label) ->
                     val selected = vm.themeMode == mode
+                    // 20-07: los temas de pago se ven bloqueados ANTES de tocarlos. Aquí no
+                    // había ninguna marca (sí en el desplegable de la lista), así que los cinco
+                    // parecían igual de seleccionables y solo te enterabas al abrirse el upsell.
+                    // Mismo criterio que ListScreen: Pro.themeAllowed contempla el tema regalado
+                    // al acabar la prueba, así que ese no sale con candado.
+                    val locked = !com.lecturameter.utils.Pro.themeAllowed(prefs, mode)
                     Surface(
+                        // Siguen siendo pulsables a propósito: el toque abre la hoja de venta.
                         onClick = {
-                            // D-013: los temas de pago abren el upsell si no hay Pro
-                            if (!com.lecturameter.utils.Pro.themeAllowed(prefs, mode)) showProUpsell = true
+                            if (locked) showProUpsell = true
                             else vm.setThemeMode(mode, prefs, context)
                         },
                         shape = RoundedCornerShape(20.dp),
@@ -968,30 +981,47 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             horizontalArrangement = Arrangement.Center,
                             modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp)
                         ) {
+                            // El icono propio del tema se mantiene aunque esté bloqueado (es parte
+                            // de su identidad y de lo que se vende); el candado se SUMA detrás del
+                            // nombre. Bloqueado además atenúa icono y texto.
                             if (mode == ThemeMode.AURORA) {
                                 androidx.compose.foundation.Image(
                                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_aurora),
                                     contentDescription = null,
-                                    modifier = Modifier.size(13.dp).clip(RoundedCornerShape(3.dp))
+                                    alpha = if (locked) 0.5f else 1f,
+                                    modifier = Modifier.size(12.dp).clip(RoundedCornerShape(3.dp))
                                 )
-                                Spacer(Modifier.width(3.dp))
+                                Spacer(Modifier.width(2.dp))
                             } else if (mode == ThemeMode.CUERO) {
                                 // D-015: icono dedicado del tema Cuero (tapa con marco)
                                 androidx.compose.foundation.Image(
                                     painter = androidx.compose.ui.res.painterResource(R.drawable.ic_theme_cuero),
                                     contentDescription = null,
-                                    modifier = Modifier.size(13.dp)
+                                    alpha = if (locked) 0.5f else 1f,
+                                    modifier = Modifier.size(12.dp)
                                 )
-                                Spacer(Modifier.width(3.dp))
+                                Spacer(Modifier.width(2.dp))
                             }
                             Text(
-                                label, color = if (selected) acc else theme.textMuted,
+                                label,
+                                color = if (selected) acc else if (locked) theme.textDim else theme.textMuted,
                                 fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 // A5: en pantallas pequeñas el nombre del tema se cortaba a media
-                                // palabra; con ellipsis se recorta limpio.
-                                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                // palabra; con ellipsis se recorta limpio. weight(fill = false) para
+                                // que sea el nombre el que ceda ante el candado y no desborde la fila.
+                                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
+                            if (locked) {
+                                Spacer(Modifier.width(1.dp))
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = theme.textDim,
+                                    modifier = Modifier.size(9.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1092,6 +1122,17 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                             pm.setComponentEnabledSetting(disable, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
                             prefs.edit().putString("app_icon", value).apply()
                             appIcon = value
+                            val taskIconRes = if (value == "gold") R.mipmap.ic_launcher_pro else R.mipmap.ic_launcher
+                            (context as? android.app.Activity)?.let { act ->
+                                val bmp = android.graphics.BitmapFactory.decodeResource(act.resources, taskIconRes)
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    act.setTaskDescription(android.app.ActivityManager.TaskDescription.Builder().setIcon(taskIconRes).build())
+                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                    @Suppress("DEPRECATION")
+                                    act.setTaskDescription(android.app.ActivityManager.TaskDescription(null, taskIconRes))
+                                }
+                                bmp.recycle()
+                            }
                             android.widget.Toast.makeText(context, iconToastMsg, android.widget.Toast.LENGTH_LONG).show()
                         },
                         shape = RoundedCornerShape(20.dp),

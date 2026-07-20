@@ -33,7 +33,6 @@
     <string name="txt_158a98d7">There are no books recorded in that year/month combination.</string>
     <string name="txt_16f666bb">In Goodreads: My profile → My books → Import and export → Export library. Then select the .csv file here.</string>
     <string name="txt_17724589">Starting page</string>
-    <string name="txt_18fb3478">Choose your language / Select your language</string>
     <string name="txt_1db69449">🐢 THE BOOKS THAT STOLE THE MOST OF YOUR TIME</string>
     <string name="txt_1e4e823d">Widget added</string>
     <string name="txt_1ee4f1c7">🔁 Rereading</string>
@@ -214,7 +213,6 @@
     <string name="txt_7d6c2883">Period:</string>
     <string name="txt_7ddf5345">📤 Import/Export</string>
     <string name="txt_80b7fc7c">Between December 26 and January 26, visit Statistics to generate and save the year\'s wrapped.</string>
-    <string name="txt_82056f1f">Puedes cambiarlo después en Ajustes / You can change it later in Settings</string>
     <string name="txt_847607d7">Cancel</string>
     <string name="txt_8487931b">Confirm</string>
     <string name="txt_84a8f3ea">Select genres…</string>
@@ -490,6 +488,10 @@
     <string name="err_date_invalid_format">Invalid date, use dd-mm-yyyy.</string>
     <string name="err_date_invalid_generic">Enter a valid date.</string>
     <string name="err_page_end_over_total_n">The final page cannot exceed the book\'s total pages (%1$d).</string>
+    <string name="finished_book_query_title">Did you finish the book?</string>
+    <string name="finished_book_query_body">You\'ve reached the last page of «%1$s». Mark it as finished?</string>
+    <string name="finished_book_yes">Yes, finished</string>
+    <string name="finished_book_no">Still have pages left</string>
     <string name="err_date_invalid_label">Invalid date in \'%1$s\', use dd-mm-yyyy</string>
     <string name="err_date_invalid_correct">Invalid date, enter a correct one (dd-MM-yyyy)</string>
     <string name="err_pages_start_end_required">Start and end pages are required</string>
@@ -1090,12 +1092,10 @@
     <!-- Fase 6.1 (D-008): one-time contextual tips -->
     <string name="tip_rail_title">Your sections rail</string>
     <string name="tip_rail_body">It hides when you scroll the list or swipe left ← from the line, and comes back by swiping right → from the edge of the screen. Long-press a blue icon to reorder them.</string>
-    <!-- Recap notifications (weekly/monthly/wrapped) -->
+    <!-- Recap notifications (weekly/wrapped) -->
     <string name="recap_notif_channel">Reading recaps</string>
     <string name="recap_notif_weekly_title">Your weekly recap is ready</string>
     <string name="recap_notif_weekly_body">%1$d pages across %2$d sessions this week. Tap to see your recap.</string>
-    <string name="recap_notif_monthly_title">Your monthly recap is ready</string>
-    <string name="recap_notif_monthly_body">%1$d pages last month. Tap to see your recap.</string>
     <string name="recap_notif_wrapped_title">Your %1$d Wrapped is here</string>
     <string name="recap_notif_wrapped_body">Your reading year, wrapped up. Tap to discover it.</string>
     <string name="tip_history_title">To close</string>
@@ -1292,7 +1292,7 @@
     <!-- Stats Widget Pro -->
     <string name="stats_widget_name">Lecturameter Stats</string>
     <string name="stats_widget_description">Reading statistics (Pro)</string>
-    <string name="sw_pro_gate">Unlock Lecturameter Pro to see your global reading statistics</string>
+    <string name="sw_pro_gate">Unlock advanced stats, unlimited challenges and more. Tap to see Pro</string>
     <string name="sw_label_books">Books</string>
     <string name="sw_label_pages">Pages</string>
     <string name="sw_label_time">Time</string>

@@ -41,8 +41,9 @@ class WidgetConfigActivity : ComponentActivity() {
 
     // v2.5: mismo mecanismo de idioma que MainActivity (contexto inmutable)
     override fun attachBaseContext(newBase: android.content.Context) {
-        val lang = newBase.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
-            .getString("app_language", "es") ?: "es"
+        val lang = com.lecturameter.utils.LanguageHelper.resolveLanguage(
+            newBase.getSharedPreferences("lecturameter", android.content.Context.MODE_PRIVATE)
+        )
         val locale = java.util.Locale(lang)
         java.util.Locale.setDefault(locale)
         val config = android.content.res.Configuration(newBase.resources.configuration)

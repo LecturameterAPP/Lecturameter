@@ -1,6 +1,6 @@
 package com.lecturameter
 
-// BingoScreen, DuplicateBookDialog, RailItem, HomeRail (mini-rail D-002), normalizeSearchText, fuzzyMatch y LanguageSelectionScreen.
+// BingoScreen, DuplicateBookDialog, RailItem, HomeRail (mini-rail D-002), normalizeSearchText y fuzzyMatch.
 // Extraido de MainActivity.kt el 15-07-2026 (ruptura del monolito, sin cambios funcionales).
 
 
@@ -887,57 +887,6 @@ fun fuzzyMatch(query: String, target: String): Boolean {
     return nt.contains(nq)
 }
 
-// ── Selección de idioma inicial ───────────────────────────────────────────────
-
-@Composable
-fun LanguageSelectionScreen(theme: Theme, onLanguageSelected: (String) -> Unit) {
-    Box(
-        Modifier.fillMaxSize().background(theme.bgDark).systemBarsPadding(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Text("📚", fontSize = 64.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(R.string.txt_4d8b0a6f),
-                color = theme.textMain,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(32.dp))
-            Text(
-                stringResource(R.string.txt_18fb3478),
-                color = theme.textMuted,
-                fontSize = 15.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(Modifier.height(40.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Button(
-                    onClick = { onLanguageSelected("es") },
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accentForTheme(theme), contentColor = onAccentColor(theme))
-                ) { Text(stringResource(R.string.txt_95b01315), fontSize = 15.sp, color = onAccentColor(theme)) }
-                Button(
-                    onClick = { onLanguageSelected("en") },
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = theme.bgMid),
-                    border = BorderStroke(1.dp, theme.border)
-                ) { Text(stringResource(R.string.txt_f759fe35), fontSize = 15.sp, color = theme.textMain) }
-            }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                stringResource(R.string.txt_82056f1f),
-                color = theme.textDim,
-                fontSize = 12.sp
-            )
-        }
-    }
-}
+// La pantalla de selección de idioma inicial (LanguageSelectionScreen) se eliminó el
+// 20-07: el idioma se resuelve del sistema con fallback a inglés (LanguageHelper) y se
+// cambia desde Ajustes.

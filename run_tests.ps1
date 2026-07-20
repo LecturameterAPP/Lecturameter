@@ -39,6 +39,7 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson;$orgJson;$androi
 & $java -cp $cp org.junit.runner.JUnitCore `
     com.lecturameter.CoreUtilsTest `
     com.lecturameter.WidgetStatsTest `
+    com.lecturameter.StatsWidgetMonthlyTest `
     com.lecturameter.RecapUtilsTest `
     com.lecturameter.BingoManagerTest `
     com.lecturameter.ModelsTest `
