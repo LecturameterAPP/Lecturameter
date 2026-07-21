@@ -240,7 +240,7 @@ fun BookSearchScreen(
                     shape = RoundedCornerShape(10.dp)
                 ) { Text(stringResource(R.string.detail_add_to_library)) }
             },
-            dismissButton = { TextButton(onClick = { detailResult = null }) { Text(stringResource(R.string.detail_close), color = theme.textMuted) } }
+            dismissButton = { TextButton(onClick = { detailResult = null }) { Text(stringResource(R.string.detail_close), color = Red) } }
         )
     }
 
