@@ -126,6 +126,10 @@
     <string name="search_pages_count">%1$d pages</string>
     <string name="search_results_summary">%1$d results · closest matches first</string>
     <string name="search_results_summary_one">1 result</string>
+    <string name="detail_book_title">Book details</string>
+    <string name="detail_add_to_library">Add to my library</string>
+    <string name="detail_close">Close</string>
+    <string name="detail_isbn">🔖 ISBN %1$s</string>
     <string name="app_version_label">Version %1$s</string>
     <string name="tutorial_mock_genres">Fantasy</string>
     <string name="tutorial_mock_pages">📄 782 pgs (210p)</string>
@@ -636,7 +640,7 @@
     <string name="privacy_policy_section_analytics_title">No analytics, no ads</string>
     <string name="privacy_policy_analytics_body">Lecturameter has no usage analytics, shows no ads, and doesn\'t require you to create any account to use it.</string>
     <string name="privacy_policy_section_search_title">Searching and scanning books</string>
-    <string name="privacy_policy_search_body">When you search for a book or scan an ISBN, that text or code is sent to public book catalog APIs (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu, Comic Vine) to fetch details like the title, cover, or author. No personal data of yours is sent in these lookups.</string>
+    <string name="privacy_policy_search_body">When you search for a book or scan an ISBN, that text or code is sent to public book catalog APIs (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) to fetch details like the title, cover, or author. No personal data of yours is sent in these lookups.</string>
     <string name="privacy_policy_section_feedback_title">Feedback and surveys</string>
     <string name="privacy_policy_feedback_body">Sending feedback or answering a survey inside the app is entirely optional. If you do, the text you wrote is sent along with technical device information (model, Android version, app version) to Lecturameter\'s own server so the developer can read it.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>

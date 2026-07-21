@@ -128,6 +128,11 @@
          eso dejó de ser verdad: describía un orden que la app ya no aplica. -->
     <string name="search_results_summary">%1$d resultados · más parecidos primero</string>
     <string name="search_results_summary_one">1 resultado</string>
+    <!-- Ficha de detalle de un resultado de búsqueda (ver antes de añadir a la biblioteca). -->
+    <string name="detail_book_title">Detalles del libro</string>
+    <string name="detail_add_to_library">Añadir a mi biblioteca</string>
+    <string name="detail_close">Cerrar</string>
+    <string name="detail_isbn">🔖 ISBN %1$s</string>
     <string name="app_version_label">Versión %1$s</string>
     <string name="tutorial_mock_genres">Fantasía</string>
     <string name="tutorial_mock_pages">📄 782 págs (210p)</string>
@@ -639,7 +644,7 @@
     <string name="privacy_policy_section_analytics_title">Sin analíticas ni publicidad</string>
     <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla.</string>
     <string name="privacy_policy_section_search_title">Búsqueda y escaneo de libros</string>
-    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu, Comic Vine) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
+    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
     <string name="privacy_policy_section_feedback_title">Feedback y encuestas</string>
     <string name="privacy_policy_feedback_body">Enviar feedback o responder a una encuesta dentro de la app es totalmente opcional. Si lo haces, se envía el texto que has escrito junto con información técnica del dispositivo (modelo, versión de Android, versión de la app) a un servidor propio de Lecturameter para que el desarrollador pueda leerlo.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>

@@ -22,10 +22,9 @@ android {
         def lp = rootProject.file('local.properties')
         if (lp.exists()) lp.withInputStream { props.load(it) }
         buildConfigField "String", "GOOGLE_BOOKS_API_KEY", "\"${props.getProperty('GOOGLE_BOOKS_API_KEY', '')}\""
-        // Comic Vine (COMIC_VINE_API_KEY). Mismo patrón: si falta, la fase de cómic se
-        // salta entera en vez de fallar. La key estaba en local.properties desde hace
-        // días pero NO llegaba a compilarse: sin esta línea BuildConfig no la tenía.
-        buildConfigField "String", "COMIC_VINE_API_KEY", "\"${props.getProperty('COMIC_VINE_API_KEY', '')}\""
+        // Comic Vine retirado 21-07-2026 (licencia no comercial vs nivel Pro de pago). Ya no
+        // se cablea COMIC_VINE_API_KEY a BuildConfig; la key puede quedarse en local.properties
+        // sin efecto.
     }
 
     // Firma de release. Las credenciales salen de local.properties (fuera de git,

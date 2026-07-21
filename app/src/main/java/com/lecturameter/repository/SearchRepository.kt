@@ -213,12 +213,12 @@ data class BookMetadata(
     val genres: List<String> = emptyList()
 )
 
-// Fuentes manga (md_ = MangaDex, kt_ = Kitsu, cv_ = Comic Vine): quedan exentas del
-// filtro de relevancia global porque ya filtran con su propio matchScore contra TODOS los
-// títulos de la serie, y el título que acaban mostrando puede no parecerse a la
-// query (se busca en español y la ficha viene en inglés o japonés).
+// Fuentes manga (md_ = MangaDex, kt_ = Kitsu): quedan exentas del filtro de relevancia
+// global porque ya filtran con su propio matchScore contra TODOS los títulos de la serie,
+// y el título que acaban mostrando puede no parecerse a la query (se busca en español y la
+// ficha viene en inglés o japonés). (cv_ = Comic Vine retirado 21-07 por licencia.)
 internal fun isMangaSourceKey(olKey: String): Boolean =
-    olKey.startsWith("md_") || olKey.startsWith("kt_") || olKey.startsWith("cv_")
+    olKey.startsWith("md_") || olKey.startsWith("kt_")
 
 // ── Google Books search ───────────────────────────────────────────────────────
 
@@ -1483,112 +1483,6 @@ private suspend fun fetchKitsuMangaResults(query: String, preferredLang: String)
         }
         val body = conn.inputStream.use { it.bufferedReader().readText() }
         parseKitsuMangaResults(body, query, preferredLang)
-    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
-    catch (_: Exception) { emptyList() }
-}
-
-// ── Comic Vine API ────────────────────────────────────────────────────────────
-// Cuarta fuente de cómic y manga, a nivel de SERIE (su recurso `volume`), igual que
-// AniList y Kitsu. Cubre el hueco que ninguna de las otras cubre bien: cómic occidental
-// (Invincible, Saga, The Walking Dead) y ediciones de manga que Kitsu no indexa.
-//
-// LO QUE **NO** HACE, escrito aquí para que nadie vuelva a intentarlo (verificado el
-// 21-07-2026 contra su documentación de campos):
-//   - NO indexa ISBN, ISSN, UPC ni EAN. Los campos de `issues` son aliases, cover_date,
-//     date_added, deck, description, id, image, issue_number, name, store_date y volume.
-//     Es una petición histórica de su foro de desarrolladores que nunca han implementado.
-//     Por tanto **no sirve para el escáner**: un código de barras no se resuelve aquí.
-//     Para códigos de barras de cómic la fuente correcta sería Grand Comics Database.
-//   - NO devuelve número de páginas. Las páginas de un cómic seguirán siendo manuales
-//     o de otra fuente.
-//
-// Límite oficial: 200 peticiones por recurso y hora, y piden no pasar de una por segundo.
-// De ahí el ApiThrottle y que la fase vaya la última.
-private const val COMIC_VINE_BASE = "https://comicvine.gamespot.com/api"
-private const val COMIC_VINE_LIMIT = 5
-
-// Tope de resultados NUEVOS, mismo criterio que KITSU_MAX_NEW: Comic Vine puede añadir
-// contexto, no sepultar a OpenLibrary y Google Books, que son los que traen ISBN y páginas.
-private const val COMIC_VINE_MAX_NEW = 3
-
-/**
- * Parseo puro de la respuesta de Comic Vine → resultados normalizados.
- * Separado de la red igual que [parseKitsuMangaResults]: los tests corren sin red.
- *
- * Filtra por parecido de títulos por la misma razón que Kitsu y MangaDex: la búsqueda de
- * Comic Vine no devuelve vacío cuando no conoce algo, devuelve lo que más se le parece.
- */
-internal fun parseComicVineResults(json: String, query: String): List<OpenLibraryResult> {
-    val root = try { JSONObject(json) } catch (_: Exception) { return emptyList() }
-    // status_code 1 es OK. Cualquier otro (100 = key inválida, 107 = rate limit) trae los
-    // resultados vacíos o ausentes, y tratarlo como éxito devolvería una lista fantasma.
-    if (root.optInt("status_code", -1) != 1) return emptyList()
-    val results = root.optJSONArray("results") ?: return emptyList()
-
-    val qTokens = query.lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.length > 1 }.toSet()
-    if (qTokens.isEmpty()) return emptyList()
-
-    val out = mutableListOf<OpenLibraryResult>()
-    for (i in 0 until results.length()) {
-        val obj = results.optJSONObject(i) ?: continue
-        val name = obj.optString("name", "").trim()
-        if (name.isBlank()) continue
-
-        // Parecido por solapamiento de tokens contra la query. Mismo umbral que Kitsu.
-        val tTokens = name.lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.length > 1 }.toSet()
-        val score = if (tTokens.isEmpty()) 0.0
-                    else qTokens.count { it in tTokens }.toDouble() / qTokens.size
-        if (score < 0.4) continue
-
-        // La portada de `volume` es la del primer número, que es la que el usuario
-        // reconoce. super_url es la grande; medium basta para una miniatura y pesa menos.
-        val image = obj.optJSONObject("image")
-        val cover = image?.optString("medium_url", "")?.takeIf { it.isNotBlank() }
-            ?: image?.optString("original_url", "")?.takeIf { it.isNotBlank() }
-
-        val year = obj.optString("start_year", "").takeIf { it.isNotBlank() && it != "null" }.orEmpty()
-        val id = obj.optInt("id", 0)
-        if (id == 0) continue
-
-        out.add(
-            OpenLibraryResult(
-                name,
-                "",              // Comic Vine no da autor en `volume`; lo rellenan las otras fases
-                0,               // ni páginas: no existe el campo
-                cover,
-                null,            // ni ISBN
-                "Cómic",
-                year,
-                "cv_$id"
-            )
-        )
-    }
-    return out
-}
-
-/** GET a Comic Vine. Lista vacía ante cualquier fallo: la búsqueda nunca depende de esto. */
-private suspend fun fetchComicVineResults(query: String): List<OpenLibraryResult> {
-    val key = BuildConfig.COMIC_VINE_API_KEY
-    if (key.isBlank()) return emptyList()
-    return try {
-        val encoded = URLEncoder.encode(query, "UTF-8")
-        val url = "$COMIC_VINE_BASE/search/?api_key=$key&format=json&resources=volume" +
-            "&limit=$COMIC_VINE_LIMIT&query=$encoded" +
-            "&field_list=id,name,start_year,image,count_of_issues,publisher"
-        ApiThrottle.gate("comicvine.gamespot.com")
-        val conn = URL(url).openConnection() as HttpURLConnection
-        // Comic Vine RECHAZA los User-Agent por defecto de las librerías HTTP. Sin esta
-        // cabecera devuelve 403 aunque la key sea correcta.
-        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn.connectTimeout = 7000; conn.readTimeout = 7000
-        val code = conn.responseCode
-        if (code !in 200..299) {
-            try { conn.errorStream?.close() } catch (_: Exception) {}
-            com.lecturameter.utils.AppLogger.log("Comic Vine HTTP $code", "Search")
-            return emptyList()
-        }
-        val body = conn.inputStream.use { it.bufferedReader().readText() }
-        parseComicVineResults(body, query)
     } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
     catch (_: Exception) { emptyList() }
 }
@@ -3419,39 +3313,10 @@ suspend fun searchOpenLibrary(
         emitPartial()
     }
 
-    // 3c. Comic Vine — va la ÚLTIMA de las fuentes de cómic a propósito, por dos motivos:
-    // su límite es el más estrecho de todas (200/hora por recurso) y es la que menos datos
-    // aporta por resultado (no trae ni páginas ni autor). Su valor está en el cómic
-    // occidental y en las series que Kitsu no indexa, y sobre todo en la PORTADA.
-    if (queryLooksManga) {
-        val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
-        // Comic Vine devuelve una entrada por EDICIÓN NACIONAL de la misma serie, todas con
-        // el mismo nombre: "Dandadan" sale 6 veces (Viz, Shueisha, Crunchyroll SAS,
-        // Crunchyroll SA, Edizioni BD...). Verificado contra la API real el 21-07. Sin
-        // colapsarlas, el tope de 3 nuevas pinta tres filas idénticas y el usuario no
-        // puede distinguirlas, porque la editorial no se muestra en la tarjeta.
-        // Se queda la primera de cada título, que es la que Comic Vine considera más relevante.
-        val cvResults = fetchComicVineResults(seriesQuery.ifBlank { query })
-            .distinctBy { it.title.lowercase().trim() }
-        var addedCv = 0
-        for (cv in cvResults) {
-            val normCv = cv.title.lowercase().trim()
-            val dupIdx = results.indexOfFirst { it.title.lowercase().trim() == normCv }
-            if (dupIdx >= 0) {
-                // Solo rellena huecos, nunca pisa: las otras fuentes traen mejores datos.
-                val ex = results[dupIdx]
-                results[dupIdx] = ex.copy(coverUrl = ex.coverUrl ?: cv.coverUrl)
-            } else if (addedCv < COMIC_VINE_MAX_NEW) {
-                results.add(cv)
-                addedCv++
-            }
-        }
-        if (cvResults.isNotEmpty()) {
-            com.lecturameter.utils.AppLogger.log(
-                "Comic Vine aporta ${cvResults.size} series ($addedCv nuevas)", "Search")
-            emitPartial()
-        }
-    }
+    // Comic Vine RETIRADO (21-07-2026). Su licencia es de uso NO comercial y revoca la key
+    // en uso comercial; Lecturameter tiene nivel Pro de pago. El valor medido era marginal
+    // (búsqueda por serie, 0-1 resultado nuevo entre 20, sin páginas ni autor). No compensa
+    // el riesgo. El cómic/manga español lo cubren el catálogo local (BNE), MangaDex y Kitsu.
 
     // ── v2.6 (búsqueda r1): relevancia + idioma del usuario + portadas válidas ──
     // Sustituye la heurística de tildes (fallaba con "El hombre Iluminado", "el nombre",

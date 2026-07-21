@@ -74,6 +74,10 @@ fun BookSearchScreen(
     var errorMsg by remember { mutableStateOf("") }
     var networkError by remember { mutableStateOf(false) }
     var selectedResult by remember { mutableStateOf<OpenLibraryResult?>(null) }
+    // Ficha de detalle: tocar una tarjeta abre esta vista de SOLO LECTURA con los datos
+    // completos del libro; desde ahí se decide si añadirlo. El "+" de la tarjeta sigue
+    // siendo el atajo para añadir directo sin pasar por aquí.
+    var detailResult by remember { mutableStateOf<OpenLibraryResult?>(null) }
     // v2.5: aviso de duplicado antes de añadir
     var duplicateCandidate by remember { mutableStateOf<Book?>(null) }
     val scope = rememberCoroutineScope()
@@ -191,6 +195,52 @@ fun BookSearchScreen(
                 }
             },
             confirmButton = {}
+        )
+    }
+
+    // ── Ficha de detalle (solo lectura) ───────────────────────────────────────
+    // Muestra lo que el resultado ya trae, sin ninguna llamada de red extra. No lleva
+    // indicador de origen a propósito: con el catálogo como fuente principal, marcar lo
+    // normal no aporta (decisión 21-07). El botón principal abre el diálogo de añadir de
+    // siempre reutilizando selectedResult.
+    detailResult?.let { r ->
+        val acc = accentForTheme(theme)
+        val langMeta: Pair<String, String>? = when (r.language) {
+            "es" -> "🇪🇸" to "Español"; "ca" -> "🇪🇸" to "Català"; "en" -> "🇬🇧" to "English"
+            "fr" -> "🇫🇷" to "Français"; "de" -> "🇩🇪" to "Deutsch"; "it" -> "🇮🇹" to "Italiano"
+            "pt" -> "🇵🇹" to "Português"; "ja" -> "🇯🇵" to "日本語"; else -> null
+        }
+        AlertDialog(
+            onDismissRequest = { detailResult = null },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.detail_book_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        BookCover(r.coverUrl, r.title, size = 96, author = r.author)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(r.title, color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            if (r.author.isNotBlank()) Text(r.author, color = theme.textMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
+                            if (r.genre.isNotBlank()) Text(mapApiGenre(r.genre).joinToString(" · ").ifBlank { r.genre }, color = acc.copy(alpha = 0.8f), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    if (r.publishYear.isNotBlank()) Text("📅 ${r.publishYear}", color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    if (r.pages > 1) Text(stringResource(R.string.search_pages_count, r.pages), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    else Text(stringResource(R.string.txt_0c78d77a), color = Amber, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    if (!r.isbn.isNullOrBlank()) Text(stringResource(R.string.detail_isbn, r.isbn), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+                    langMeta?.let { (flag, label) -> Text("$flag $label", color = theme.textMuted, fontSize = 13.sp) }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { selectedResult = r; detailResult = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text(stringResource(R.string.detail_add_to_library)) }
+            },
+            dismissButton = { TextButton(onClick = { detailResult = null }) { Text(stringResource(R.string.detail_close), color = theme.textMuted) } }
         )
     }
 
@@ -410,7 +460,7 @@ fun BookSearchScreen(
                     Text(resumen, color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(results) { result -> SearchResultCard(result, theme) { selectedResult = result } }
+                    items(results) { result -> SearchResultCard(result, theme, onOpen = { detailResult = result }, onAdd = { selectedResult = result }) }
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
@@ -419,9 +469,10 @@ fun BookSearchScreen(
 }
 
 @Composable
-fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onAdd: () -> Unit) {
+fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onOpen: () -> Unit, onAdd: () -> Unit) {
     val acc = accentForTheme(theme)
-    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
+    // Tocar la tarjeta abre la ficha de detalle; el "+" es el atajo para añadir directo.
+    Surface(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(onClick = onOpen), shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             BookCover(result.coverUrl, result.title, size = 60, author = result.author)
             Spacer(Modifier.width(12.dp))
