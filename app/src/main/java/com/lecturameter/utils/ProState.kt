@@ -423,6 +423,7 @@ object Pro {
             val conn = URL(BACKEND_URL).openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("User-Agent", com.lecturameter.APP_USER_AGENT)
             conn.doOutput = true
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000

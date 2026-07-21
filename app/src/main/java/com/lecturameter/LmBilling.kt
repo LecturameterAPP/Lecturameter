@@ -263,9 +263,12 @@ object LmBilling : PurchasesUpdatedListener {
                     .build()
             })
             .build()
-        billingClient?.queryProductDetailsAsync(params) { result, detailsList ->
+        // Billing 8: el callback pasa a recibir QueryProductDetailsResult (antes era
+        // List<ProductDetails>). Los productos no encontrados ahora vienen aparte en
+        // getUnfetchedProductList(); aquí solo interesan los resueltos.
+        billingClient?.queryProductDetailsAsync(params) { result, queryResult ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                _productDetails.value = detailsList.associateBy { it.productId }
+                _productDetails.value = queryResult.productDetailsList.associateBy { it.productId }
             }
         }
     }

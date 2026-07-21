@@ -147,7 +147,15 @@ dependencies {
     implementation 'androidx.work:work-runtime-ktx:2.9.0'
 
     // ── Lecturameter Pro (D-013): Play Billing, pago único lecturameter_pro ─────
-    implementation 'com.android.billingclient:billing-ktx:7.1.1'
+    // Billing 8: requisito de Play desde el 31-ago-2026 para publicar actualizaciones.
+    // La unica incompatibilidad con la 7.x que afecta a este codigo es el callback de
+    // queryProductDetailsAsync (ahora devuelve QueryProductDetailsResult). El resto ya
+    // usaba las APIs modernas (PendingPurchasesParams, QueryPurchasesParams).
+    // OJO: la variante -ktx 8.x viene compilada con Kotlin 2.1 y este proyecto sigue en
+    // Kotlin 1.9 (el salto a 2.0 es tarea aparte, MD6 D-006). Por eso se usa la libreria
+    // CORE (Java, sin metadata de Kotlin): LmBilling.kt solo usa callbacks, no las
+    // extensiones suspend de -ktx, asi que no se pierde nada.
+    implementation 'com.android.billingclient:billing:8.0.0'
 
     // ── P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE) ──
     implementation 'com.google.android.play:app-update-ktx:2.1.0'

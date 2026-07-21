@@ -308,7 +308,9 @@ private suspend fun fetchGoogleBooksResults(query: String, maxResults: Int = 15,
 
 // Auditoría APIs r2: User-Agent identificable con contacto. OpenLibrary da prioridad
 // BAJA y limita agresivamente a clientes sin UA claro. Aplicado a TODAS las APIs.
-internal const val APP_USER_AGENT = "Lecturameter/2.5 (lecturameter.app@gmail.com)"
+// Deriva de versionName (no `const`) para que no se quede obsoleto: antes decia 2.5 con
+// la app ya en 3.1. Con esto la version siempre cuadra con la del build.
+internal val APP_USER_AGENT = "Lecturameter/${com.lecturameter.BuildConfig.VERSION_NAME} (lecturameter.app@gmail.com)"
 
 // Fase 7: la API key de Google Books viaja de local.properties → BuildConfig → aquí.
 // Autentica todas las llamadas a googleapis.com/books (sin key ⇒ cuota anónima y 429

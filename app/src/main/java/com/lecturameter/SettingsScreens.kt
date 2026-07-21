@@ -719,6 +719,7 @@ object FeedbackSender {
             conn.connectTimeout = 15_000
             conn.readTimeout = 20_000
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            conn.setRequestProperty("User-Agent", APP_USER_AGENT)   // homogéneo con el resto de llamadas
             conn.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
             conn.disconnect()

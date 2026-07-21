@@ -642,7 +642,7 @@
     <string name="privacy_policy_section_search_title">Searching and scanning books</string>
     <string name="privacy_policy_search_body">When you search for a book or scan an ISBN, that text or code is sent to public book catalog APIs (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) to fetch details like the title, cover, or author. No personal data of yours is sent in these lookups.</string>
     <string name="privacy_policy_section_feedback_title">Feedback and surveys</string>
-    <string name="privacy_policy_feedback_body">Sending feedback or answering a survey inside the app is entirely optional. If you do, the text you wrote is sent along with technical device information (model, Android version, app version) to Lecturameter\'s own server so the developer can read it.</string>
+    <string name="privacy_policy_feedback_body">Sending feedback or answering a survey inside the app is entirely optional. If you do, the text you wrote is sent along with technical device information (model, Android version, app version) to Lecturameter\'s own server so the developer can read it. If you also choose to attach app logs or screenshots, those are sent too; both are optional and only included if you add them.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>
     <string name="privacy_policy_pro_body">Lecturameter Pro payments are handled by Google Play: the app never sees or stores your payment details. If you redeem a promo code, that code and a device identifier are sent to Lecturameter\'s redemption server, only to validate the code and limit how many devices can use it.</string>
     <string name="privacy_policy_section_contact_title">Contact</string>
