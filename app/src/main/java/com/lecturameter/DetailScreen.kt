@@ -438,15 +438,6 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             confirmButton = {
                 TextButton(onClick = {
                     showConflictSessionDialog = false
-                    // Si estaba pausado, reanudar; si estaba corriendo, dejarlo correr
-                    if (TimerStateHolder.paused) {
-                        com.lecturameter.TimerService.resume(context)
-                    }
-                }) { Text(stringResource(R.string.txt_bafd7322), color = theme.textMuted) }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showConflictSessionDialog = false
                     // RF-C1: capturar el libro que tiene el crono ANTES del reset; la sesión
                     // pendiente debe guardarse en ESE libro, no en el mostrado en el detalle.
                     val timerBookId = TimerStateHolder.activeBookId
@@ -459,7 +450,16 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     autoSessionMinutes = mins
                     timerSeconds = 0
                     showSessionDialog = true
-                }) { Text(stringResource(R.string.txt_bdd207ee), color = Green) }
+                }) { Text(stringResource(R.string.txt_bdd207ee), color = theme.textMuted) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showConflictSessionDialog = false
+                    // Si estaba pausado, reanudar; si estaba corriendo, dejarlo correr
+                    if (TimerStateHolder.paused) {
+                        com.lecturameter.TimerService.resume(context)
+                    }
+                }) { Text(stringResource(R.string.txt_bafd7322), color = Red) }
             },
             containerColor = theme.bgMid
         )
@@ -735,6 +735,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 }
             },
             dismissButton = {
+                TextButton(onClick = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false }) {
+                    Text(stringResource(R.string.txt_847607d7), color = Red)
+                }
+            },
+            confirmButton = {
                 TextButton(
                     onClick = {
                         val sel = selectedEditionResult
@@ -759,11 +764,6 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                     },
                     enabled = selectedEditionResult != null
                 ) { Text(if (isAdding) stringResource(R.string.txt_d20f652b) else stringResource(R.string.txt_d1bdc329), color = if (selectedEditionResult != null) acc else theme.textDim) }
-            },
-            confirmButton = {
-                TextButton(onClick = { showChangeEditionSheet = false; showAddEditionSheet = false; scannedEditionLanguageUncertain = false }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Red)
-                }
             }
         )
     }

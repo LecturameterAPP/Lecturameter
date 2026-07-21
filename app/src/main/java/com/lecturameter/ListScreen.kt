@@ -117,6 +117,10 @@ fun ListScreen(
     // B-019 en la hoja: tiempo huérfano de una sesión que no llegó a guardarse.
     var qsOrphanSeconds by remember { mutableStateOf(0L) }
     var qsPendingResumeStart by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // Conflicto: otro crono en marcha al pulsar ▶ en un libro distinto.
+    var qsShowConflictDialog by remember { mutableStateOf(false) }
+    var qsConflictTargetBookId by remember { mutableStateOf(-1L) }
+    var qsConflictTargetTitle by remember { mutableStateOf("") }
     val qsNotifPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -471,6 +475,47 @@ fun ListScreen(
         )
     }
 
+    // ── Diálogo: crono en curso en otro libro (mismo patrón que DetailScreen) ───
+    if (qsShowConflictDialog) {
+        AlertDialog(
+            onDismissRequest = { qsShowConflictDialog = false },
+            title = { Text(stringResource(R.string.txt_8bac5764), color = theme.textMain) },
+            text = { Text(stringResource(R.string.txt_fb71a7c6), color = theme.textMuted) },
+            confirmButton = {
+                TextButton(onClick = {
+                    qsShowConflictDialog = false
+                    val timerBookId = TimerStateHolder.activeBookId
+                    val secs = TimerStateHolder.seconds
+                    val mins = ((secs + 30) / 60).toInt().coerceAtLeast(1)
+                    com.lecturameter.TimerService.stop(timerCtx, showEndNotification = false)
+                    TimerStateHolder.shouldOpenDialog = false
+                    TimerStateHolder.reset()
+                    qsSessionBookId = timerBookId
+                    qsSessionMinutes = mins
+                    qsShowSessionDialog = true
+                    val targetId = qsConflictTargetBookId
+                    val targetTitle = qsConflictTargetTitle
+                    qsStartTimerChecked(targetId) {
+                        com.lecturameter.TimerService.start(timerCtx, targetId, targetTitle)
+                        timerRunningHome = true
+                        timerPausedHome = false
+                        timerActiveBookHome = targetId
+                        timerSecondsHome = 0
+                    }
+                }) { Text(stringResource(R.string.txt_bdd207ee), color = theme.textMuted) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    qsShowConflictDialog = false
+                    if (TimerStateHolder.paused) {
+                        com.lecturameter.TimerService.resume(timerCtx)
+                    }
+                }) { Text(stringResource(R.string.txt_bafd7322), color = Red) }
+            },
+            containerColor = theme.bgMid
+        )
+    }
+
     // ── Diálogo de sesión cronometrada, encima de la hoja (mockup crono-hoja) ─────
     if (qsShowSessionDialog) {
         val sessBook = booksAll.find { it.id == qsSessionBookId }
@@ -612,22 +657,23 @@ fun ListScreen(
                                     Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.cd_end_session), tint = Color.White, modifier = Modifier.size(18.dp))
                                 }
                             } else {
-                                // ▶ verde (arranca aquí) o ghost apagado si corre otro crono.
+                                // ▶ verde: arranca el crono o muestra diálogo de conflicto si hay otro activo.
                                 Box(
                                     Modifier.size(36.dp).clip(CircleShape)
-                                        .then(
-                                            if (anotherRunning) Modifier.border(1.dp, theme.border, CircleShape)
-                                            else Modifier.background(Green)
-                                        )
-                                        .clickable(enabled = !anotherRunning) {
-                                            // El ▶ ya no navega: arranca el crono en la propia fila.
-                                            // B-019: si hay tiempo huérfano de este libro, preguntar.
-                                            qsStartTimerChecked(b.id) {
-                                                com.lecturameter.TimerService.start(timerCtx, b.id, b.title)
-                                                timerRunningHome = true
-                                                timerPausedHome = false
-                                                timerActiveBookHome = b.id
-                                                timerSecondsHome = 0
+                                        .background(Green)
+                                        .clickable {
+                                            if (anotherRunning) {
+                                                qsConflictTargetBookId = b.id
+                                                qsConflictTargetTitle = b.title
+                                                qsShowConflictDialog = true
+                                            } else {
+                                                qsStartTimerChecked(b.id) {
+                                                    com.lecturameter.TimerService.start(timerCtx, b.id, b.title)
+                                                    timerRunningHome = true
+                                                    timerPausedHome = false
+                                                    timerActiveBookHome = b.id
+                                                    timerSecondsHome = 0
+                                                }
                                             }
                                         },
                                     contentAlignment = Alignment.Center
@@ -635,7 +681,7 @@ fun ListScreen(
                                     Icon(
                                         Icons.Default.PlayArrow,
                                         contentDescription = null,
-                                        tint = if (anotherRunning) theme.textMuted else Color.White,
+                                        tint = Color.White,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }

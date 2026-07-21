@@ -821,6 +821,11 @@ fun HistorySessionCard(
                 }
             },
             dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text(stringResource(R.string.txt_847607d7), color = Red)
+                }
+            },
+            confirmButton = {
                 TextButton(onClick = {
                     val stored = parseFlexibleDate(dateText.trim())
                     if (stored == null) { dateError = context.getString(R.string.err_date_invalid_correct); return@TextButton }
@@ -857,11 +862,6 @@ fun HistorySessionCard(
                     onEdit?.invoke(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
                 }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
-            },
-            confirmButton = {
-                TextButton(onClick = { showEditDialog = false }) {
-                    Text(stringResource(R.string.txt_847607d7), color = Red)
-                }
             }
         )
     }
@@ -1145,6 +1145,9 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                 }
             },
             dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
+            },
+            confirmButton = {
                 TextButton(onClick = {
                     val stored = parseFlexibleDate(dateText.trim())
                     if (stored == null) { dateError = context.getString(R.string.err_date_invalid_correct); return@TextButton }
@@ -1173,9 +1176,6 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                     onEdit(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
                 }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
-            },
-            confirmButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) }
             }
         )
     }
