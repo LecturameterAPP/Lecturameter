@@ -5,12 +5,15 @@ plugins {
 
 android {
     namespace 'com.lecturameter'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.lecturameter.public"
         minSdk 26
-        targetSdk 35
+        // targetSdk 36 (Android 16): requisito de Play desde el 31-ago-2026 para publicar
+        // actualizaciones. Ojo Android 16: edge-to-edge OBLIGATORIO (ya no se puede optar por
+        // no usarlo), revisado visualmente en el movil. SDK 36 ya instalado.
+        targetSdk 36
         // 10034: v3.1 — resubida con código de versión corregido
         versionCode 10034
         versionName "3.1"
