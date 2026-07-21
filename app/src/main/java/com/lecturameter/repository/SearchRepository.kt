@@ -1492,14 +1492,20 @@ private suspend fun fetchKitsuMangaResults(query: String, preferredLang: String)
  *
  * No trae metadatos: el catálogo ya sabe título, autor, páginas y año, y son mejores que
  * los que devolvería una búsqueda genérica. Aquí lo único que falta es la imagen.
- * Se prueba Google Books por ISBN (que es lo que mejor cubre ediciones españolas
- * recientes) y, si no hay ISBN o no da nada, por título y autor.
+ *
+ * Dos fuentes en cascada para que Google Books sea PRESCINDIBLE (por su licencia de zona
+ * gris comercial y por el riesgo de que revoquen la key): primero GB por ISBN y por título
+ * (mejor cobertura de ediciones españolas recientes y sin rate limit), y si GB no da nada
+ * —o el día que Google corte la key— Open Library rescata lo que puede, gratis y sin key.
+ * Antes esto era GB-only: era el único rescate de portada para las ~250.000 obras de la
+ * Biblioteca Nacional (cover_id nulo), o sea que sin GB la fuente PRINCIPAL de la app se
+ * quedaba con portada generada.
  *
  * Devuelve null si ninguna fuente tiene portada. Quien llama debe cachear también ese
  * null, o el mismo libro se preguntará a la red en cada búsqueda para siempre.
  */
 private suspend fun fetchCoverUrlOnline(isbn13: String?, title: String, author: String): String? {
-    suspend fun pedir(url: String): String? = try {
+    suspend fun pedirGb(url: String): String? = try {
         ApiThrottle.gate(URL(url))
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.setRequestProperty("User-Agent", APP_USER_AGENT)
@@ -1520,18 +1526,39 @@ private suspend fun fetchCoverUrlOnline(isbn13: String?, title: String, author: 
     } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
     catch (_: Exception) { null }
 
+    // 1. Google Books por ISBN
     if (!isbn13.isNullOrBlank()) {
-        pedir(withGbKey(
+        pedirGb(withGbKey(
             "https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn13&maxResults=1&printType=books"
         ))?.let { return it }
     }
-    if (title.isBlank()) return null
-    val q = URLEncoder.encode(
-        if (author.isBlank()) title else "$title $author", "UTF-8"
-    )
-    return pedir(withGbKey(
-        "https://www.googleapis.com/books/v1/volumes?q=$q&maxResults=1&printType=books"
-    ))
+    // 2. Google Books por título+autor
+    if (title.isNotBlank()) {
+        val q = URLEncoder.encode(if (author.isBlank()) title else "$title $author", "UTF-8")
+        pedirGb(withGbKey(
+            "https://www.googleapis.com/books/v1/volumes?q=$q&maxResults=1&printType=books"
+        ))?.let { return it }
+    }
+
+    // 3. Respaldo Open Library — hace a GB prescindible. default=false es clave: sin él,
+    //    covers.openlibrary.org devuelve el GIF fantasma de 43 bytes con 200 cuando no tiene
+    //    portada; con él responde 404 y se distingue limpio.
+    if (!isbn13.isNullOrBlank()) {
+        val candidate = "https://covers.openlibrary.org/b/isbn/$isbn13-L.jpg?default=false"
+        try {
+            ApiThrottle.gate(URL(candidate))
+            val c = URL(candidate).openConnection() as HttpURLConnection
+            c.setRequestProperty("User-Agent", APP_USER_AGENT)
+            c.connectTimeout = 4_000; c.readTimeout = 4_000
+            val ok = c.responseCode == 200
+            c.disconnect()
+            if (ok) return candidate.removeSuffix("?default=false")
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) {}
+    }
+    // 4. Open Library por título+autor (reutiliza la búsqueda que ya valida la portada)
+    if (title.isNotBlank()) return fetchSpanishCoverByTitle(title, author)
+    return null
 }
 
 // chooseBetterGenre eliminado en v8.0; reemplazado por votación en fetchBookMetadata
