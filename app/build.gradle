@@ -75,6 +75,10 @@ android {
     buildFeatures { compose true; buildConfig true }
     composeOptions { kotlinCompilerExtensionVersion '1.5.1' }
 
+    // Play Asset Delivery: el catalogo local viaja fuera del modulo base.
+    // OJO: solo tiene efecto en el AAB. `assembleRelease` da un APK SIN catalogo.
+    assetPacks = [':catalog_pack']
+
     packagingOptions {
         exclude 'META-INF/DEPENDENCIES'
         exclude 'META-INF/LICENSE'
@@ -83,6 +87,23 @@ android {
         exclude 'META-INF/NOTICE.txt'
         exclude 'META-INF/INDEX.LIST'
     }
+}
+
+// El catalogo vive SOLO en catalog_pack. Si alguien vuelve a dejar un .db en los assets del
+// modulo base, el AAB lo llevaria DOS veces (320 MB) sin ninguna senal, y el modulo base
+// tiene un limite duro de 500 MB en Play. Mejor romper el build aqui.
+tasks.register('checkCatalogNotInBaseModule') {
+    doLast {
+        def strays = fileTree('src/main/assets').matching { include 'catalog_*.db' }.files
+        if (!strays.isEmpty()) {
+            throw new GradleException(
+                "El catalogo no va en el modulo base: ${strays*.name}. " +
+                "Muevelo a catalog_pack/src/main/assets/.")
+        }
+    }
+}
+tasks.matching { it.name.startsWith('preBuild') }.configureEach {
+    dependsOn 'checkCatalogNotInBaseModule'
 }
 
 dependencies {
@@ -128,6 +149,9 @@ dependencies {
 
     // ── P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE) ──
     implementation 'com.google.android.play:app-update-ktx:2.1.0'
+
+    // ── Play Asset Delivery: localizar y forzar la descarga de catalog_pack ──────
+    implementation 'com.google.android.play:asset-delivery-ktx:2.2.2'
 
     // ── Tests unitarios (F8) — ejecutar con run_tests.ps1 (gradle/gradle#12660) ──
     testImplementation 'junit:junit:4.13.2'

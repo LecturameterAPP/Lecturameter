@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Lecturameter"
 include ':app'
+// Play Asset Delivery: catalogo local en un pack fast-follow (ver catalog_pack/build.gradle)
+include ':catalog_pack'

@@ -11,6 +11,7 @@ package com.lecturameter
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
+import com.google.android.play.core.assetpacks.AssetPackManagerFactory
 import com.lecturameter.utils.isbn10To13
 import com.lecturameter.utils.isbn13To10
 import kotlinx.coroutines.Dispatchers
@@ -26,23 +27,26 @@ object CatalogRepository {
 
     private const val TAG = "CatalogRepo"
 
-    /**
-     * Subir SIEMPRE que se regenere catalog_core.db: es lo unico que fuerza recopiarlo
-     * desde assets. Si no se sube, el APK lleva el catalogo nuevo dentro pero la app sigue
-     * abriendo el viejo de `filesDir/catalog/`, sin ningun error visible.
-     *
-     * Ya paso el 21-07: se emitio el catalogo con la BNE fusionada, se instalo el APK y la
-     * app siguio usando la base anterior. La unica pista era la AUSENCIA del log
-     * "copiando catalog_core.db desde assets". No hay forma de detectarlo desde la UI.
-     *
-     * v1: Open Library solo, 118 MB.
-     * v2: + BNE con criterio mix y title_es deduplicado, 168 MB (21-07-2026).
-     */
-    private const val CATALOG_VERSION = 2
-    private const val PREFS = "catalog_prefs"
-    private const val KEY_INSTALLED_VERSION = "installed_version"
-
     private const val CORE_ASSET = "catalog_core.db"
+
+    /**
+     * Play Asset Delivery. El catalogo ya NO viaja en el modulo base ni se copia a
+     * filesDir: vive descomprimido en el directorio del pack y se abre ahi mismo.
+     *
+     * Esto mata de raiz el bug del 21-07 (CATALOG_VERSION sin subir y la app abriendo en
+     * silencio la copia vieja de filesDir): ya no hay copia, y Play sustituye el pack entero
+     * cuando cambia. Al reemitir el catalogo NO hay que tocar ninguna constante.
+     *
+     * El pack es fast-follow: Play lo baja solo tras instalar. Mientras no este, la busqueda
+     * cae a las APIs EN SILENCIO, que es el criterio elegido; el unico aviso al usuario es
+     * `err_no_internet_search`, que solo salta sin red Y sin catalogo.
+     */
+    private const val PACK_NAME = "catalog_pack"
+
+    // Copia heredada de las versiones anteriores al pack (<= 3.1): 160 MB muertos en
+    // filesDir que hay que devolver al usuario en el primer arranque.
+    private const val LEGACY_PREFS = "catalog_prefs"
+    private const val LEGACY_KEY_VERSION = "installed_version"
 
     // core + packs descargados. Se consultan todos y se fusionan resultados.
     private val open = LinkedHashMap<String, SQLiteDatabase>()
@@ -50,25 +54,30 @@ object CatalogRepository {
     // -- ciclo de vida ------------------------------------------------------
 
     /**
-     * Copia catalog_core.db desde assets si hace falta y abre todos los catalogos
-     * disponibles. Idempotente. Llamar desde un hilo de IO en el arranque.
+     * Abre el catalogo del asset pack y los packs de idioma ya descargados. Idempotente.
+     * Llamar desde un hilo de IO en el arranque.
+     *
+     * Si el pack todavia no esta (recien instalada, o instalada sin conexion) pide su
+     * descarga y sale sin catalogo: `isAvailable` queda en false y la busqueda usa las APIs.
+     * El siguiente arranque lo encontrara.
      */
     fun init(context: Context) {
         if (open.isNotEmpty()) return
         try {
-            val dir = catalogDir(context)
-            val core = File(dir, CORE_ASSET)
+            deleteLegacyCopy(context)
 
-            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val installed = prefs.getInt(KEY_INSTALLED_VERSION, -1)
-            if (!core.exists() || installed != CATALOG_VERSION) {
-                copyCoreFromAssets(context, core)
-                prefs.edit().putInt(KEY_INSTALLED_VERSION, CATALOG_VERSION).apply()
+            val core = corePackFile(context)
+            if (core == null) {
+                Log.i(TAG, "$PACK_NAME aun no esta instalado, se pide y se sigue sin catalogo")
+                requestPack(context)
+            } else {
+                // core primero: sus resultados tienen prioridad al deduplicar
+                openIfPresent(core)
             }
 
-            // core primero: sus resultados tienen prioridad al deduplicar
-            openIfPresent(core)
-            dir.listFiles { f -> f.name.startsWith("catalog_") && f.name != CORE_ASSET }
+            // Packs de idioma (Fase 3): se descargan aparte y viven en filesDir.
+            catalogDir(context)
+                .listFiles { f -> f.name.startsWith("catalog_") && f.name != CORE_ASSET }
                 ?.sortedBy { it.name }
                 ?.forEach { openIfPresent(it) }
 
@@ -76,6 +85,37 @@ object CatalogRepository {
         } catch (e: Exception) {
             // Un catalogo roto nunca debe tumbar la app: la busqueda cae a las APIs.
             Log.e(TAG, "init fallo, se seguira usando solo la busqueda online", e)
+        }
+    }
+
+    /** Ruta de catalog_core.db dentro del asset pack, o null si el pack no esta instalado. */
+    private fun corePackFile(context: Context): File? {
+        val location = AssetPackManagerFactory.getInstance(context).getPackLocation(PACK_NAME)
+        val assetsPath = location?.assetsPath() ?: return null
+        return File(assetsPath, CORE_ASSET).takeIf { it.exists() && it.length() > 0L }
+    }
+
+    /**
+     * Fuerza la descarga del pack. Sobre un fast-follow a medias `fetch()` es valido y lo
+     * acelera. No se observa el progreso a proposito: el usuario no tiene que enterarse.
+     */
+    private fun requestPack(context: Context) {
+        runCatching { AssetPackManagerFactory.getInstance(context).fetch(listOf(PACK_NAME)) }
+            .onFailure { Log.w(TAG, "no se pudo pedir $PACK_NAME", it) }
+    }
+
+    /**
+     * Borra la copia que hacian las versiones <= 3.1 en filesDir/catalog/. Son 160 MB que
+     * ya no se abren nunca: el catalogo se lee del pack.
+     */
+    private fun deleteLegacyCopy(context: Context) {
+        val legacy = File(catalogDir(context), CORE_ASSET)
+        if (!legacy.exists()) return
+        val bytes = legacy.length()
+        if (legacy.delete()) {
+            Log.i(TAG, "borrada la copia heredada de $CORE_ASSET ($bytes bytes)")
+            context.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+                .edit().remove(LEGACY_KEY_VERSION).apply()
         }
     }
 
@@ -88,17 +128,6 @@ object CatalogRepository {
     val isAvailable: Boolean get() = open.isNotEmpty()
 
     private fun catalogDir(context: Context) = File(context.filesDir, "catalog").apply { mkdirs() }
-
-    private fun copyCoreFromAssets(context: Context, dest: File) {
-        Log.i(TAG, "copiando $CORE_ASSET desde assets")
-        val tmp = File(dest.parentFile, "$CORE_ASSET.tmp")
-        context.assets.open(CORE_ASSET).use { input ->
-            tmp.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
-        }
-        if (dest.exists()) dest.delete()
-        // rename atomico: si el proceso muere a medio copiar no queda un .db truncado
-        if (!tmp.renameTo(dest)) throw IllegalStateException("no se pudo renombrar $tmp")
-    }
 
     private fun openIfPresent(file: File) {
         if (!file.exists() || file.length() == 0L) return

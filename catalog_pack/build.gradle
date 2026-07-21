@@ -1,0 +1,23 @@
+// Play Asset Delivery: el catalogo local (catalog_core.db, 160 MB) sale del modulo base
+// y viaja en su propio pack. Baja la descarga inicial de Play de ~98 MB a ~30 MB.
+//
+// fast-follow: Play lo descarga automaticamente JUSTO DESPUES de instalar la app, sin que
+// el usuario haga nada y sin pantalla de espera. Es el unico modo que da "esta ahi casi
+// siempre" sin bloquear la instalacion. Un pack tiene UN solo modo, pero sobre un
+// fast-follow a medias se puede llamar a fetch() para forzarlo.
+//
+// Consecuencias, no olvidar:
+// - Los asset packs SOLO entran en el AAB. `assembleRelease` produce un APK SIN catalogo,
+//   asi que probar el catalogo exige `bundletool build-apks --local-testing` + `install-apks`.
+// - En ese modo local los fast-follow se comportan como on-demand (no se autodescargan),
+//   lo que prueba justo el camino "pack ausente -> caer a las APIs".
+plugins {
+    id 'com.android.asset-pack'
+}
+
+assetPack {
+    packName = "catalog_pack"
+    dynamicDelivery {
+        deliveryType = "fast-follow"
+    }
+}
