@@ -403,7 +403,11 @@ fun BookSearchScreen(
                         Text(stringResource(R.string.txt_65dc881f), color = theme.textDim, fontSize = 11.sp)
                     }
                 } else {
-                    Text(stringResource(R.string.search_results_summary, results.size), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    // Con un solo resultado decía "1 resultados". Se ve en cuanto buscas por ISBN,
+                    // que es el caso más común de resultado único.
+                    val resumen = if (results.size == 1) stringResource(R.string.search_results_summary_one)
+                                  else stringResource(R.string.search_results_summary, results.size)
+                    Text(resumen, color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
                 }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(results) { result -> SearchResultCard(result, theme) { selectedResult = result } }

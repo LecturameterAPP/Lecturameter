@@ -124,7 +124,8 @@
     <string name="drive_backup_auto_hint">Auto backup every %1$dh · survives reinstalls</string>
     <string name="drive_backup_last">Last cloud backup: %1$s</string>
     <string name="search_pages_count">%1$d pages</string>
-    <string name="search_results_summary">%1$d results · with cover first</string>
+    <string name="search_results_summary">%1$d results · closest matches first</string>
+    <string name="search_results_summary_one">1 result</string>
     <string name="app_version_label">Version %1$s</string>
     <string name="tutorial_mock_genres">Fantasy</string>
     <string name="tutorial_mock_pages">📄 782 pgs (210p)</string>

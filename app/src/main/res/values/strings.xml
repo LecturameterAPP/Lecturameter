@@ -124,7 +124,10 @@
     <string name="drive_backup_auto_hint">Copia automática cada %1$dh + persiste tras reinstalar</string>
     <string name="drive_backup_last">Última copia en la nube: %1$s</string>
     <string name="search_pages_count">%1$d páginas</string>
-    <string name="search_results_summary">%1$d resultados · con portada primero</string>
+    <!-- Decía "con portada primero", y desde que la relevancia manda sobre todo lo demás
+         eso dejó de ser verdad: describía un orden que la app ya no aplica. -->
+    <string name="search_results_summary">%1$d resultados · más parecidos primero</string>
+    <string name="search_results_summary_one">1 resultado</string>
     <string name="app_version_label">Versión %1$s</string>
     <string name="tutorial_mock_genres">Fantasía</string>
     <string name="tutorial_mock_pages">📄 782 págs (210p)</string>

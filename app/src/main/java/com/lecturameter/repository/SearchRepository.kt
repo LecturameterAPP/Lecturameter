@@ -349,11 +349,39 @@ internal fun cleanCoverUrl(url: String?): String? =
         }
 
 /**
+ * ¿Los primeros bytes de la respuesta son la portada fantasma en vez de una imagen?
+ *
+ * Open Library responde HTTP 200 con un **GIF transparente de 1x1 y 43 bytes**, servido
+ * con extensión .jpg, cuando NO tiene portada para ese ISBN. No es un caso raro: medido
+ * el 21-07 sobre 22 obras del catálogo sin `cover_id`, **18 (82%)** contestan eso.
+ *
+ * Se mira por dos vías independientes, porque cada una sola tiene un punto ciego:
+ * el tamaño (ninguna portada de verdad cabe en 200 bytes) y la firma GIF (si un día
+ * engordan el pixel, sigue sin ser un JPEG). Función pura: ver CoverPhantomTest.
+ */
+internal fun esPortadaFantasma(bytes: ByteArray, leidos: Int): Boolean {
+    if (leidos <= 200) return true
+    return leidos >= 4 && bytes[0] == 'G'.code.toByte() && bytes[1] == 'I'.code.toByte() &&
+        bytes[2] == 'F'.code.toByte() && bytes[3] == '8'.code.toByte()
+}
+
+/**
  * Valida que una URL de portada devuelva una imagen real (>8 KB).
  * Los placeholders tipo "COVER TO BE REVEALED" de TOR/Gollancz suelen
- * tener menos de 8 KB. Devuelve true si no se puede determinar el tamaño.
+ * tener menos de 8 KB.
+ *
+ * Cuando el servidor NO informa del tamaño hay que bajar a mirar los bytes. Antes se
+ * asumía válida, y eso dejaba muerto medio pipeline de portadas: `covers.openlibrary.org`
+ * contesta al HEAD con 200 y SIN `Content-Length`, así que TODA portada por ISBN se daba
+ * por buena, fantasmas incluidas. Al quedarse con `coverUrl != null`, el bloque que pide
+ * la portada a Google Books (filtra por `coverUrl == null`) no se activaba nunca para las
+ * 250.000 obras de la Biblioteca Nacional, que son justo las que lo necesitan.
  */
 private suspend fun isCoverUrlValid(url: String): Boolean = withContext(Dispatchers.IO) {
+    // covers.openlibrary.org NUNCA manda Content-Length (verificado con HEAD el 21-07: 200 OK
+    // con seis cabeceras y ninguna de tamaño). Hacerle un HEAD es gastar una petición para no
+    // enterarse de nada y además pagar dos veces el throttling. Se va directo a los bytes.
+    if (url.contains("covers.openlibrary.org")) return@withContext !esPortadaFantasmaEnRed(url)
     try {
         ApiThrottle.gate(URL(url))   // throttling 200ms/host (auditoría r2)
         val conn = URL(url).openConnection() as HttpURLConnection
@@ -363,13 +391,52 @@ private suspend fun isCoverUrlValid(url: String): Boolean = withContext(Dispatch
         val code = conn.responseCode
         val len = conn.contentLength
         conn.disconnect()
-        // Si el servidor no informa tamaño (len < 0) asumimos válida
-        code == 200 && (len < 0 || len > 8_000)
+        when {
+            code != 200 -> false
+            len >= 0 -> len > 8_000
+            else -> !esPortadaFantasmaEnRed(url)
+        }
     } catch (e: kotlinx.coroutines.CancellationException) {
         // RF-M16: al cancelar hay que propagar, no devolver true (marcaría la
         // portada como válida sin haberla comprobado)
         throw e
     } catch (_: Exception) { true }
+}
+
+/**
+ * Pide solo la cabecera del fichero (1 KB) para distinguir una portada de verdad del GIF
+ * de relleno. Se lee poco a propósito: basta para el tamaño y la firma, y no se descarga
+ * una imagen que a lo mejor no se va a enseñar. Ante la duda devuelve false (la trata como
+ * válida): equivocarse aquí hacia el "sí" solo deja una portada de más, y BookCover todavía
+ * la caza al pintarla comprobando el tamaño real del drawable.
+ */
+private suspend fun esPortadaFantasmaEnRed(url: String): Boolean = withContext(Dispatchers.IO) {
+    try {
+        ApiThrottle.gate(URL(url))
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
+        conn.setRequestProperty("Range", "bytes=0-1023")
+        // 10 s de lectura, no 5: medido el 21-07 sobre 22 portadas por ISBN, la respuesta
+        // tarda de 1,0 a 7,4 s (media 3,9). Con 5 s expiraban las lentas, y al expirar se
+        // daba la portada por buena, que es justo el fallo que este código viene a arreglar.
+        conn.connectTimeout = 3_000; conn.readTimeout = 10_000
+        // 206 si respeta el Range, 200 si lo ignora y manda el fichero entero: en ese caso
+        // leemos 1 KB y cerramos, que corta la descarga igual.
+        if (conn.responseCode !in listOf(200, 206)) { conn.disconnect(); return@withContext false }
+        val buf = ByteArray(1024)
+        var leidos = 0
+        conn.inputStream.use { input ->
+            while (leidos < buf.size) {
+                val n = input.read(buf, leidos, buf.size - leidos)
+                if (n <= 0) break
+                leidos += n
+            }
+        }
+        conn.disconnect()
+        esPortadaFantasma(buf, leidos)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (_: Exception) { false }
 }
 
 /**
@@ -3398,22 +3465,35 @@ suspend fun searchOpenLibrary(
 
     results.sortWith(comparator)
 
-    // Validación de portadas del top 6 (HEAD <8KB = placeholder tipo "cover to be
-    // revealed"). Solo top N: coste de red acotado. Si alguna cae, reordenar.
+    // Validación de portadas del top 8 (HEAD <8KB = placeholder tipo "cover to be
+    // revealed"; sin Content-Length se miran los bytes). Solo top N: coste de red acotado.
+    // Si alguna cae, reordenar.
+    //
+    // Son 8 y no 6 para que cuadre con el bloque de rescate de portadas de más abajo, que
+    // trabaja sobre el top 8: con 6 los puestos 7 y 8 no se validaban aquí, así que
+    // llegaban allí con su portada fantasma intacta y tampoco se rescataban. Caían entre
+    // las dos sillas.
     coroutineScope {
-        val checks = results.take(6).filter { it.coverUrl != null }.map { r ->
+        val checks = results.take(8).filter { it.coverUrl != null }.map { r ->
             async { r to isCoverUrlValid(r.coverUrl!!) }
         }
         var changed = false
+        var descartadas = 0
         for (chk in checks) {
             val (r, valid) = try { chk.await() }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
                 catch (_: Exception) { continue }
             if (!valid) {
                 val i = results.indexOf(r)
-                if (i >= 0) { results[i] = r.copy(coverUrl = null); changed = true }
+                if (i >= 0) { results[i] = r.copy(coverUrl = null); changed = true; descartadas++ }
             }
         }
+        // Se registra porque sin esto no hay forma de saber si el descarte funciona: una
+        // portada fantasma y una portada que simplemente no existe se ven IGUAL en pantalla
+        // (las dos acaban en portada generada). Anoche costó tres hipótesis fallidas razonar
+        // sobre esto sin mirar el dato.
+        if (checks.isNotEmpty()) com.lecturameter.utils.AppLogger.log(
+            "portadas comprobadas: ${checks.size}, descartadas por no ser imagen: $descartadas", "Search")
         if (changed) results.sortWith(comparator)
     }
 
