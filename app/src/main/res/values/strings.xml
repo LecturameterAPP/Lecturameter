@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lecturameter</string>
     <string name="widget_description">Muestra el libro que estás leyendo con portada, título, autor, tiempo y días de lectura.</string>
@@ -458,6 +458,10 @@
     <string name="wrapped_banner_saved">Guardado · toca para ver</string>
     <string name="wrapped_banner_available">Disponible hasta el 26 de enero</string>
     <string name="pill_pags_dia">Págs/día</string>
+    <string name="pill_punt">Punt.</string>
+    <string name="stat_pages_short">📄 %1$d págs</string>
+    <string name="stat_session_one">1 sesión</string>
+    <string name="stat_session_other">%1$d sesiones</string>
     <string name="pill_leidos">Leídos</string>
     <string name="pill_dias_libro">Días/libro</string>
     <string name="pill_porcentaje_leido">% leído</string>
@@ -472,6 +476,7 @@
     <string name="err_page_end_over_total">La página final supera el total de páginas del libro.</string>
     <string name="err_page_end_over_func">La página final no puede superar la última página funcional (%1$d).</string>
     <string name="err_page_end_lt_start">La página final no puede ser menor que la inicial.</string>
+    <string name="err_minutes_range">Los minutos deben estar entre 1 y 1440 (24 h).</string>
     <string name="err_backup_format_invalid">Formato de copia de seguridad inválido</string>
     <string name="err_backup_read_failed">No se pudo leer el archivo</string>
     <string name="msg_import_goodreads_ok">✅ %1$d libros importados correctamente</string>
@@ -685,6 +690,9 @@
     <!-- History header stats -->
     <string name="history_stat_sessions">ses.</string>
     <string name="history_stat_total_time">Tiempo Total</string>
+    <string name="history_chip_sessions">📚 %1$d Ses</string>
+    <string name="history_chip_pages">📄 %1$d Págs</string>
+    <string name="history_chip_pages_session">📄 %1$d págs</string>
 
     <!-- History search results -->
     <string name="history_search_one">%1$d sesión encontrada</string>
@@ -926,6 +934,13 @@
     <string name="pro_icon_gold">Dorado</string>
     <string name="pro_icon_applied">Icono cambiado. Puede tardar unos segundos en refrescar.</string>
     <string name="support_code_hint">Si tu donación llega al precio de Pro, escríbeme y te doy un código de Pro (uno por cada múltiplo).</string>
+    <string name="tip_jar_title">Propinas</string>
+    <string name="tip_jar_subtitle">Si quieres apoyar el desarrollo, elige una propina. Los precios se ajustan a tu país.</string>
+    <string name="tip_coffee">Un café</string>
+    <string name="tip_meal">Una comida</string>
+    <string name="tip_generous">Generoso</string>
+    <string name="tip_thanks">Gracias por la propina. :)</string>
+    <string name="tip_error">No se ha podido abrir Google Play. Inténtalo de nuevo en unos segundos.</string>
     <string name="pro_buy_button">Comprar por %1$s</string>
     <string name="pro_buy_unavailable">Disponible en Google Play</string>
     <string name="pro_have_code">Tengo un código</string>
@@ -950,6 +965,8 @@
     <string name="pro_code_err_network">Sin conexión con el servidor. Inténtalo de nuevo.</string>
     <string name="pro_code_err_exhausted">Este código ya se ha usado en el máximo de dispositivos. Si es tuyo y cambiaste de móvil, escríbenos a lecturameter.app@gmail.com.</string>
     <string name="pro_editions_hint">🔒 Con Pro, ediciones por libro sin límite</string>
+    <!-- RF-M23: durante el trial también se puede comprar desde la hoja Pro -->
+    <string name="pro_trial_buy_hint">Te quedan %1$d días de prueba. Hazte con Pro ahora y no pierdas nada al terminar.</string>
     <!-- v2.4 rework: estadísticas avanzadas -->
     <string name="adv_stats_title">Estadísticas avanzadas</string>
     <string name="adv_hourly_title">Mapa de calor horario</string>
@@ -1024,7 +1041,7 @@
     <string name="wrapped_streak_days">Racha de %1$d días</string>
     <string name="wrapped_no_prev_year">Sin datos del año anterior</string>
     <string name="settings_section_backups">COPIAS DE SEGURIDAD</string>
-    <string name="settings_section_widget">WIDGET</string>
+    <string name="settings_section_widget">WIDGETS</string>
     <!-- v2.5 -->
     <string name="adv_hourly_empty">Aún sin datos de hora. Las sesiones nuevas registran la hora automáticamente; en unos días verás aquí tu mapa horario.</string>
     <string name="wrapped_more_books">Más libros leídos</string>
@@ -1260,9 +1277,13 @@
     <string name="timer_resume_msg">Este libro tiene %1$s de una sesión anterior que se quedó sin guardar. Puedes seguir desde ahí o empezar de cero.</string>
     <string name="timer_resume_confirm">Retomar (%1$s)</string>
     <string name="timer_resume_fresh">Empezar de cero</string>
+    <!-- RF-M27: cuerpo del diálogo "cambio de edición con crono activo" -->
+    <string name="timer_edition_change_save_msg">Tienes una sesión en curso. Si cambias de edición ahora, la sesión se guardará automáticamente con la edición actual antes de hacer el cambio.</string>
+    <string name="timer_edition_change_end_msg">Tienes una sesión de lectura en curso. Si cambias de edición ahora, la sesión se finalizará.</string>
 
     <!-- P-035: aviso in-app de actualización (Play In-App Updates, modalidad FLEXIBLE) -->
     <string name="msg_update_ready_to_install">Actualización lista para instalar</string>
+    <string name="msg_data_recovered">Algunos datos estaban dañados y se han recuperado. Revisa tu biblioteca.</string>
     <string name="btn_restart_update">Reiniciar</string>
 
     <!-- B5 idea 1 (mockup 17-07): el "+" pregunta antes de asumir que se añade a mano -->
@@ -1298,70 +1319,27 @@
 
     <!-- Stats Widget Pro -->
     <string name="stats_widget_name">Lecturameter Stats</string>
-    <string name="stats_widget_description">Estadisticas de lectura (Pro)</string>
-    <string name="sw_pro_gate">Desbloquea estadisticas avanzadas, retos ilimitados y mas. Toca para ver Pro</string>
+    <string name="stats_widget_description">Estadísticas de lectura (Pro)</string>
+    <string name="sw_pro_gate">Desbloquea estadísticas avanzadas, retos ilimitados y más. Toca para ver Pro</string>
     <string name="sw_label_books">Libros</string>
-    <string name="sw_label_pages">Paginas</string>
+    <string name="sw_label_pages">Páginas</string>
     <string name="sw_label_time">Tiempo</string>
-    <string name="sw_label_active_days">Dias activos</string>
+    <string name="sw_label_active_days">Días activos</string>
     <string name="sw_label_streak">Racha</string>
     <string name="sw_label_best">Mejor</string>
     <string name="sw_label_peak_hour">Hora pico</string>
-    <string name="sw_label_fav_genre">Genero fav.</string>
+    <string name="sw_label_fav_genre">Género fav.</string>
     <string name="sw_monthly_comparison">Mes actual vs Mes anterior</string>
     <!-- Stats Widget settings -->
-    <string name="sw_config_title">Widget de estadisticas</string>
-    <string name="sw_config_subtitle">Configura el widget Pro de estadisticas globales</string>
-    <string name="sw_label_pages_short">Pag</string>
+    <string name="sw_config_title">Widget de estadísticas</string>
+    <string name="sw_config_subtitle">Configura el widget Pro de estadísticas globales</string>
+    <string name="sw_label_pages_short">Pág</string>
     <string name="sw_label_time_short">Tiempo</string>
     <string name="sw_label_streak_short">Racha</string>
     <string name="sw_label_sessions_short">Sesiones</string>
     <string name="sw_config_bars_title">Barras de comparativa</string>
     <string name="sw_config_bars_subtitle">Oculta las barras que no necesites</string>
     <string name="sw_config_entry_title">Widget Pro: comparativa mensual</string>
-    <string name="sw_config_entry_subtitle">Elige que barras muestra el widget de estadisticas</string>
+    <string name="sw_config_entry_subtitle">Elige qué barras muestra el widget de estadísticas</string>
     <!-- Stats Widget phrases (ES) -->
-    <string name="sw_phrase_01">Has leido el equivalente a %1$d ejemplares de El Principito</string>
-    <string name="sw_phrase_02">Llevas %1$d novelas completas en paginas</string>
-    <string name="sw_phrase_03">%1$d libros terminados. Cada uno, un mundo nuevo.</string>
-    <string name="sw_phrase_04">%1$d dias con una sesion de lectura. Constancia pura.</string>
-    <string name="sw_phrase_05">%1$d horas leyendo. Tiempo bien invertido.</string>
-    <string name="sw_phrase_06">Llevas %1$d dias seguidos leyendo. Sigue asi.</string>
-    <string name="sw_phrase_07">Tu mejor racha: %1$d dias. A por el siguiente record.</string>
-    <string name="sw_phrase_08">Has leido el equivalente a %1$d biblias en paginas</string>
-    <string name="sw_phrase_09">Tus libros apilados medirian %1$d metros</string>
-    <string name="sw_phrase_10">Has leido el equivalente a %1$d peliculas en tiempo</string>
-    <string name="sw_phrase_11">%1$d paginas. Cada una fue un momento contigo mismo.</string>
-    <string name="sw_phrase_12">Has recorrido %1$d Harry Potters en paginas</string>
-    <string name="sw_phrase_13">Llevas %1$d dias enteros dedicados a leer</string>
-    <string name="sw_phrase_14">Has leido el equivalente a %1$d capitulos de podcast</string>
-    <string name="sw_phrase_15">Tus paginas llenarian %1$d enciclopedias</string>
-    <string name="sw_phrase_16">%1$d dias abriendo un libro. El habito esta hecho.</string>
-    <string name="sw_phrase_17">Has leido el equivalente a %1$d Quijotes en paginas</string>
-    <string name="sw_phrase_18">Has invertido el tiempo de %1$d clases de universidad</string>
-    <string name="sw_phrase_19">Con %1$d libros ya tienes una biblioteca personal</string>
-    <string name="sw_phrase_20">%1$d centenares de paginas. Menuda coleccion de historias.</string>
-    <string name="sw_phrase_21">Has dedicado a leer el tiempo de %1$d episodios de serie</string>
-    <string name="sw_phrase_22">Has dedicado mas tiempo a leer que a %1$d partidos de futbol</string>
-    <string name="sw_phrase_23">Has leido mas que %1$d peliculas de El Senor de los Anillos</string>
-    <string name="sw_phrase_24">Si cada pagina fuera un paso, habrias caminado %1$d km</string>
-    <string name="sw_phrase_25">Has leido el equivalente a %1$d episodios de tu serie favorita</string>
-    <string name="sw_phrase_26">Tus horas de lectura superan %1$d viajes en avion transatlantico</string>
-    <string name="sw_phrase_27">Tus libros en fila medirian %1$d metros de estanteria</string>
-    <string name="sw_phrase_28">Has consumido %1$d kg de palabras impresas</string>
-    <string name="sw_phrase_29">Has leido mas minutos que %1$d siestas legendarias</string>
-    <string name="sw_phrase_30">Tus paginas pesarian unos %1$d kg en papel</string>
-    <string name="sw_phrase_31">Has leido el equivalente a %1$d veces Guerra y Paz</string>
-    <string name="sw_phrase_32">Has invertido %1$d jornadas laborales completas en leer</string>
-    <string name="sw_phrase_33">Has recorrido %1$d Cien anos de soledad en paginas</string>
-    <string name="sw_phrase_34">Has vivido mil vidas sin salir de casa</string>
-    <string name="sw_phrase_35">Cada pagina es una puerta. Tu ya has abierto cientos.</string>
-    <string name="sw_phrase_36">Los libros no cambian el mundo, cambian a quienes lo cambian</string>
-    <string name="sw_phrase_37">Leer es la unica forma de viajar sin moverse</string>
-    <string name="sw_phrase_38">Tu yo del futuro agradecera cada pagina de hoy</string>
-    <string name="sw_phrase_39">No hay mejor inversion que un libro abierto</string>
-    <string name="sw_phrase_40">Cada libro terminado es una version mejor de ti</string>
-    <string name="sw_phrase_41">No cuentas paginas. Coleccionas recuerdos.</string>
-    <string name="sw_phrase_42">Algunos leen libros. Tu construyes universos.</string>
-    <string name="sw_phrase_43">La tinta corre por tus venas. Eres lector de verdad.</string>
 </resources>

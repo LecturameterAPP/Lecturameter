@@ -7,6 +7,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ConsumeParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
@@ -27,6 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
  * el mismo punto único que usan el canje de códigos y todos los gates.
  */
 const val SKU_LM_PRO = "lecturameter_pro"
+const val SKU_TIP_COFFEE = "tip_coffee"
+const val SKU_TIP_MEAL = "tip_meal"
+const val SKU_TIP_GENEROUS = "tip_generous"
+val TIP_SKUS = listOf(SKU_TIP_COFFEE, SKU_TIP_MEAL, SKU_TIP_GENEROUS)
 
 object LmBilling : PurchasesUpdatedListener {
 
@@ -40,10 +45,18 @@ object LmBilling : PurchasesUpdatedListener {
     private val _purchaseCompleted = MutableStateFlow(0)
     val purchaseCompleted: StateFlow<Int> = _purchaseCompleted.asStateFlow()
 
+    private val _tipCompleted = MutableStateFlow(0)
+    val tipCompleted: StateFlow<Int> = _tipCompleted.asStateFlow()
+
     // Reintentos acotados de reconexión: el servicio de Play se cae p. ej. al actualizarse
     // la Play Store; sin reintento el botón de compra quedaría muerto hasta reabrir la app.
     private const val MAX_RECONNECTS = 3
     private var reconnects = 0
+
+    // RF-M22: como mucho UN resultado vacío cuenta por proceso. "Dos vacíos consecutivos"
+    // significa en arranques distintos: dos taps a "Restaurar compra" en la misma sesión
+    // no deben sumar dos y revocar lo que un solo arranque no justifica.
+    private var emptyRestoreCounted = false
 
     fun init(context: Context) {
         if (billingClient != null) return
@@ -121,6 +134,19 @@ object LmBilling : PurchasesUpdatedListener {
         return result?.responseCode == BillingClient.BillingResponseCode.OK
     }
 
+    fun launchTipPurchase(activity: Activity, sku: String): Boolean {
+        val details = _productDetails.value[sku] ?: return false
+        val params = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(listOf(
+                BillingFlowParams.ProductDetailsParams.newBuilder()
+                    .setProductDetails(details)
+                    .build()
+            ))
+            .build()
+        val result = billingClient?.launchBillingFlow(activity, params)
+        return result?.responseCode == BillingClient.BillingResponseCode.OK
+    }
+
     override fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>?) {
         when (result.responseCode) {
             BillingClient.BillingResponseCode.OK ->
@@ -137,6 +163,16 @@ object LmBilling : PurchasesUpdatedListener {
 
     private fun handlePurchase(purchase: Purchase) {
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
+        val isTip = purchase.products.any { it in TIP_SKUS }
+        if (isTip) {
+            val consumeParams = ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+            billingClient?.consumeAsync(consumeParams) { _, _ ->
+                _tipCompleted.value = _tipCompleted.value + 1
+            }
+            return
+        }
         if (SKU_LM_PRO !in purchase.products) return
         if (!purchase.isAcknowledged) {
             val params = AcknowledgePurchaseParams.newBuilder()
@@ -184,17 +220,28 @@ object LmBilling : PurchasesUpdatedListener {
                     SKU_LM_PRO in p.products && p.purchaseState == Purchase.PurchaseState.PURCHASED
                 }
                 // CRÍTICO (auditoría dinero 17-07): Play respondió OK y la cuenta NO tiene la
-                // compra → reembolso o cancelación. Retirar el Pro comprado (solo el de compra;
-                // revokePlayEntitlementIfGone respeta el de código y el trial). Sin esto,
-                // comprar + reembolsar dejaba Pro para siempre.
+                // compra → probable reembolso o cancelación. RF-M22: pero un solo vacío puede
+                // ser un falso negativo con comprador legítimo (otra cuenta de Google activa en
+                // Play, o primer arranque tras restore de Auto Backup con la caché de Play sin
+                // sincronizar), así que ya no se revoca a la primera: registerPlayEmptyRestore
+                // exige dos vacíos en arranques distintos y respeta el Pro de código y el trial.
+                // Un responseCode != OK no pasa por aquí (rama else): no cuenta como vacío.
                 if (!found) appContext?.let { ctx ->
                     val prefs = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
                     val wasPro = com.lecturameter.utils.Pro.isPro(prefs)
-                    com.lecturameter.utils.Pro.revokePlayEntitlementIfGone(prefs)
+                    if (!emptyRestoreCounted) {
+                        emptyRestoreCounted = true
+                        com.lecturameter.utils.Pro.registerPlayEmptyRestore(prefs)
+                    }
                     // Si de verdad se retiró algo, avisar a la UI para que recomponga (candado
                     // de temas de pago, topes de retos/ediciones) sin esperar a reiniciar.
                     if (wasPro && !com.lecturameter.utils.Pro.isPro(prefs))
                         _purchaseCompleted.value = _purchaseCompleted.value + 1
+                } else appContext?.let { ctx ->
+                    // RF-M22: cualquier resultado CON compra resetea el contador de vacíos.
+                    val prefs = ctx.getSharedPreferences("lecturameter", Context.MODE_PRIVATE)
+                    com.lecturameter.utils.Pro.resetPlayEmptyRestores(prefs)
+                    emptyRestoreCounted = false
                 }
                 onResult(if (found) RestoreResult.FOUND else RestoreResult.NONE)
             } else {
@@ -207,13 +254,14 @@ object LmBilling : PurchasesUpdatedListener {
     }
 
     private fun queryProducts() {
+        val allSkus = listOf(SKU_LM_PRO) + TIP_SKUS
         val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(listOf(
+            .setProductList(allSkus.map { sku ->
                 QueryProductDetailsParams.Product.newBuilder()
-                    .setProductId(SKU_LM_PRO)
+                    .setProductId(sku)
                     .setProductType(BillingClient.ProductType.INAPP)
                     .build()
-            ))
+            })
             .build()
         billingClient?.queryProductDetailsAsync(params) { result, detailsList ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {

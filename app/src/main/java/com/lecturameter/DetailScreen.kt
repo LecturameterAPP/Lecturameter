@@ -344,10 +344,14 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     ) }
     var timerSeconds by remember { mutableStateOf(TimerStateHolder.seconds) }
     var autoSessionMinutes by remember { mutableStateOf<Int?>(null) }
+    // RF-C1: id del libro que TENÍA el crono cuando la sesión pendiente viene de
+    // resolver un conflicto entre libros. -1L = flujo normal (la sesión es de este libro).
+    var conflictSessionBookId by remember { mutableStateOf(-1L) }
 
     fun closeSessionDialog() {
         showSessionDialog = false
         autoSessionMinutes = null
+        conflictSessionBookId = -1L
         TimerStateHolder.shouldOpenDialog = false
         com.lecturameter.TimerService.cancelSessionEndNotification(context)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
@@ -443,11 +447,15 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             dismissButton = {
                 TextButton(onClick = {
                     showConflictSessionDialog = false
+                    // RF-C1: capturar el libro que tiene el crono ANTES del reset; la sesión
+                    // pendiente debe guardarse en ESE libro, no en el mostrado en el detalle.
+                    val timerBookId = TimerStateHolder.activeBookId
                     val secs = TimerStateHolder.seconds
                     val mins = ((secs + 30) / 60).toInt().coerceAtLeast(1)
                     com.lecturameter.TimerService.stop(context, showEndNotification = false)
                     TimerStateHolder.shouldOpenDialog = false
                     TimerStateHolder.reset()
+                    conflictSessionBookId = timerBookId
                     autoSessionMinutes = mins
                     timerSeconds = 0
                     showSessionDialog = true
@@ -886,10 +894,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             title = { Text(stringResource(R.string.txt_8bac5764), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
+                    // RF-M27: cuerpo localizado (antes hardcodeado en español)
                     if (isActiveSwitch)
-                        "Tienes una sesión en curso. Si cambias de edición ahora, la sesión se guardará automáticamente con la edición actual antes de hacer el cambio."
+                        stringResource(R.string.timer_edition_change_save_msg)
                     else
-                        "Tienes una sesión de lectura en curso. Si cambias de edición ahora, la sesión se finalizará.",
+                        stringResource(R.string.timer_edition_change_end_msg),
                     color = theme.textMuted, fontSize = 13.sp, textAlign = TextAlign.Justify
                 )
             },
@@ -923,16 +932,31 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
     // ── Diálogo: Registrar sesión ─────────────────────────────────────────────
     if (showSessionDialog) {
-        SessionSaveDialog(
-            book = book,
-            bookSessions = bookSessions,
-            vm = vm,
-            prefs = prefs,
-            theme = theme,
-            autoSessionMinutes = autoSessionMinutes,
-            onDismiss = { closeSessionDialog() },
-            onSaved = { timerSeconds = 0; closeSessionDialog() }
-        )
+        // RF-C1: si la sesión viene de resolver un conflicto de crono entre libros,
+        // pertenece al libro que TENÍA el crono (con sus sesiones y páginas), no al
+        // mostrado en el detalle. Mismo criterio que la hoja rápida del home (ListScreen).
+        val sessBook = if (conflictSessionBookId != -1L) books.find { it.id == conflictSessionBookId } else book
+        if (sessBook != null) {
+            val sessBookSessions = if (sessBook.id == id) bookSessions else {
+                val sessLang = vm.editionsForBook(sessBook.id).firstOrNull { it.isActive }?.language ?: "original"
+                vm.sessionsForBookAndLanguage(sessBook.id, sessLang)
+            }
+            SessionSaveDialog(
+                book = sessBook,
+                bookSessions = sessBookSessions,
+                vm = vm,
+                prefs = prefs,
+                theme = theme,
+                autoSessionMinutes = autoSessionMinutes,
+                onDismiss = { closeSessionDialog() },
+                onSaved = { timerSeconds = 0; closeSessionDialog() }
+            )
+        } else {
+            // El libro del crono ya no existe: descartar los minutos, igual que ListScreen
+            showSessionDialog = false
+            autoSessionMinutes = null
+            conflictSessionBookId = -1L
+        }
     }
 
     if (showCoverDialog) {

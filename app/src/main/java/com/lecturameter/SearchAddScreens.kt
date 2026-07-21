@@ -110,7 +110,9 @@ fun BookSearchScreen(
     fun doSearch() {
         if (query.isBlank()) return
         searched = true; errorMsg = ""; networkError = false; results = emptyList()
-        if (!isOnline()) {
+        // Catálogo local: sin conexión ya no se aborta, porque la búsqueda puede resolverse
+        // en local. Solo se corta si además NO hay catálogo, que es el caso de antes.
+        if (!isOnline() && !CatalogRepository.isAvailable) {
             networkError = true
             errorMsg = context.getString(R.string.err_no_internet_search)
             return
@@ -127,8 +129,11 @@ fun BookSearchScreen(
             results = found
             isLoading = false
             if (found.isEmpty()) {
-                // Re-verificar conectividad: si seguimos offline tras la búsqueda fallida
-                if (!isOnline()) {
+                // Re-verificar conectividad: si seguimos offline tras la búsqueda fallida.
+                // Con catálogo local, quedarse sin resultados offline significa que el libro
+                // no está en el catálogo, no que falte internet: el mensaje correcto es
+                // "no encontrado", no "sin conexión".
+                if (!isOnline() && !CatalogRepository.isAvailable) {
                     networkError = true
                     errorMsg = context.getString(R.string.err_no_internet_search)
                 } else {
@@ -416,7 +421,7 @@ fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onAdd: () -> Unit)
                 Text(result.title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (result.author.isNotBlank()) Text(result.author, color = theme.textMuted, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 2.dp)) {
-                    if (result.pages > 0) Text("📄 ${result.pages} págs", color = theme.textDim, fontSize = 11.sp)
+                    if (result.pages > 0) Text(stringResource(R.string.stat_pages_short, result.pages), color = theme.textDim, fontSize = 11.sp)
                     if (result.publishYear.isNotBlank()) Text("📅 ${result.publishYear}", color = theme.textDim, fontSize = 11.sp)
                 }
                 if (result.genre.isNotBlank()) Text(mapApiGenre(result.genre).joinToString(" · ").ifBlank { result.genre }.take(50), color = acc.copy(alpha = 0.7f), fontSize = 11.sp)

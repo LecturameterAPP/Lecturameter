@@ -92,10 +92,23 @@ fun WrappedScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, 
     // v2.5: coordenadas del pager para recortar screenshot (excluir barra superior)
     var pagerBounds by remember { mutableStateOf<android.graphics.Rect?>(null) }
 
-    // Auto-guardar al abrir durante la ventana
-    LaunchedEffect(wrapped) {
+    // Auto-guardar al abrir durante la ventana.
+    // RF-C5: la key es year y NO wrapped. computeWrapped genera un savedAt nuevo en cada
+    // recalculo, asi que con key wrapped cada guardado emitia wrappedHistory, el remember
+    // recalculaba, la key cambiaba y el efecto volvia a guardar: bucle infinito de escrituras
+    // y de backups de Drive mientras la pantalla estuviera abierta. Con key year el efecto
+    // corre una vez por entrada a la pantalla, que es el comportamiento deseado.
+    LaunchedEffect(year) {
         if (wrapped != null && isInWrappedWindow() && wrappedWindowYear() == year) {
-            vm.saveWrappedForYear(wrapped, prefs)
+            // Defensa en profundidad: no reescribir si el snapshot guardado ya es identico.
+            // Se ignoran savedAt (siempre distinto por diseno) y favoriteBookIds (computeWrapped
+            // lo deja en null y saveWrappedForYear lo enriquece el solo al guardar).
+            val saved = vm.wrappedForYear(year)
+            val normalizedNew = wrapped.copy(savedAt = 0L, favoriteBookIds = null)
+            val normalizedSaved = saved?.copy(savedAt = 0L, favoriteBookIds = null)
+            if (normalizedNew != normalizedSaved) {
+                vm.saveWrappedForYear(wrapped, prefs)
+            }
         }
     }
 

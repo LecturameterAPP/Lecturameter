@@ -791,9 +791,9 @@ fun DailySessionsScreen(
                             Text(book.author, color = theme.textMuted, fontSize = 12.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                             Spacer(Modifier.height(6.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("📄 $totalPages págs", color = theme.textDim, fontSize = 11.sp)
+                                Text(stringResource(R.string.stat_pages_short, totalPages), color = theme.textDim, fontSize = 11.sp)
                                 if (totalMinutes > 0) Text("⏱️ ${formatMinutes(totalMinutes)}", color = theme.textDim, fontSize = 11.sp)
-                                Text(if (sessionCount == 1) "1 sesión" else "$sessionCount sesiones", color = theme.textDim, fontSize = 11.sp)
+                                Text(if (sessionCount == 1) stringResource(R.string.stat_session_one) else stringResource(R.string.stat_session_other, sessionCount), color = theme.textDim, fontSize = 11.sp)
                             }
                         }
                         Icon(Icons.Default.KeyboardArrowRight, null, tint = theme.textDim, modifier = Modifier.size(20.dp))

@@ -14,8 +14,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,17 +30,35 @@ import kotlinx.coroutines.withContext
 
 internal val LM_CODE_REGEX = Regex("^LM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$")
 
-/** Formatea la entrada en vivo a LM-XXXX-XXXX-XXXX. Internal para testearla (ProStateTest). */
-internal fun formatLmCode(raw: String): String {
-    val clean = raw.uppercase().filter { it.isLetterOrDigit() }
-        .removePrefix("LM").take(12)
-    return buildString {
-        append("LM-")
-        clean.forEachIndexed { i, c ->
-            if (i == 4 || i == 8) append('-')
-            append(c)
+/** VisualTransformation que muestra los dígitos del usuario como LM-XXXX-XXXX-XXXX. */
+internal class LmCodeVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        val out = buildString {
+            append("LM-")
+            raw.forEachIndexed { i, c ->
+                if (i == 4 || i == 8) append('-')
+                append(c)
+            }
         }
-    }.take(17)
+        val oMap = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                var o = offset + 3
+                if (offset >= 4) o++
+                if (offset >= 8) o++
+                return o.coerceAtMost(out.length)
+            }
+            override fun transformedToOriginal(offset: Int): Int {
+                // Reverse: subtract prefix and dashes
+                var o = offset - 3 // remove "LM-"
+                if (o < 0) return 0
+                if (offset > 7) o-- // dash at position 7
+                if (offset > 12) o-- // dash at position 12
+                return o.coerceIn(0, raw.length)
+            }
+        }
+        return TransformedText(AnnotatedString(out), oMap)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,12 +70,10 @@ fun ProUpsellSheet(
     onProChanged: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val activity = context as? android.app.Activity
     val acc = accentForTheme(theme)
     var showCodeEntry by remember { mutableStateOf(false) }
     var refresh by remember { mutableStateOf(0) }
     val isPro = remember(refresh) { Pro.isPro(prefs) }
-    val productDetails by LmBilling.productDetails.collectAsState()
     val purchaseTick by LmBilling.purchaseCompleted.collectAsState()
     LaunchedEffect(purchaseTick) { if (purchaseTick > 0) { refresh++; onProChanged() } }
     // M3: al abrir la hoja, asegurarse de que Billing sigue vivo. Si el servicio se cayó
@@ -76,7 +96,23 @@ fun ProUpsellSheet(
                 val statusLine = if (isTrial) stringResource(R.string.pro_status_trial, Pro.trialDaysLeft(prefs))
                                  else stringResource(R.string.pro_active_body)
                 Text(statusLine, color = theme.textMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(20.dp))
+                if (isTrial) {
+                    // RF-M23: durante la prueba de 7 días NO existía ningún camino de compra en
+                    // toda la app (el botón vivía solo en la rama else, e isPro es true en trial).
+                    // Quien quiere pagar en caliente debe poder: mismo botón de compra que la
+                    // rama de venta (ProBuyButton, sin duplicar la lógica de billing). Si el Pro
+                    // viene de compra o de código, la hoja se queda como estaba.
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        stringResource(R.string.pro_trial_buy_hint, Pro.trialDaysLeft(prefs)),
+                        color = theme.textMain, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    ProBuyButton(theme, acc)
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    Spacer(Modifier.height(20.dp))
+                }
                 OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, acc)) {
                     Text(stringResource(R.string.pro_close), color = acc)
                 }
@@ -117,32 +153,8 @@ fun ProUpsellSheet(
                     ) { Text(stringResource(R.string.pro_trial_button), fontWeight = FontWeight.Bold) }
                     Spacer(Modifier.height(8.dp))
                 }
-                // Compra: precio real de Play si está disponible; si no, botón deshabilitado
-                val price = productDetails[SKU_LM_PRO]?.oneTimePurchaseOfferDetails?.formattedPrice
-                val buyErrorMsg = stringResource(R.string.pro_buy_error)
-                OutlinedButton(
-                    // M2: launchPurchase devuelve Boolean A PROPÓSITO (ver LmBilling) y la UI
-                    // tiraba el valor. Si Play se caía entre poblar el precio y el tap, el
-                    // usuario pulsaba "Comprar por 2,99 €" y no pasaba absolutamente nada:
-                    // ni Toast, ni spinner, ni flujo de Play. En el botón que cobra, eso no.
-                    onClick = {
-                        if (activity != null && !LmBilling.launchPurchase(activity)) {
-                            android.widget.Toast.makeText(context, buyErrorMsg, android.widget.Toast.LENGTH_LONG).show()
-                            // El servicio se ha caído: intentar recuperarlo para el siguiente tap.
-                            LmBilling.reconnect()
-                        }
-                    },
-                    enabled = price != null && activity != null,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (price != null) acc else theme.border),
-                    modifier = Modifier.fillMaxWidth().height(46.dp)
-                ) {
-                    Text(
-                        if (price != null) stringResource(R.string.pro_buy_button, price)
-                        else stringResource(R.string.pro_buy_unavailable),
-                        color = if (price != null) acc else theme.textDim
-                    )
-                }
+                // Compra: botón compartido con la rama de trial (RF-M23), ver ProBuyButton.
+                ProBuyButton(theme, acc)
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = { showCodeEntry = true }, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.pro_have_code), color = acc, fontSize = 13.sp)
@@ -184,6 +196,41 @@ fun ProUpsellSheet(
                 }
             }
         }
+    }
+}
+
+// RF-M23: botón de compra ÚNICO de la hoja, compartido entre la rama de venta (else) y la
+// rama de trial. Extraído tal cual de la rama else para no duplicar la lógica de billing:
+// precio real de Play si está disponible; si no, botón deshabilitado.
+@Composable
+private fun ProBuyButton(theme: Theme, acc: androidx.compose.ui.graphics.Color) {
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+    val productDetails by LmBilling.productDetails.collectAsState()
+    val price = productDetails[SKU_LM_PRO]?.oneTimePurchaseOfferDetails?.formattedPrice
+    val buyErrorMsg = stringResource(R.string.pro_buy_error)
+    OutlinedButton(
+        // M2: launchPurchase devuelve Boolean A PROPÓSITO (ver LmBilling) y la UI
+        // tiraba el valor. Si Play se caía entre poblar el precio y el tap, el
+        // usuario pulsaba "Comprar por 2,99 €" y no pasaba absolutamente nada:
+        // ni Toast, ni spinner, ni flujo de Play. En el botón que cobra, eso no.
+        onClick = {
+            if (activity != null && !LmBilling.launchPurchase(activity)) {
+                android.widget.Toast.makeText(context, buyErrorMsg, android.widget.Toast.LENGTH_LONG).show()
+                // El servicio se ha caído: intentar recuperarlo para el siguiente tap.
+                LmBilling.reconnect()
+            }
+        },
+        enabled = price != null && activity != null,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, if (price != null) acc else theme.border),
+        modifier = Modifier.fillMaxWidth().height(46.dp)
+    ) {
+        Text(
+            if (price != null) stringResource(R.string.pro_buy_button, price)
+            else stringResource(R.string.pro_buy_unavailable),
+            color = if (price != null) acc else theme.textDim
+        )
     }
 }
 
@@ -355,7 +402,7 @@ private fun CodeEntry(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var code by remember { mutableStateOf("LM-") }
+    var code by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val errFormat = stringResource(R.string.pro_code_err_format)
@@ -364,12 +411,20 @@ private fun CodeEntry(
     val errNetwork = stringResource(R.string.pro_code_err_network)
     val errExhausted = stringResource(R.string.pro_code_err_exhausted)
 
+    val lmCodeTransformation = remember { LmCodeVisualTransformation() }
+
     Text(stringResource(R.string.pro_redeem_title), color = theme.textMain, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     Spacer(Modifier.height(14.dp))
     OutlinedTextField(
         value = code,
-        onValueChange = { code = formatLmCode(it); error = null },
+        onValueChange = { raw ->
+            code = raw.uppercase().filter { it.isLetterOrDigit() }
+                .let { s -> if (s.startsWith("LM")) s.drop(2) else s }
+                .take(12)
+            error = null
+        },
         placeholder = { Text("LM-XXXX-XXXX-XXXX", color = theme.textDim) },
+        visualTransformation = lmCodeTransformation,
         isError = error != null,
         supportingText = error?.let { { Text(it, color = Red, fontSize = 11.sp) } },
         singleLine = true,
@@ -385,13 +440,14 @@ private fun CodeEntry(
         }
         Button(
             onClick = {
-                if (!LM_CODE_REGEX.matches(code)) { error = errFormat; return@Button }
+                val formatted = "LM-${code.take(4)}-${code.drop(4).take(4)}-${code.drop(8).take(4)}"
+                if (!LM_CODE_REGEX.matches(formatted)) { error = errFormat; return@Button }
                 loading = true
                 scope.launch {
                     val deviceId = android.provider.Settings.Secure.getString(
                         context.contentResolver, android.provider.Settings.Secure.ANDROID_ID
                     ) ?: "unknown"
-                    val result = withContext(Dispatchers.IO) { Pro.redeemCode(prefs, code, deviceId) }
+                    val result = withContext(Dispatchers.IO) { Pro.redeemCode(prefs, formatted, deviceId) }
                     loading = false
                     when (result) {
                         is Pro.RedeemResult.Success -> onRedeemed()
@@ -402,7 +458,7 @@ private fun CodeEntry(
                     }
                 }
             },
-            enabled = code.length == 17 && !loading,
+            enabled = code.length == 12 && !loading,
             colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.weight(1f)

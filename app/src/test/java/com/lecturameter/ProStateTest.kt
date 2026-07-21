@@ -9,6 +9,7 @@ package com.lecturameter
 // SharedPreferences/Editor, implementadas aquí en memoria; no se toca ningún stub).
 
 import android.content.SharedPreferences
+import androidx.compose.ui.text.AnnotatedString
 import com.lecturameter.utils.Pro
 import org.junit.Assert.*
 import org.junit.Test
@@ -484,21 +485,35 @@ class ProStateTest {
         assertFalse(Pro.isPro(prefs))
     }
 
-    // ── Autoformato del código LM (UI del canje) ─────────────────────────────
+    // ── VisualTransformation del código LM (UI del canje) ─────────────────────
 
     @Test
-    fun `formatLmCode agrupa la entrada en LM-XXXX-XXXX-XXXX`() {
-        assertEquals("LM-ABCD-2345-WXYZ", formatLmCode("LM-abcd2345wxyz"))
-        assertEquals("LM-ABCD-2345-WXYZ", formatLmCode("lm abcd 2345 wxyz"))
-        assertEquals("LM-ABCD", formatLmCode("LM-ABCD"))
-        assertEquals("LM-", formatLmCode(""))
+    fun `LmCodeVisualTransformation formatea dígitos como LM-XXXX-XXXX-XXXX`() {
+        val vt = LmCodeVisualTransformation()
+        fun transformed(raw: String) = vt.filter(AnnotatedString(raw)).text.text
+
+        assertEquals("LM-ABCD-2345-WXYZ", transformed("ABCD2345WXYZ"))
+        assertEquals("LM-ABCD", transformed("ABCD"))
+        assertEquals("LM-", transformed(""))
+        assertEquals("LM-ABCD-2345", transformed("ABCD2345"))
     }
 
     @Test
-    fun `formatLmCode descarta el exceso y el resultado valida contra el regex`() {
-        val formatted = formatLmCode("LM-ABCD2345WXYZEXTRA")
-        assertEquals(17, formatted.length)
-        assertTrue(LM_CODE_REGEX.matches(formatted))
+    fun `LmCodeVisualTransformation offset mapping es consistente`() {
+        val vt = LmCodeVisualTransformation()
+        val result = vt.filter(AnnotatedString("ABCD2345WXYZ"))
+        assertEquals("LM-ABCD-2345-WXYZ", result.text.text)
+        assertEquals(3, result.offsetMapping.originalToTransformed(0))   // antes de A
+        assertEquals(7, result.offsetMapping.originalToTransformed(4))   // antes de 2 (salta guion)
+        assertEquals(13, result.offsetMapping.originalToTransformed(8))  // antes de W (salta guion)
+        assertEquals(0, result.offsetMapping.transformedToOriginal(0))   // en L
+        assertEquals(0, result.offsetMapping.transformedToOriginal(3))   // en A
+        assertEquals(4, result.offsetMapping.transformedToOriginal(8))   // en 2 (tras guion)
+    }
+
+    @Test
+    fun `LM_CODE_REGEX valida el formato completo`() {
+        assertTrue(LM_CODE_REGEX.matches("LM-ABCD-2345-WXYZ"))
         assertFalse(LM_CODE_REGEX.matches("LM-ABCD-2345"))
         assertFalse(LM_CODE_REGEX.matches("AU-ABCD-2345-WXYZ"))
     }

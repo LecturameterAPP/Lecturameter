@@ -134,9 +134,6 @@ class JsonBackupWorker(
                 }
             }
 
-            // Borrar backups antiguos del prefijo (mantener solo el del día, como en Descargas)
-            staleUris.forEach { try { android.provider.DocumentsContract.deleteDocument(ctx.contentResolver, it) } catch (_: Exception) {} }
-
             // Sobrescribir el del día si existe, o crear uno nuevo
             val targetUri = sameNameUri ?: run {
                 val parentUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocId)
@@ -145,6 +142,12 @@ class JsonBackupWorker(
 
             ctx.contentResolver.openOutputStream(targetUri, "wt")?.use { it.write(jsonContent.toByteArray()) }
                 ?: return false
+
+            // RF-C4: borrar los backups antiguos SOLO tras escribir el nuevo con éxito.
+            // Si la escritura falla a mitad, los viejos sobreviven. staleUris se enumeró
+            // antes de crear el documento de hoy, así que el recién creado nunca cae en
+            // el borrado aunque comparta prefijo de nombre.
+            staleUris.forEach { try { android.provider.DocumentsContract.deleteDocument(ctx.contentResolver, it) } catch (_: Exception) {} }
             true
         } catch (_: Exception) { false }
     }
@@ -236,9 +239,24 @@ class JsonBackupWorker(
             folderName(ctx)
         )
         dir.mkdirs()
-        // Borrar cualquier backup anterior del prefijo y escribir el de hoy
-        val prefix = filePrefix(ctx)
-        dir.listFiles { f -> f.name.startsWith(prefix) }?.forEach { it.delete() }
-        File(dir, todayFileName(ctx)).writeText(jsonContent)
+        // RF-C4: escribir primero a un temporal y renombrar al definitivo; los backups
+        // viejos se borran SOLO tras confirmar el rename. Si algo falla a mitad, la
+        // carpeta conserva el backup anterior en vez de quedarse vacía.
+        val prefix    = filePrefix(ctx)
+        val finalFile = File(dir, todayFileName(ctx))
+        val tempFile  = File(dir, "${finalFile.name}.tmp")
+        try {
+            tempFile.writeText(jsonContent)
+        } catch (e: Exception) {
+            tempFile.delete()
+            throw e
+        }
+        // En Android (Linux) renameTo sobrescribe el destino si ya existe
+        if (!tempFile.renameTo(finalFile)) {
+            tempFile.delete()
+            throw java.io.IOException("renameTo falló al consolidar el backup ${finalFile.name}")
+        }
+        // Limpiar backups antiguos del prefijo (y .tmp huérfanos), excluyendo el de hoy
+        dir.listFiles { f -> f.name.startsWith(prefix) && f.name != finalFile.name }?.forEach { it.delete() }
     }
 }

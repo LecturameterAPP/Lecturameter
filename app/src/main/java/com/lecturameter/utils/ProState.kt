@@ -25,6 +25,9 @@ import java.net.URL
 object Pro {
     const val PREF_KEY = "pro_unlocked"                 // entitlement permanente (código o Play)
     const val SRC_KEY = "pro_source"                    // "code" | "play"
+    // RF-M22: restauraciones consecutivas con respuesta OK pero SIN la compra. Ver
+    // registerPlayEmptyRestore: con una sola no se revoca nada.
+    const val PLAY_EMPTY_RESTORES_KEY = "play_empty_restores"
     const val TRIAL_EXPIRES_KEY = "pro_trial_expires"
     const val TRIAL_STARTED_KEY = "pro_trial_started"   // guarda contra retrasar el reloj
     const val TRIAL_USED_KEY = "pro_trial_used"
@@ -237,7 +240,9 @@ object Pro {
     }
 
     fun markPurchased(prefs: SharedPreferences) {
-        prefs.edit().putBoolean(PREF_KEY, true).putString(SRC_KEY, "play").apply()
+        // RF-M22: una compra confirmada resetea el contador de restauraciones vacías.
+        prefs.edit().putBoolean(PREF_KEY, true).putString(SRC_KEY, "play")
+            .remove(PLAY_EMPTY_RESTORES_KEY).apply()
     }
 
     /**
@@ -252,11 +257,46 @@ object Pro {
      * Retira ÚNICAMENTE el Pro que vino de una COMPRA (SRC_KEY=="play"). El Pro de CÓDIGO no se
      * toca: un usuario de código no tiene compra en Play y su consulta daría NONE siempre, así
      * que revocarlo aquí le quitaría lo que canjeó. El trial es aparte (no usa PREF_KEY).
+     *
+     * RF-M22: desde el fix de la revisión final ya NO la llama LmBilling directamente; el
+     * punto de entrada es registerPlayEmptyRestore, que exige dos vacíos consecutivos.
      */
     fun revokePlayEntitlementIfGone(prefs: SharedPreferences) {
         if (!prefs.getBoolean(PREF_KEY, false)) return
         if (prefs.getString(SRC_KEY, null) != "play") return
         prefs.edit().remove(PREF_KEY).remove(SRC_KEY).apply()
+    }
+
+    /**
+     * RF-M22: un ÚNICO resultado vacío de Play puede ser un falso negativo con comprador
+     * legítimo: otra cuenta de Google del mismo dispositivo activa en Play, o el primer
+     * arranque tras un restore de Auto Backup con la caché de Play aún sin sincronizar.
+     * Por eso la revocación exige DOS resultados vacíos consecutivos en arranques distintos
+     * (LmBilling cuenta como mucho uno por proceso): con el primero solo se incrementa el
+     * contador y el Pro se mantiene; cualquier resultado con compra lo resetea a 0
+     * (resetPlayEmptyRestores o markPurchased). Un error de conexión/servicio no cuenta:
+     * LmBilling solo llama aquí cuando el responseCode fue OK.
+     *
+     * Solo aplica al Pro de COMPRA (SRC_KEY=="play"): el de código y el trial ni se cuentan
+     * ni se tocan. Devuelve true si esta llamada revocó el entitlement.
+     */
+    fun registerPlayEmptyRestore(prefs: SharedPreferences): Boolean {
+        if (!prefs.getBoolean(PREF_KEY, false)) return false
+        if (prefs.getString(SRC_KEY, null) != "play") return false
+        val count = prefs.getInt(PLAY_EMPTY_RESTORES_KEY, 0) + 1
+        if (count >= 2) {
+            revokePlayEntitlementIfGone(prefs)
+            prefs.edit().remove(PLAY_EMPTY_RESTORES_KEY).apply()
+            return true
+        }
+        prefs.edit().putInt(PLAY_EMPTY_RESTORES_KEY, count).apply()
+        return false
+    }
+
+    /** RF-M22: Play respondió con la compra presente; el contador de vacíos vuelve a 0. */
+    fun resetPlayEmptyRestores(prefs: SharedPreferences) {
+        if (prefs.contains(PLAY_EMPTY_RESTORES_KEY))
+            prefs.edit().remove(PLAY_EMPTY_RESTORES_KEY).apply()
     }
 
     private fun markCodeRedeemed(prefs: SharedPreferences) {

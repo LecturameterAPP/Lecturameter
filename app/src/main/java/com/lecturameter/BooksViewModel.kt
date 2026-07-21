@@ -142,6 +142,12 @@ class BooksViewModel : ViewModel() {
     /** Escrituras controladas para BackupRepository (restauración de backups). */
     fun setBooks(v: List<Book>) { _books.value = v }
     fun setSessions(v: List<ReadingSession>) { _sessions.value = v }
+    // RF-C3: true mientras hay una restauración de backup en curso (JSON manual o Drive).
+    // La UI lo observa para deshabilitar los botones de restaurar y evitar dos imports
+    // concurrentes. Lo enciende/apaga importFullBackupFromJson (apagado en finally).
+    private val _isRestoring = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isRestoring: kotlinx.coroutines.flow.StateFlow<Boolean> = _isRestoring
+    fun setRestoring(v: Boolean) { _isRestoring.value = v }
     var themeMode by mutableStateOf(ThemeMode.DARK)
         private set
     var tutorialCompleted by mutableStateOf(false)
@@ -736,13 +742,24 @@ class BooksViewModel : ViewModel() {
         reconcileBingo3Entitlement(prefs)
         ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_4)
         ensureBingoCard(prefs, com.lecturameter.utils.BingoManager.SIDE_3)
-        // Fase 1.3: carga delegada a los repositorios (mismo early-return de primera ejecución)
-        booksInternal = com.lecturameter.repository.BookRepository.loadOrNull(prefs) ?: return
-        // B-029 opción B: portadas base64 legacy → ficheros (autocurativa, no bloquea el arranque)
-        migrateEmbeddedCoversIfNeeded(prefs)
-        // D-013: grandfathering ONE-SHOT antes de leer el tema — quien venía usando
-        // Aurora o AMOLED (gratis hasta la 2.7) conserva ESE tema para siempre
-        com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
+        // Fase 1.3: carga delegada a los repositorios.
+        // RF-M7: el early return por biblioteca vacía iba aquí y se saltaba tema, orden,
+        // sesiones y wrapped: un usuario nuevo que cambiaba el tema antes de añadir su
+        // primer libro lo perdía al reiniciar. Ahora los ajustes y los datos secundarios
+        // se leen SIEMPRE; solo las migraciones y reparaciones (que necesitan libros)
+        // conservan el early return, más abajo.
+        val loadedBooks = com.lecturameter.repository.BookRepository.loadOrNull(prefs)
+        if (loadedBooks != null) {
+            booksInternal = loadedBooks
+            // B-029 opción B: portadas base64 legacy → ficheros (autocurativa, no bloquea el arranque)
+            migrateEmbeddedCoversIfNeeded(prefs)
+            // D-013: grandfathering ONE-SHOT antes de leer el tema — quien venía usando
+            // Aurora o AMOLED (gratis hasta la 2.7) conserva ESE tema para siempre.
+            // RF-M7: se mantiene gateado a biblioteca no vacía: en una instalación limpia
+            // quemaría el one-shot mirando el tema por defecto ANTES de que el usuario
+            // restaure su backup (el caso M5 del import).
+            com.lecturameter.utils.Pro.grandfatherCurrentThemeIfNeeded(prefs)
+        }
         themeMode = when (prefs.getString("theme_mode", "dark")) {
             "light"   -> ThemeMode.LIGHT
             "aurora"  -> ThemeMode.AURORA
@@ -769,8 +786,19 @@ class BooksViewModel : ViewModel() {
                 prefs.edit().putString("theme_mode", reclaimed.value).apply()
             }
         }
+        // RF-M7: sessions y wrapped también se cargan sin libros (un backup restaurado o
+        // un borrado masivo pueden dejar sesiones/wrapped huérfanos que siguen siendo datos
+        // del usuario), igual que las preferencias de orden.
         com.lecturameter.repository.SessionRepository.loadOrNull(prefs)?.let { sessionsInternal = it }
         loadWrapped(prefs)
+        savedSessionNewestFirst = prefs.getBoolean("session_newest_first", true)
+        savedSortOrder = SortOrder.entries.firstOrNull { it.name == prefs.getString("sort_order", null) } ?: SortOrder.DATE_DESC
+        // D-016: el historial de retos se carga siempre; el barrido de archivado
+        // (reconcileChallenges) sí necesita libros y queda tras el early return.
+        loadChallengeHistory(prefs)
+        // RF-M7: early return de primera ejecución: sin libros no hay nada que reparar,
+        // migrar ni archivar. Todo lo de arriba ya quedó cargado.
+        if (loadedBooks == null) return
         autoRepairFinishedBooks(prefs)
         repairLegacyFlags(prefs)
         repairLegacyEditionIconsV8900(prefs)
@@ -779,11 +807,7 @@ class BooksViewModel : ViewModel() {
         migrateAnglophoneFlagsV1840(prefs)
         migrateStuckGlobalFlagsV1880(prefs)
         repairBlindAnglophoneDefaultV1900(prefs)
-        savedSessionNewestFirst = prefs.getBoolean("session_newest_first", true)
-        savedSortOrder = SortOrder.entries.firstOrNull { it.name == prefs.getString("sort_order", null) } ?: SortOrder.DATE_DESC
-        // D-016: historial de retos + barrido de archivado (con books/sessions ya cargados;
-        // en el early-return de primera ejecución no hay nada que archivar)
-        loadChallengeHistory(prefs)
+        // D-016: barrido de archivado de retos (con books/sessions ya cargados)
         reconcileChallenges(prefs)
         // loadTutorialStatus y loadLanguageStatus ya llamados al inicio de load()
     }
@@ -1231,7 +1255,11 @@ class BooksViewModel : ViewModel() {
     fun deleteBook(id: Long, prefs: android.content.SharedPreferences) { booksInternal = booksInternal.filter { it.id != id }; sessionsInternal = sessionsInternal.filter { it.bookId != id }; save(prefs, triggerBackup = false); saveSessions(prefs, triggerBackup = false) }
     fun updateRating(id: Long, rating: Int, prefs: android.content.SharedPreferences) {
         booksInternal = booksInternal.map { if (it.id == id) it.copy(rating = rating) else it }
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { save(prefs) }
+        // RF-M10: guardado síncrono como el resto de mutadores (invariante B-029/B-009).
+        // Era el único mutador que guardaba en Dispatchers.IO: el widget se refrescaba
+        // antes de terminar la serialización y pintaba la nota vieja, y un save diferido
+        // podía pisar uno más nuevo.
+        save(prefs)
         // Fase 5 (MD5): la valoración suele llegar DESPUÉS de terminar el libro —
         // re-evaluar las celdas del Bingo si el libro ya está terminado
         booksInternal.firstOrNull { it.id == id }?.let { b ->
@@ -1776,7 +1804,15 @@ class BooksViewModel : ViewModel() {
                 val ed = when {
                     status == BookStatus.FINISHED && it.endDate == null -> today()
                     status == BookStatus.REREADING -> it.endDate  // preserve original finish date
-                    status == BookStatus.READING   -> null         // leyendo = sin fecha de fin
+                    // RF-M8: al venir de REREADING, endDate es el fin de la PRIMERA lectura y
+                    // se preserva también en READING. Antes se borraba, y el posterior
+                    // READING→FINISHED lo rellenaba con la fecha de hoy: el libro contaba en
+                    // el Wrapped del año en curso ADEMÁS del año original. Se elige preservar
+                    // (opción más conservadora): computeWrapped solo mira endDate en libros
+                    // FINISHED, así que un endDate en READING no afecta a nada más, y la
+                    // guarda de eventos ya evita duplicar el evento "end".
+                    status == BookStatus.READING   ->
+                        if (it.status == BookStatus.REREADING) it.endDate else null
                     status == BookStatus.PENDING   -> null
                     else -> it.endDate
                 }
@@ -1903,6 +1939,8 @@ class BooksViewModel : ViewModel() {
         saveSessions(prefs)
         // Fase 5 (MD5): la racha puede haber crecido → evaluar celdas streak del Bingo
         bingoOnSession(prefs)
+        val ctx = appContext
+        if (ctx != null) com.lecturameter.widget.requestStatsWidgetUpdate(ctx)
     }
     fun deleteSession(sessionId: Long, prefs: android.content.SharedPreferences) {
         sessionsInternal = sessionsInternal.filter { it.id != sessionId }

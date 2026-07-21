@@ -180,10 +180,13 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                     Text("🎉", fontSize = 28.sp)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.wrapped_ready, wrappedYear), color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(if (alreadySaved) stringResource(R.string.wrapped_banner_saved) else stringResource(R.string.wrapped_banner_available), color = Gold.copy(alpha = 0.75f), fontSize = 12.sp)
+                        // RF-M24: Gold crudo daba 1,52:1 sobre el papel del Claro (B-037 dejo este
+                        // banner fuera). wrappedInk garantiza AA conservando el matiz, y sin alfa:
+                        // el alfa sobre el tinte era justo la causa raiz de B-037.
+                        Text(stringResource(R.string.wrapped_ready, wrappedYear), color = wrappedInk(Gold, theme), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(if (alreadySaved) stringResource(R.string.wrapped_banner_saved) else stringResource(R.string.wrapped_banner_available), color = wrappedInk(Gold, theme), fontSize = 12.sp)
                     }
-                    Icon(Icons.Default.ChevronRight, null, tint = Gold)
+                    Icon(Icons.Default.ChevronRight, null, tint = wrappedInk(Gold, theme))
                 }
             }
         }
@@ -251,7 +254,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                             Row(Modifier.fillMaxWidth()) {
                                 SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
                                 SummaryCell(totalPages.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f), theme)
-                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, Green)
+                                // RF-M25: Green crudo como texto no llega a AA en Claro; tinta medida
+                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, wrappedInk(Green, theme))
                                 SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "-", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
                             }
                             if (avgRating != null) {
@@ -264,10 +268,10 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                                     val stars = kotlin.math.ceil(avgRating / 2.0).toInt().coerceIn(0, 5)
                                     Text(
                                         "★".repeat(stars) + "☆".repeat(5 - stars),
-                                        color = Gold, fontSize = 15.sp, letterSpacing = 1.sp
+                                        color = wrappedInk(Gold, theme), fontSize = 15.sp, letterSpacing = 1.sp
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(String.format("%.1f/10", avgRating), color = Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(String.format("%.1f/10", avgRating), color = wrappedInk(Gold, theme), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -363,7 +367,7 @@ fun SpeedBookRow(book: Book, ppd: Double, days: Int, maxPpd: Double, theme: Them
                 }
                 Spacer(Modifier.width(8.dp))
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(String.format("%.1f p/d", ppd), color = Green, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(String.format("%.1f p/d", ppd), color = wrappedInk(Green, theme), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text(fmtDaysLocalized(days), color = theme.textDim, fontSize = 11.sp)
                 }
             }
@@ -397,7 +401,7 @@ fun GenreRow(genre: String, count: Int, avgPpd: Double?, theme: Theme) {
             if (avgPpd != null) {
                 Spacer(Modifier.width(10.dp))
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(String.format("%.1f", avgPpd), color = Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(String.format("%.1f", avgPpd), color = wrappedInk(Green, theme), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(stringResource(R.string.txt_2686dd75), color = theme.textDim, fontSize = 10.sp)
                 }
             }
@@ -415,7 +419,7 @@ fun AuthorStatRow(author: String, count: Int, avgPpd: Double?, theme: Theme) {
             Text(if (count == 1) stringResource(R.string.shelf_books_count, count) else stringResource(R.string.shelf_books_count_plural, count), color = theme.textMuted, fontSize = 12.sp)
             if (avgPpd != null) {
                 Spacer(Modifier.width(10.dp))
-                Text(String.format("%.1f p/d", avgPpd), color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(String.format("%.1f p/d", avgPpd), color = wrappedInk(Green, theme), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -489,7 +493,7 @@ fun BookCard(
                     OutlinedButton(onClick = { coverImagePicker.launch("image/*"); showCoverDialog = false }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), border = BorderStroke(1.dp, acc.copy(alpha = 0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = acc)) { Text(stringResource(R.string.txt_5cd0defc)) }
                 }
             },
-            dismissButton = { TextButton(onClick = { showCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } },
+            dismissButton = { TextButton(onClick = { showCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = wrappedInk(Red, theme)) } },
             confirmButton = {
                 TextButton(onClick = {
                     if (coverUrlInput.isNotBlank()) onApplyCoverUrl?.invoke(coverUrlInput.trim())
@@ -508,7 +512,7 @@ fun BookCard(
             text = { Text(stringResource(R.string.txt_4259b7dc, book.title), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false; onDelete?.invoke() }) {
-                    Text(stringResource(R.string.txt_5b5c9f9d), color = Red, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.txt_5b5c9f9d), color = wrappedInk(Red, theme), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -632,7 +636,8 @@ fun BookCard(
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.txt_b375487f),
-                                tint = Red.copy(alpha = 0.7f),
+                                // RF-M25: Red con alfa sobre su tinte era el patron de B-037; tinta medida
+                                tint = wrappedInk(Red, theme),
                                 modifier = Modifier.size(11.dp)
                             )
                         }
@@ -669,7 +674,7 @@ fun BookCard(
                     if (stats != null && book.status == BookStatus.READING)
                         Text("⏳ ${fmtDaysLocalized(stats.days)}", color = theme.textMuted, fontSize = 12.sp)
                     if (book.status == BookStatus.REREADING)
-                        Text(stringResource(R.string.txt_1ee4f1c7), color = Color(0xFF06B6D4), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.txt_1ee4f1c7), color = wrappedInk(Color(0xFF06B6D4), theme), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
                 if (book.comment.isNotBlank()) { Spacer(Modifier.height(4.dp)); Text("💬 ${book.comment}", color = theme.textDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 if (book.rating > 0) { Spacer(Modifier.height(4.dp)); MiniRating(book.rating) }
@@ -730,16 +735,19 @@ fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? =
 
 @Composable
 fun MiniRating(rating: Int) {
+    // RF-M25: Gold crudo no llega a AA sobre superficies claras. MiniRating es un composable
+    // hoja sin `theme`, asi que se resuelve por LocalAppTheme (mismo caso que BookCover).
+    val goldInk = LocalAppTheme.current?.let { wrappedInk(Gold, it) } ?: Gold
     Row(verticalAlignment = Alignment.CenterVertically) {
         val filledStars = ((rating + 1) / 2).coerceIn(0, 5)
         Text(
             "★".repeat(filledStars) + "☆".repeat(5 - filledStars),
-            color = Gold,
+            color = goldInk,
             fontSize = 13.sp,
             letterSpacing = 1.sp
         )
         Spacer(Modifier.width(4.dp))
-        Text("$rating/10", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text("$rating/10", color = goldInk, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -766,7 +774,7 @@ fun FooterStats(finished: List<Book>, _theme: Theme) {
                 FooterStat("${finished.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f))
                 FooterStat(total.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f))
                 FooterStat(if (avg != null) String.format("%.1f", avg) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f))
-                if (avgRating != null) FooterStat(String.format("%.1f", avgRating) + "/10", "Punt.", Modifier.weight(1f))
+                if (avgRating != null) FooterStat(String.format("%.1f", avgRating) + "/10", stringResource(R.string.pill_punt), Modifier.weight(1f))
             }
         }
     }

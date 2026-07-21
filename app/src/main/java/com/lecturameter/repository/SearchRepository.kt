@@ -196,7 +196,7 @@ internal fun isMangaSourceKey(olKey: String): Boolean =
 
 // ── Google Books search ───────────────────────────────────────────────────────
 
-private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferredLang: String = "es"): List<OpenLibraryResult> {
+private suspend fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferredLang: String = "es"): List<OpenLibraryResult> {
     val results = mutableListOf<OpenLibraryResult>()
     val seenTitles = mutableSetOf<String>()
 
@@ -258,30 +258,25 @@ private fun fetchGoogleBooksResults(query: String, maxResults: Int = 15, preferr
     //      probablemente busca pero que a menudo no son el top result global en GB).
     // Ambos mergeados con dedup por título normalizado.
     val encoded = URLEncoder.encode(query, "UTF-8")
-    try {
-        val url1 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books")
-        val conn1 = URL(url1).openConnection() as HttpURLConnection
-        conn1.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn1.connectTimeout = 8000; conn1.readTimeout = 8000
-        parseGbItems(JSONObject(conn1.inputStream.bufferedReader().readText()).optJSONArray("items"))
-    } catch (_: Exception) {}
+    // RF-M18: las tres llamadas pasan por httpGetTextWithRetry. Antes leían inputStream
+    // directo y un HTTP 429 salía como FileNotFoundException tragada en silencio; ahora
+    // el código de estado es visible y un 429 activa el cooldown de sesión gbQuotaExhausted.
+    fun parseGbBody(body: String?) {
+        val items = body?.let { try { JSONObject(it).optJSONArray("items") } catch (_: Exception) { null } }
+        parseGbItems(items)
+    }
+    parseGbBody(httpGetTextWithRetry(
+        withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books"),
+        "GB_search", retries = 1))
     // v2.6 (búsqueda r1): langRestrict = idioma de la app, no "es" fijo.
-    try {
-        val url2 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books&langRestrict=$preferredLang")
-        val conn2 = URL(url2).openConnection() as HttpURLConnection
-        conn2.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn2.connectTimeout = 8000; conn2.readTimeout = 8000
-        parseGbItems(JSONObject(conn2.inputStream.bufferedReader().readText()).optJSONArray("items"))
-    } catch (_: Exception) {}
+    parseGbBody(httpGetTextWithRetry(
+        withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=$maxResults&printType=books&langRestrict=$preferredLang"),
+        "GB_search_lang", retries = 1))
     // v2.6: 3) CON langRestrict=ca — ediciones catalanas (Sanderson en català etc.)
     //    nunca salían: ni el top global ni el filtro es las traían. Solo si app en español.
-    if (preferredLang == "es") try {
-        val url3 = withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=10&printType=books&langRestrict=ca")
-        val conn3 = URL(url3).openConnection() as HttpURLConnection
-        conn3.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn3.connectTimeout = 8000; conn3.readTimeout = 8000
-        parseGbItems(JSONObject(conn3.inputStream.bufferedReader().readText()).optJSONArray("items"))
-    } catch (_: Exception) {}
+    if (preferredLang == "es") parseGbBody(httpGetTextWithRetry(
+        withGbKey("https://www.googleapis.com/books/v1/volumes?q=$encoded&maxResults=10&printType=books&langRestrict=ca"),
+        "GB_search_ca", retries = 1))
     return results
 }
 
@@ -344,6 +339,10 @@ private suspend fun isCoverUrlValid(url: String): Boolean = withContext(Dispatch
         conn.disconnect()
         // Si el servidor no informa tamaño (len < 0) asumimos válida
         code == 200 && (len < 0 || len > 8_000)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        // RF-M16: al cancelar hay que propagar, no devolver true (marcaría la
+        // portada como válida sin haberla comprobado)
+        throw e
     } catch (_: Exception) { true }
 }
 
@@ -382,7 +381,8 @@ private suspend fun fetchSpanishCoverByTitle(title: String, author: String): Str
             }
         }
         null
-    } catch (_: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null }
 }
         // Mantenemos zoom=1 (thumbnail garantizado). zoom=0 a veces devuelve 1×1 px
         // transparente en libros sin imagen de alta resolución, lo que causa portadas rotas.
@@ -390,6 +390,7 @@ private suspend fun fetchSpanishCoverByTitle(title: String, author: String): Str
 
 /** Llama directamente al endpoint de un volumen para obtener la mejor imagen disponible. */
 private fun fetchGoogleBooksVolumeImage(volumeId: String): String? {
+    if (gbQuotaExhausted) return null   // RF-M18: cuota GB agotada esta sesión → skip instantáneo
     return try {
         val url = withGbKey("https://www.googleapis.com/books/v1/volumes/${URLEncoder.encode(volumeId, "UTF-8")}")
         val conn = URL(url).openConnection() as HttpURLConnection
@@ -436,6 +437,26 @@ private fun bestGenreFromRawCandidates(candidates: List<String>): List<String> {
         .map { it.key }
 }
 
+// RF-M18: cooldown de sesión para Google Books. La cuota agotada (diaria, por IP)
+// devuelve 429 en el 100% de las llamadas (confirmado en la auditoría de APIs del
+// 20-07): en cuanto se detecta un 429 de GB, el resto de fases GB de ESTA sesión de
+// app se saltan al instante en vez de quemar tiempo en llamadas que van a fallar.
+@Volatile private var gbQuotaExhausted = false
+
+private fun isGoogleBooksUrl(url: String): Boolean =
+    url.contains("googleapis.com/books") || url.contains("books.google.com")
+
+// Auditoría APIs 20-07: MangaDex bloqueado a nivel de ISP (España) rechaza la conexión
+// al instante (HTTP 000). Se trata igual que un 404: al primer fallo de conexión en
+// frío se marca el host como caído para la sesión y las fases MangaDex siguientes
+// saltan directas al fallback (Kitsu/AniList) sin gastar red ni tiempo.
+@Volatile private var mangaDexUnreachable = false
+
+// Fallo de conexión en frío: rechazo TCP, reset o DNS. NO incluye timeouts de lectura
+// (SocketTimeoutException extiende InterruptedIOException, no SocketException).
+private fun isColdConnectionFailure(e: Exception): Boolean =
+    e is java.net.ConnectException || e is java.net.SocketException || e is java.net.UnknownHostException
+
 // Feedback 2.6: GET con control explícito del código HTTP y reintentos con backoff.
 // Google Books sin API key devuelve 429 con frecuencia; HttpURLConnection en Android
 // lo convierte en FileNotFoundException, así que la cadena de escaneo "fallaba" entera
@@ -443,6 +464,11 @@ private fun bestGenreFromRawCandidates(candidates: List<String>): List<String> {
 private suspend fun httpGetTextWithRetry(url: String, tag: String, retries: Int = 2): String? {
     var attempt = 0
     while (true) {
+        // RF-M18: con la cuota GB agotada esta sesión, ni siquiera se intenta la llamada
+        if (gbQuotaExhausted && isGoogleBooksUrl(url)) {
+            com.lecturameter.utils.AppLogger.log("$tag SKIP (cuota GB agotada esta sesión)", "IsbnScan")
+            return null
+        }
         try {
             ApiThrottle.gate(java.net.URL(url))
             val conn = java.net.URL(url).openConnection() as HttpURLConnection
@@ -452,6 +478,13 @@ private suspend fun httpGetTextWithRetry(url: String, tag: String, retries: Int 
             val code = conn.responseCode
             if (code in 200..299) return conn.inputStream.use { it.bufferedReader().readText() }
             try { conn.errorStream?.close() } catch (_: Exception) {}
+            // RF-M18: un 429 de Google Books = cuota agotada. Cooldown de sesión y fuera:
+            // reintentar contra una cuota diaria agotada solo quema tiempo del presupuesto.
+            if (code == 429 && isGoogleBooksUrl(url)) {
+                gbQuotaExhausted = true
+                com.lecturameter.utils.AppLogger.log("$tag HTTP 429 GB: cuota agotada, cooldown de sesión activado", "IsbnScan")
+                return null
+            }
             val retryable = code == 429 || code >= 500
             com.lecturameter.utils.AppLogger.log(
                 "$tag HTTP $code${if (retryable && attempt < retries) " → retry ${attempt + 1}" else ""}", "IsbnScan")
@@ -517,6 +550,23 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     var pages: Int? = null
     val rawGenres = mutableListOf<String>()
     var coverUrl: String? = null
+
+    // Catálogo local: lookup instantáneo por ISBN, sin red. NO corta la cadena online a
+    // propósito: las fases P1-P4 aportan consenso de páginas y géneros que el catálogo no
+    // tiene. Se guarda aquí y al final rellena solo los huecos que la red haya dejado, que
+    // es lo que hace que escanear funcione sin conexión.
+    val catalogHit = try {
+        CatalogRepository.lookupIsbn(isbn)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e   // RF-M16
+    } catch (e: Exception) {
+        com.lecturameter.utils.AppLogger.log("P0 catálogo local FAIL: ${e.javaClass.simpleName}", "IsbnScan")
+        null
+    }
+    if (catalogHit != null) {
+        com.lecturameter.utils.AppLogger.log(
+            "P0 catálogo local: HIT título=${catalogHit.title} pages=${catalogHit.pages}", "IsbnScan")
+    }
     val tStart = System.currentTimeMillis()
     com.lecturameter.utils.AppLogger.log("fetchIsbnFullMetadata: isbn=$isbn", "IsbnScan")
 
@@ -644,7 +694,8 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         com.lecturameter.utils.AppLogger.log(
             "P2 OL_bibkeys: found=${book != null} pages=${pages ?: "-"} cover=${coverUrl != null} ${System.currentTimeMillis() - t0}ms",
             "IsbnScan")
-    } catch (e: Exception) {
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (e: Exception) {
         com.lecturameter.utils.AppLogger.log("P2 OL_bibkeys FAIL: ${e.javaClass.simpleName}: ${e.message}", "IsbnScan")
     }
 
@@ -679,7 +730,8 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             com.lecturameter.utils.AppLogger.log(
                 "P3 OL_isbn: pages=${pages ?: "-"} title=${title != null} cover=${coverUrl != null} ${System.currentTimeMillis() - t0}ms",
                 "IsbnScan")
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (e: Exception) {
             com.lecturameter.utils.AppLogger.log("P3 OL_isbn FAIL: ${e.javaClass.simpleName}: ${e.message}", "IsbnScan")
         }
     } else {
@@ -732,7 +784,8 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             com.lecturameter.utils.AppLogger.log(
                 "P4 GB_title+author: items=${items?.length() ?: 0} pages=${pages ?: "-"} ${System.currentTimeMillis() - t0}ms",
                 "IsbnScan")
-        } catch (e: Exception) {
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (e: Exception) {
             com.lecturameter.utils.AppLogger.log("P4 GB_title+author FAIL: ${e.javaClass.simpleName}: ${e.message}", "IsbnScan")
         }
     } else if (pages != null) {
@@ -744,6 +797,18 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     // Feedback 2.7: resolución final de páginas por consenso entre todas las fuentes
     pages = consensusPages(pageVotes)
 
+    // El catálogo local rellena SOLO lo que la red no haya conseguido. Va al final, no al
+    // principio, para no contaminar el consenso de páginas: si las fases online han
+    // respondido, mandan ellas. Si no hay conexión, todo esto viene del catálogo y el
+    // escaneo funciona igualmente.
+    if (catalogHit != null) {
+        if (title.isNullOrBlank()) title = catalogHit.title
+        if (author.isNullOrBlank()) author = catalogHit.author.ifBlank { null }
+        if (pages == null && catalogHit.pages > 0) pages = catalogHit.pages
+        if (coverUrl == null) coverUrl = catalogHit.coverUrl
+        if (rawGenres.isEmpty() && catalogHit.genre.isNotBlank()) rawGenres.add(catalogHit.genre)
+    }
+
     val genres = bestGenreFromRawCandidates(rawGenres)
     com.lecturameter.utils.AppLogger.log(
         "RESULTADO: title=${title != null} author=${author != null} pages=${pages ?: "-"} votos=${pageVotes.map { it.first }} genres=${genres.size} cover=${coverUrl != null} total=${System.currentTimeMillis() - tStart}ms",
@@ -754,6 +819,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
 }
 
 private fun fetchGoogleBooksMetadata(title: String, author: String, isbn: String?): BookMetadata {
+    if (gbQuotaExhausted) return BookMetadata()   // RF-M18: cuota GB agotada esta sesión → skip instantáneo
     val rawGenres = mutableListOf<String>()
     var coverUrl: String? = null
     val volumeIds = mutableListOf<String>()
@@ -768,6 +834,13 @@ private fun fetchGoogleBooksMetadata(title: String, author: String, isbn: String
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.setRequestProperty("User-Agent", APP_USER_AGENT)
             conn.connectTimeout = 6000; conn.readTimeout = 6000
+            val code = conn.responseCode
+            if (code == 429) {
+                gbQuotaExhausted = true
+                try { conn.errorStream?.close() } catch (_: Exception) {}
+                return BookMetadata()
+            }
+            if (code !in 200..299) { try { conn.errorStream?.close() } catch (_: Exception) {}; continue }
             val items = conn.inputStream.use { JSONObject(it.bufferedReader().readText()) }.optJSONArray("items") ?: continue
             for (i in 0 until items.length()) {
                 val item = items.getJSONObject(i)
@@ -814,13 +887,21 @@ private fun fetchOpenLibraryMetadata(title: String, author: String, isbn: String
     }.distinct()
     for (query in queries) {
         try {
-            val url = "https://openlibrary.org/search.json?$query&limit=5&fields=key,cover_i,isbn,subject"
+            val url = "https://openlibrary.org/search.json?$query&limit=5&fields=key,title,cover_i,isbn,subject"
             val conn = URL(url).openConnection() as HttpURLConnection
             conn.setRequestProperty("User-Agent", APP_USER_AGENT)
             conn.connectTimeout = 6000; conn.readTimeout = 6000
             val docs = conn.inputStream.use { JSONObject(it.bufferedReader().readText()) }.optJSONArray("docs") ?: continue
             for (i in 0 until docs.length()) {
                 val doc = docs.getJSONObject(i)
+                // Guardia anti-colisión de ISBN (auditoría 20-07): en el lookup por ISBN,
+                // un doc cuyo título no se parece en nada al del libro es un registro
+                // sucio de OL (ISBNs de otra obra) → no tomar su portada ni sus subjects.
+                if (query.startsWith("isbn:") && !titlesLooselyMatch(doc.optString("title", ""), title)) {
+                    com.lecturameter.utils.AppLogger.log(
+                        "OL search $query descartado por colisión: \"${doc.optString("title", "")}\" no se parece a \"$title\"", "Search")
+                    continue
+                }
                 val coverId = doc.optLong("cover_i", -1L)
                 if (coverUrl == null && coverId > 0) coverUrl = "https://covers.openlibrary.org/b/id/$coverId-L.jpg"
                 val isbns = doc.optJSONArray("isbn")
@@ -861,7 +942,7 @@ private fun fetchOpenLibraryMetadata(title: String, author: String, isbn: String
 
 // ── Open Library /api/books ───────────────────────────────────────────────────
 // Endpoint distinto a search.json: cover URLs directas + subjects estructurados
-private fun fetchOpenLibraryBooksApi(isbn: String?): BookMetadata {
+private fun fetchOpenLibraryBooksApi(isbn: String?, refTitle: String = ""): BookMetadata {
     if (isbn.isNullOrBlank()) return BookMetadata()
     return try {
         val url = "https://openlibrary.org/api/books?bibkeys=ISBN:$isbn&jscmd=data&format=json"
@@ -870,6 +951,14 @@ private fun fetchOpenLibraryBooksApi(isbn: String?): BookMetadata {
         conn.connectTimeout = 6000; conn.readTimeout = 6000
         val root = JSONObject(conn.inputStream.bufferedReader().readText())
         val book = root.optJSONObject("ISBN:$isbn") ?: return BookMetadata()
+        // Guardia anti-colisión de ISBN (auditoría 20-07): si el registro de OL para
+        // este ISBN es de OTRO libro, no heredar su portada ni sus géneros.
+        val olTitle = book.optString("title", "")
+        if (!titlesLooselyMatch(olTitle, refTitle)) {
+            com.lecturameter.utils.AppLogger.log(
+                "OL /api/books ISBN:$isbn descartado por colisión: \"$olTitle\" no se parece a \"$refTitle\"", "Search")
+            return BookMetadata()
+        }
         // Portada: el endpoint expone large, medium, small directamente
         val coverObj = book.optJSONObject("cover")
         val coverUrl = coverObj?.let {
@@ -994,6 +1083,8 @@ private fun extractVolumeNumber(title: String): Int? =
 // portadas POR TOMO vía su endpoint /cover con campo "volume" — esto es justo lo
 // que faltaba: información real por tomo, no solo de la serie en conjunto.
 private fun fetchMangaDexMetadata(title: String, volumeNum: Int?): BookMetadata {
+    // Auditoría 20-07: host marcado como caído esta sesión → fallback (Kitsu/AniList) directo
+    if (mangaDexUnreachable) return BookMetadata()
     return try {
         // Quitar el marcador de tomo/volumen para buscar la SERIE (MangaDex indexa por serie)
         val seriesTitle = title.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
@@ -1070,7 +1161,16 @@ private fun fetchMangaDexMetadata(title: String, volumeNum: Int?): BookMetadata 
         }
 
         BookMetadata(coverUrl = coverUrl, genres = bestGenreFromRawCandidates(rawGenres + listOf("manga")))
-    } catch (_: Exception) { BookMetadata() }
+    } catch (e: Exception) {
+        // Auditoría 20-07: bloqueo ISP (HTTP 000, rechazo al instante) → tratar como 404:
+        // marcar la sesión para que las fases MangaDex restantes salten al fallback rápido.
+        if (isColdConnectionFailure(e)) {
+            mangaDexUnreachable = true
+            com.lecturameter.utils.AppLogger.log(
+                "MangaDex inaccesible (${e.javaClass.simpleName}) → fallback Kitsu/AniList el resto de la sesión", "Search")
+        }
+        BookMetadata()
+    }
 }
 
 // ── Kitsu JSON:API ────────────────────────────────────────────────────────────
@@ -1290,7 +1390,8 @@ private suspend fun fetchKitsuMangaResults(query: String, preferredLang: String)
         }
         val body = conn.inputStream.use { it.bufferedReader().readText() }
         parseKitsuMangaResults(body, query, preferredLang)
-    } catch (_: Exception) { emptyList() }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { emptyList() }
 }
 
 // chooseBetterGenre eliminado en v8.0; reemplazado por votación en fetchBookMetadata
@@ -1300,7 +1401,7 @@ suspend fun fetchBookMetadata(title: String, author: String, isbn: String?): Boo
         // Fuentes base — SIEMPRE se consultan, para cualquier libro
         val googleDeferred = async { fetchGoogleBooksMetadata(title, author, isbn) }
         val olDeferred     = async { fetchOpenLibraryMetadata(title, author, isbn) }
-        val olBooksDeferred = async { fetchOpenLibraryBooksApi(isbn) }
+        val olBooksDeferred = async { fetchOpenLibraryBooksApi(isbn, title) }
 
         val googleBooks = googleDeferred.await()
         val openLibrary = olDeferred.await()
@@ -1474,6 +1575,25 @@ private fun normalizedEditionText(value: String): String =
         .replace(Regex("[^a-z0-9]+"), " ")
         .trim()
 
+// Guardia anti-colisión de ISBN (auditoría APIs 20-07, caso 9788498720976): OL tiene
+// registros que listan ISBNs de OTRO libro ("El Dragón Renacido" resolvía a "Medicina
+// en la Cocina" de Txumari Alfaro). Antes de aceptar metadatos o portada resueltos POR
+// ISBN teniendo un título de referencia, se comprueba un parecido básico: normalizados
+// (minúsculas, sin tildes ni signos), vale un contains mutuo o compartir algún token
+// significativo. Laxa a propósito: "El dragón renacido" vs "The Dragon Reborn" pasa
+// (comparten "dragon"); "Medicina en la Cocina" no comparte nada y se descarta.
+// Sin datos suficientes devuelve true: nunca bloquea por falta de información.
+internal fun titlesLooselyMatch(candidate: String, reference: String): Boolean {
+    if (candidate.isBlank() || reference.isBlank()) return true
+    val c = normalizedEditionText(candidate)
+    val r = normalizedEditionText(reference)
+    if (c.isBlank() || r.isBlank()) return true
+    if (c.contains(r) || r.contains(c)) return true
+    val refTokens = r.split(" ").filter { it.length >= 4 && it !in SEARCH_STOPWORDS }.toSet()
+    if (refTokens.isEmpty()) return true
+    return refTokens.any { c.contains(it) }
+}
+
 private fun EditionResult.dedupeKey(): String =
     cleanIsbn(isbn) ?: "${language}|${normalizedEditionText(title)}|${pages}|${publishYear}"
 
@@ -1621,7 +1741,8 @@ private suspend fun fetchSpanishEditionsFromWikidata(isbn: String): List<Edition
             }
         }
         results
-    } catch (_: Exception) { emptyList() }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { emptyList() }
 }
 // Detecta el idioma probable de una edición a partir del prefijo del ISBN-13.
 // La detección es aproximada (no todos los publishers siguen el estándar al pie de la letra).
@@ -1684,11 +1805,11 @@ internal fun isbnLanguageIsConfident(isbn: String): Boolean {
 internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withContext(Dispatchers.IO) {
     return@withContext try {
         val clean = cleanIsbn(isbn) ?: return@withContext null
-        val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books")
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn.connectTimeout = 6000; conn.readTimeout = 6000
-        val root = JSONObject(conn.inputStream.bufferedReader().readText())
+        // RF-M18: helper con control de código HTTP (429 visible + cooldown GB de sesión)
+        val body = httpGetTextWithRetry(
+            withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books"),
+            "GB_edicion_isbn", retries = 1) ?: return@withContext null
+        val root = JSONObject(body)
         val items = root.optJSONArray("items")
         if (items == null || items.length() == 0) return@withContext null
         val info = items.getJSONObject(0).optJSONObject("volumeInfo") ?: return@withContext null
@@ -1719,7 +1840,8 @@ internal suspend fun fetchEditionByIsbn(isbn: String): EditionResult? = withCont
         val author = info.optJSONArray("authors")?.optString(0, "").orEmpty()
 
         EditionResult(langId, langLabel, flag, title, pages, coverUrl, clean, publisher, publishYear, author)
-    } catch (_: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null }
 }
 
 // ── B-023: ¿el ISBN escaneado es de otra obra? ────────────────────────────────
@@ -1759,7 +1881,8 @@ private suspend fun fetchEditionsViaOpenLibraryByIsbn(isbn: String): List<Editio
             ?.optJSONArray("works")            // "works" es array, no "work" objeto
             ?.optJSONObject(0)
             ?.optString("key", "") ?: ""
-    } catch (_: Exception) { "" }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { "" }
 
     if (!workKey.startsWith("/works/")) {
         workKey = try {
@@ -1770,7 +1893,8 @@ private suspend fun fetchEditionsViaOpenLibraryByIsbn(isbn: String): List<Editio
                 .optJSONArray("works")
                 ?.optJSONObject(0)
                 ?.optString("key", "") ?: ""
-        } catch (_: Exception) { "" }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) { "" }
     }
 
     if (!workKey.startsWith("/works/")) return@withContext emptyList()
@@ -1781,7 +1905,8 @@ private suspend fun fetchEditionsViaOpenLibraryByIsbn(isbn: String): List<Editio
         conn.setRequestProperty("User-Agent", APP_USER_AGENT)
         conn.connectTimeout = 7000; conn.readTimeout = 7000
         JSONObject(conn.inputStream.bufferedReader().readText()).optJSONArray("entries")
-    } catch (_: Exception) { null } ?: return@withContext emptyList()
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null } ?: return@withContext emptyList()
 
     val results = mutableListOf<EditionResult>()
     var coverChecks = 0
@@ -1849,19 +1974,20 @@ private fun cleanCompositeTitle(title: String): String {
 // Útil cuando OL detecta la edición como española (vía publisher) pero guarda el título en inglés.
 private suspend fun resolveSpanishTitleByIsbn(isbn: String, fallbackTitle: String): String {
     val clean = cleanIsbn(isbn) ?: return fallbackTitle
+    // RF-M18: helper con control de código HTTP (antes un 429 salía como
+    // FileNotFoundException tragada) + cooldown GB de sesión.
+    val body = httpGetTextWithRetry(
+        withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books"),
+        "GB_titulo_es", retries = 1) ?: return fallbackTitle
     return try {
-        val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=isbn:$clean&maxResults=1&printType=books")
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
-        conn.connectTimeout = 4000; conn.readTimeout = 4000
-        val info = JSONObject(conn.inputStream.bufferedReader().readText())
+        val info = JSONObject(body)
             .optJSONArray("items")?.getJSONObject(0)?.optJSONObject("volumeInfo")
             ?: return fallbackTitle
         val gbLang = info.optString("language", "")
         val gbTitle = info.optString("title", "").trim()
         // Solo usar el título de GB si el idioma es español y el título es distinto al fallback
         if (gbLang == "es" && gbTitle.isNotBlank() && gbTitle != fallbackTitle) gbTitle else fallbackTitle
-    } catch (_: Exception) { fallbackTitle }
+    } catch (_: Exception) { fallbackTitle }   // parse puro, sin suspensión: no puede tragar cancelación
 }
 
 // Elimina sufijos de serie del tipo "(The Stormlight Archive, #3)" o "[Cosmere]"
@@ -1919,7 +2045,8 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
                     ?: it.optString("medium").ifBlank { null }
             } ?: "https://covers.openlibrary.org/b/isbn/$isbn-L.jpg"
             EditionResult("es", "Español", "🇪🇸", title, pages, coverUrl, isbn, publisher, year)
-        } catch (_: Exception) { null }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) { null }
     }
     try {
         val conn = URL("https://openlibrary.org/books/$olid.json").openConnection() as HttpURLConnection
@@ -1940,7 +2067,8 @@ private suspend fun fetchOlEditionById(olid: String): EditionResult? = withConte
             else -> null
         }
         EditionResult("es", "Español", "🇪🇸", title, pages, coverUrl, isbn, publisher, year)
-    } catch (_: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null }
 }
 
 private fun resolveSearchTitle(title: String): String {
@@ -2015,7 +2143,8 @@ private suspend fun resolveOriginalTitleFromWikidata(isbn: String?, spanishTitle
                 val label = bindings.getJSONObject(0).optJSONObject("label")?.optString("value", "")?.ifBlank { null }
                 if (label != null) return@withContext label
             }
-        } catch (_: Exception) {}
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) {}
     }
 
     // ── Intento 2: por título español (REST API) ─────────────────────────────
@@ -2062,7 +2191,8 @@ private suspend fun resolveOriginalTitleFromWikidata(isbn: String?, spanishTitle
         // Validación: si la etiqueta inglesa es idéntica al título español, no aporta nada
         if (enLabel != null && enLabel.equals(titleQuery, ignoreCase = true)) return@withContext null
         enLabel
-    } catch (_: Exception) { null }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null }
 }
 
 suspend fun fetchEditionsForBook(
@@ -2126,7 +2256,20 @@ suspend fun fetchEditionsForBook(
         cleanIsbn(isbn)?.let { seen.add(it) }
 
         // Intento principal: resolver Work por ISBN y listar sus ediciones
-        val olEditions = try { fetchEditionsViaOpenLibraryByIsbn(isbn) } catch (_: Exception) { emptyList() }
+        val olEditions = try { fetchEditionsViaOpenLibraryByIsbn(isbn) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+            catch (_: Exception) { emptyList() }
+        // Guardia anti-colisión de ISBN (auditoría 20-07, caso 9788498720976): OL puede
+        // resolver el ISBN a un Work de OTRO libro (registros con ISBNs sucios). Si
+        // NINGUNA edición devuelta se parece al título buscado (ni al alias), el Work
+        // entero es ajeno: descartar la fase y dejar que el resto de fuentes resuelvan.
+        if (olEditions.isNotEmpty() && olEditions.none {
+                titlesLooselyMatch(it.title, originalTitle) || titlesLooselyMatch(it.title, searchTitle)
+            }) {
+            com.lecturameter.utils.AppLogger.log(
+                "PhaseA_OL_ISBN: colisión de ISBN, Work de OL (\"${olEditions.first().title}\") sin parecido con \"$originalTitle\" → descartado", "EditionSearch")
+            return@runPhase r
+        }
         for (ed in olEditions) r.addEditionIfNew(ed, seen)
         r
     } }
@@ -2158,7 +2301,8 @@ suspend fun fetchEditionsForBook(
                     esConn.setRequestProperty("User-Agent", APP_USER_AGENT)
                     esConn.connectTimeout = 5000; esConn.readTimeout = 5000
                     JSONObject(esConn.inputStream.bufferedReader().readText()).optJSONArray("docs")
-                } catch (_: Exception) { null }
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                catch (_: Exception) { null }
             } else null
 
             val normAuthor = normalizedEditionText(author)
@@ -2253,7 +2397,8 @@ suspend fun fetchEditionsForBook(
                             val c = URL(testUrl).openConnection() as HttpURLConnection
                             c.connectTimeout = 2000; c.readTimeout = 2000
                             if (c.responseCode == 200) coverUrl = testUrl.removeSuffix("?default=false")
-                        } catch (_: Exception) {}
+                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                        catch (_: Exception) {}
                     }
                     // Si la edición es española y sigue sin portada, intentar OL con título español
                     if (coverUrl == null && langId == "es" && hasAlias) {
@@ -2286,14 +2431,16 @@ suspend fun fetchEditionsForBook(
                         val publisher = doc.optJSONArray("publisher")?.optString(0, "") ?: ""
                         r.addEditionIfNew(EditionResult(langId, langLabel, langFlag, esTitle, pages, coverUrl, esIsbn, publisher, ""), seen)
                     }
-                } catch (_: Exception) {}
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                catch (_: Exception) {}
             }
             // Búsqueda con título español primero si hay alias (p.ej. "El Hombre Iluminado" antes de "The Sunlit Man")
             if (hasAlias) olLangSearch("$originalTitle $author", "spa", "es", "Español", "🇪🇸")
             olLangSearch("$searchTitle $author", "spa", "es", "Español", "🇪🇸")
             // v2.6: ediciones catalanas (OL usa código MARC "cat")
             olLangSearch("$searchTitle $author", "cat", "ca", "Català", "🇪🇸 (CAT)")
-        } catch (_: Exception) {}
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) {}
         r
     } }
 
@@ -2351,18 +2498,19 @@ suspend fun fetchEditionsForBook(
         suspend fun gbSearch(query: String, langRestrict: String = "") {
             if (r.size >= 12) return
             try {
-                ApiThrottle.gate("www.googleapis.com")
                 val langParam = if (langRestrict.isNotBlank()) "&langRestrict=$langRestrict" else ""
-                val url = withGbKey("https://www.googleapis.com/books/v1/volumes?q=${URLEncoder.encode(query, "UTF-8")}&maxResults=20&printType=books$langParam")
-                val conn = URL(url).openConnection() as HttpURLConnection
-                conn.setRequestProperty("User-Agent", APP_USER_AGENT)
-                conn.connectTimeout = 5000; conn.readTimeout = 5000
-                val items = JSONObject(conn.inputStream.bufferedReader().readText()).optJSONArray("items") ?: return
+                // RF-M18: helper con control de código HTTP (429 visible + cooldown GB de
+                // sesión; el throttle por host ya lo aplica el propio helper)
+                val body = httpGetTextWithRetry(
+                    withGbKey("https://www.googleapis.com/books/v1/volumes?q=${URLEncoder.encode(query, "UTF-8")}&maxResults=20&printType=books$langParam"),
+                    "PhaseC_GB", retries = 1) ?: return
+                val items = JSONObject(body).optJSONArray("items") ?: return
                 for (i in 0 until items.length()) {
                     val info = items.getJSONObject(i).optJSONObject("volumeInfo") ?: continue
                     addVolume(info)
                 }
-            } catch (_: Exception) {}
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+            catch (_: Exception) {}
         }
 
         try {
@@ -2387,7 +2535,8 @@ suspend fun fetchEditionsForBook(
             gbSearch("$searchTitle $author")
             if (r.size < 4) gbSearch(searchTitle, "es")
             if (r.size < 8) gbSearch(searchTitle)
-        } catch (_: Exception) {}
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) {}
         r
     } }
 
@@ -2395,7 +2544,9 @@ suspend fun fetchEditionsForBook(
     // Requiere ISBN. Corre en paralelo con A, B, C.
     val phaseE = async(Dispatchers.IO) { runPhase("PhaseE_Wikidata", 10_000L) {
         if (isbn.isNullOrBlank()) return@runPhase emptyList<EditionResult>()
-        try { fetchSpanishEditionsFromWikidata(isbn) } catch (_: Exception) { emptyList() }
+        try { fetchSpanishEditionsFromWikidata(isbn) }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) { emptyList() }
     } }
 
 
@@ -2420,7 +2571,9 @@ suspend fun fetchEditionsForBook(
                     compareByDescending<EditionResult> { it.language == "es" }
                         .thenByDescending { it.coverUrl != null }
                 )
-                try { onPartial!!.invoke(ordered) } catch (_: Exception) {}
+                try { onPartial!!.invoke(ordered) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                catch (_: Exception) {}
             }
         }
     }
@@ -2428,6 +2581,7 @@ suspend fun fetchEditionsForBook(
     // A, B, C y E en paralelo (Phase H — Hardcover — eliminada en v2.7 doc / código actual).
     for (phase in listOf(phaseA, phaseB, phaseC, phaseE)) {
         try { for (ed in phase.await()) merged.addEditionIfNew(ed, mergedSeen) }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
         catch (_: Exception) {}
     }
     // Todas las fases terminadas → cerrar canal para que el consumidor salga del for
@@ -2439,7 +2593,9 @@ suspend fun fetchEditionsForBook(
     // Inyección de edición española VERIFICADA (libros con Works ES/EN separados en OL).
     // Sustituye a la variante regional pobre (ej. mexicana sin "El" y sin páginas) si comparte ISBN.
     knownSpanishEdition(originalTitle)?.let { (olid, _) ->
-        val known = try { fetchOlEditionById(olid) } catch (_: Exception) { null }
+        val known = try { fetchOlEditionById(olid) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+            catch (_: Exception) { null }
         if (known != null) {
             merged.removeAll { cleanIsbn(it.isbn) != null && cleanIsbn(it.isbn) == cleanIsbn(known.isbn) }
             merged.add(known)
@@ -2663,7 +2819,8 @@ suspend fun searchOpenLibrary(
                 val matchBlob = "$allAuthors $title".trim()
                 results.add(OpenLibraryResult(displayTitle, author, pages, coverUrl, isbn, genre, year, key, language, matchBlob))
             }
-        } catch (_: Exception) {}
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (_: Exception) {}
     }
 
     // 1. Buscar en Open Library.
@@ -2706,6 +2863,44 @@ suspend fun searchOpenLibrary(
         cb(results.filter { r -> isMangaSourceKey(r.olKey) || relevance(r) >= 0.34 }
             .sortedWith(comparator))
     }
+
+    // ── Fase 0: catálogo local ────────────────────────────────────────────────
+    // Va ANTES de todo lo demás y FUERA del timeout global a propósito: es una consulta
+    // SQLite en disco, no consume presupuesto de red, y sus resultados aparecen al
+    // instante. Las fases online siguen ejecutándose después: el catálogo adelanta lo
+    // que ya sabemos, no sustituye a la búsqueda.
+    //
+    // Las claves se registran en `seen` con el mismo formato que usa OL ("/works/OL…W"),
+    // así que si la API devuelve la misma obra no se duplica.
+    if (CatalogRepository.isAvailable) {
+        try {
+            val locales = CatalogRepository.search(query, preferredLang, limit = 20)
+            for (r in locales) {
+                val k = if (r.olKey.isNotBlank()) "/works/${r.olKey}" else r.title
+                if (seen.add(k)) results.add(r)
+            }
+            if (locales.isNotEmpty()) {
+                com.lecturameter.utils.AppLogger.log(
+                    "searchOpenLibrary: catálogo local aporta ${locales.size} resultados", "Search")
+                emitPartial()
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e   // RF-M16: la cancelación no se traga
+        } catch (e: Exception) {
+            // El catálogo nunca debe impedir una búsqueda: si falla, se sigue online.
+            com.lecturameter.utils.AppLogger.log("searchOpenLibrary: catálogo local falló: $e", "Search")
+        }
+    }
+
+    // Timeout GLOBAL de la búsqueda (revisión final 20-07, ver RF-M19): antes solo había
+    // timeouts por conexión, así que si OL respondía lento fase a fase el conjunto podía
+    // alargarse sin cortar nunca. 30s: alineado con el tope de spinner (~30s) y muy por
+    // encima de la latencia real medida por fase en la auditoría (<2s). Mismo patrón
+    // withTimeoutOrNull que el presupuesto global de fetchEditionsForBook. Si vence, se
+    // devuelven los parciales acumulados (el filtro y orden finales van tras el bloque).
+    // El contenido conserva su sangría original a propósito (mismo criterio que el
+    // bloque withTimeoutOrNull de fetchEditionsForBook).
+    val completedInTime = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
 
     // Feedback 2.7: query tipo ISBN (escaneada o pegada). Antes se enviaba cruda como
     // q=<isbn> y con ISBN-10 OL no resolvía nada ("escanear un ISBN-10 no hace nada").
@@ -2761,7 +2956,9 @@ suspend fun searchOpenLibrary(
     // 1c. Edición española VERIFICADA para libros problemáticos: se inyecta SIEMPRE
     // la primera, con título/páginas/portada correctos (mismo origen que "Cambiar edición").
     knownSpanishEdition(query)?.let { (olid, knownAuthor) ->
-        val known = try { fetchOlEditionById(olid) } catch (_: Exception) { null }
+        val known = try { fetchOlEditionById(olid) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+            catch (_: Exception) { null }
         if (known != null) {
             val knownIsbnClean = cleanIsbn(known.isbn)
             results.removeAll { r ->
@@ -2818,7 +3015,9 @@ suspend fun searchOpenLibrary(
         results.any { it.genre.contains("manga", ignoreCase = true) ||
                       it.genre.contains("cómic", ignoreCase = true) ||
                       it.genre.contains("comic", ignoreCase = true) }
-    if (queryLooksManga) {
+    // Auditoría 20-07: con MangaDex marcado como caído (bloqueo ISP) la fase se salta
+    // entera al instante; Kitsu (3b) queda como fuente manga de la sesión.
+    if (queryLooksManga && !mangaDexUnreachable) {
         try {
             // Buscar serie en MangaDex
             val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
@@ -2892,7 +3091,16 @@ suspend fun searchOpenLibrary(
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+        catch (e: Exception) {
+            // Auditoría 20-07: rechazo de conexión en frío (HTTP 000, bloqueo ISP) → igual
+            // que un 404: marcar la sesión y saltar directo al fallback Kitsu (fase 3b).
+            if (isColdConnectionFailure(e)) {
+                mangaDexUnreachable = true
+                com.lecturameter.utils.AppLogger.log(
+                    "MangaDex inaccesible (${e.javaClass.simpleName}) → fallback Kitsu el resto de la sesión", "Search")
+            }
+        }
         emitPartial()
     }
 
@@ -2945,13 +3153,26 @@ suspend fun searchOpenLibrary(
         }
         var changed = false
         for (chk in checks) {
-            val (r, valid) = try { chk.await() } catch (_: Exception) { continue }
+            val (r, valid) = try { chk.await() }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                catch (_: Exception) { continue }
             if (!valid) {
                 val i = results.indexOf(r)
                 if (i >= 0) { results[i] = r.copy(coverUrl = null); changed = true }
             }
         }
         if (changed) results.sortWith(comparator)
+    }
+
+    true
+    }   // fin del withTimeoutOrNull global de búsqueda
+
+    if (completedInTime == null) {
+        com.lecturameter.utils.AppLogger.log(
+            "searchOpenLibrary: TIMEOUT global (>30s), devolviendo ${results.size} parciales", "Search")
+        // Garantizar filtro de relevancia y orden también en la salida por timeout
+        results.removeAll { r -> !isMangaSourceKey(r.olKey) && relevance(r) < 0.34 }
+        results.sortWith(comparator)
     }
 
     results.take(20)
@@ -2966,7 +3187,8 @@ suspend fun fetchCoverForBook(title: String, author: String, isbn: String?): Str
             c.setRequestProperty("User-Agent", APP_USER_AGENT); c.connectTimeout = 5000; c.readTimeout = 5000
             if (c.responseCode == 200) return@withContext url.removeSuffix("?default=false")
         }
-    } catch (_: Exception) {}
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) {}
 
     // 2. Buscar en Open Library por título+autor
     try {
@@ -2991,7 +3213,8 @@ suspend fun fetchCoverForBook(title: String, author: String, isbn: String?): Str
                 }
             }
         }
-    } catch (_: Exception) {}
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) {}
 
     // 3. Fallback: Google Books (búsqueda + volume ID directo)
     fetchGoogleBooksMetadata(title, author, isbn).coverUrl

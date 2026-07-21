@@ -1579,6 +1579,9 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 Spacer(Modifier.height(6.dp))
                 Text(stringResource(R.string.support_code_hint), color = theme.textDim, fontSize = 11.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(12.dp))
+                // Tip jar
+                TipJarRow(theme = theme)
+                Spacer(Modifier.height(12.dp))
                 // Ko-fi
                 Surface(
                     onClick = {
@@ -1655,6 +1658,59 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         Spacer(Modifier.height(16.dp))
 
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun TipJarRow(theme: Theme) {
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+    val productDetails by LmBilling.productDetails.collectAsState()
+    val tipTick by LmBilling.tipCompleted.collectAsState()
+    var showThanks by remember { mutableStateOf(false) }
+    LaunchedEffect(tipTick) { if (tipTick > 0) showThanks = true }
+
+    val acc = accentForTheme(theme)
+    Text(stringResource(R.string.tip_jar_title), color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+    Text(stringResource(R.string.tip_jar_subtitle), color = theme.textMuted, fontSize = 11.sp)
+    Spacer(Modifier.height(8.dp))
+
+    val tips = listOf(
+        Triple(SKU_TIP_COFFEE, R.string.tip_coffee, "☕"),
+        Triple(SKU_TIP_MEAL, R.string.tip_meal, "🍽️"),
+        Triple(SKU_TIP_GENEROUS, R.string.tip_generous, "💎")
+    )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tips.forEach { (sku, labelRes, emoji) ->
+            val details = productDetails[sku]
+            val price = details?.oneTimePurchaseOfferDetails?.formattedPrice
+            Surface(
+                onClick = {
+                    if (activity != null && details != null) {
+                        if (!LmBilling.launchTipPurchase(activity, sku)) {
+                            android.widget.Toast.makeText(context, R.string.tip_error, android.widget.Toast.LENGTH_SHORT).show()
+                            LmBilling.reconnect()
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(12.dp),
+                color = acc.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, acc.copy(alpha = 0.3f)),
+                enabled = details != null,
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(emoji, fontSize = 22.sp)
+                    Text(stringResource(labelRes), color = theme.textMain, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(price ?: "...", color = theme.textMuted, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+
+    if (showThanks) {
+        Spacer(Modifier.height(6.dp))
+        Text(stringResource(R.string.tip_thanks), color = acc, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

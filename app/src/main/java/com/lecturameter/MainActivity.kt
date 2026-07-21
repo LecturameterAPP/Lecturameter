@@ -1514,6 +1514,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         val prefs = getSharedPreferences("lecturameter", MODE_PRIVATE)
+        // Catálogo local de libros: copia el .db de assets la primera vez y lo abre.
+        // En IO y desacoplado del arranque a propósito: la primera vez copia varios MB, y
+        // si falla la búsqueda simplemente sigue funcionando solo online (init lo traga).
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            CatalogRepository.init(applicationContext)
+        }
         // D-013: conectar Play Billing (restaura compras de lecturameter_pro si las hay)
         LmBilling.init(this)
         vm.initContext(this)
@@ -1635,6 +1641,21 @@ class MainActivity : ComponentActivity() {
                 }
                 SnackbarHost(
                     hostState = updateSnackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+            // RF-C2: aviso al usuario cuando se recuperaron datos corruptos al arrancar
+            if (prefs.getBoolean("repo_data_recovered", false)) {
+                val recoverySnackbarHost = remember { SnackbarHostState() }
+                LaunchedEffect(Unit) {
+                    prefs.edit().remove("repo_data_recovered").apply()
+                    recoverySnackbarHost.showSnackbar(
+                        message = getString(R.string.msg_data_recovered),
+                        duration = SnackbarDuration.Long
+                    )
+                }
+                SnackbarHost(
+                    hostState = recoverySnackbarHost,
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
@@ -2252,37 +2273,41 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
 
 
     // ── Migración v13: rellenar startPage/endPage en sesiones antiguas ────────
-    // Usamos derivedStateOf sobre sessions para que se recalcule si cambian las sesiones
-    // (p. ej. tras restaurar un backup). migrationDone se lee en cada recomposición.
-    val sessionsNeedingMigration by remember {
-        derivedStateOf {
-            if (prefs.getBoolean("session_pages_migrated", false)) emptyList()
-            else sessions.filter { it.startPage == null || it.endPage == null }
-                .sortedWith(compareBy({ it.bookId }, { it.date }))
-        }
-    }
+    // RF-M9: la lista de sesiones pendientes se CONGELA en una instantánea al abrir el
+    // asistente. Antes era reactiva (derivedStateOf sobre sessions) y cada confirmación
+    // cambiaba la lista, con lo que un LaunchedEffect(size) reseteaba el índice y el mapa
+    // acumulado: parpadeos, inferredStart siempre 1 y prevConfirmedEndByBook muerto.
+    var migrationSnapshot by remember { mutableStateOf<List<ReadingSession>>(emptyList()) }
     var migrationIndex by remember { mutableStateOf(0) }
     var prevConfirmedEndByBook by remember { mutableStateOf<Map<Long, Int>>(emptyMap()) }
     var showMigrationDialog by remember { mutableStateOf(false) }
-    // Sincronizar showMigrationDialog con sessionsNeedingMigration reactivamente
-    LaunchedEffect(sessionsNeedingMigration.size) {
-        if (sessionsNeedingMigration.isNotEmpty() && !prefs.getBoolean("session_pages_migrated", false)) {
+    // Detectar sesiones pendientes (también si cambian tras restaurar un backup), pero
+    // SOLO para ABRIR el asistente. Una vez abierto se recorre la instantánea y las
+    // actualizaciones de sessions (cada confirmación) no tocan el estado del recorrido.
+    LaunchedEffect(sessions) {
+        if (showMigrationDialog) return@LaunchedEffect
+        if (prefs.getBoolean("session_pages_migrated", false)) return@LaunchedEffect
+        val pending = sessions.filter { it.startPage == null || it.endPage == null }
+            .sortedWith(compareBy({ it.bookId }, { it.date }))
+        if (pending.isNotEmpty()) {
+            migrationSnapshot = pending
             migrationIndex = 0
             prevConfirmedEndByBook = emptyMap()
             showMigrationDialog = true
         }
     }
 
-    if (showMigrationDialog && migrationIndex < sessionsNeedingMigration.size) {
-        val session = sessionsNeedingMigration[migrationIndex]
+    if (showMigrationDialog && migrationIndex < migrationSnapshot.size) {
+        val session = migrationSnapshot[migrationIndex]
         val book = remember(session.bookId) { books.find { it.id == session.bookId } }
         val sessionNumber = migrationIndex + 1
-        val totalSessions = sessionsNeedingMigration.size
+        val totalSessions = migrationSnapshot.size
 
-        // Inferencia acumulativa: sumar páginas de sesiones anteriores del mismo libro
-        val previousSessions = sessionsNeedingMigration.take(migrationIndex)
-            .filter { it.bookId == session.bookId }
-        val inferredStart = previousSessions.sumOf { it.pages } + 1
+        // Inferencia acumulativa: el inicio hereda el fin CONFIRMADO de la sesión
+        // anterior del mismo libro (respeta lo que el usuario haya corregido); si es
+        // la primera del libro, página 1.
+        val prevEnd = prevConfirmedEndByBook[session.bookId]
+        val inferredStart = if (prevEnd != null) prevEnd + 1 else 1
         val inferredEnd = inferredStart + session.pages - 1
 
         var startText by remember(migrationIndex) { mutableStateOf(inferredStart.toString()) }

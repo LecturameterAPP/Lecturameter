@@ -116,7 +116,11 @@ fun BingoScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, th
                 tint = actionIconTint(theme)
             )
         }
-        val c = if (side == com.lecturameter.utils.BingoManager.SIDE_3) card3 else card4
+        // RF-M15: un cartón con un nº de celdas que no forma un cuadrado válido (Gson
+        // corrupto o plantilla malformada) se trata como inexistente: pintarlo tal cual
+        // crashearía con IndexOutOfBounds al recorrer la cuadrícula.
+        val cRaw = if (side == com.lecturameter.utils.BingoManager.SIDE_3) card3 else card4
+        val c = cRaw?.takeIf { com.lecturameter.utils.BingoManager.sideOf(it.cells.size) >= 3 }
         // Título + selector + cuerpo en UNA columna, y el cuerpo scrollea dentro. Antes el
         // cuerpo iba posicionado con un padding fijo desde arriba: con el selector metido en
         // medio ese número deja de cuadrar (y se solapa) en cuanto cambia una tipografía o
@@ -318,10 +322,12 @@ private fun BingoCardBody(
                 if (!bingoReduceMotion) {
                     kotlinx.coroutines.delay(450)
                     for (i in com.lecturameter.utils.BingoManager.lineIndices(side, line)) {
+                        // RF-M15: red de seguridad si el cartón trae menos celdas de las esperadas
+                        val anim = sweepAnim.getOrNull(i) ?: continue
                         launch {
-                            sweepAnim[i].snapTo(0f)
-                            sweepAnim[i].animateTo(1f, tween(300))
-                            sweepAnim[i].animateTo(0f, tween(650))
+                            anim.snapTo(0f)
+                            anim.animateTo(1f, tween(300))
+                            anim.animateTo(0f, tween(650))
                         }
                         kotlinx.coroutines.delay(150)
                     }
@@ -364,7 +370,8 @@ private fun BingoCardBody(
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     for (col in 0 until side) {
                         val cellIdx = row * side + col
-                        val cell = c.cells[cellIdx]
+                        // RF-M15: red de seguridad si el cartón trae menos celdas de las esperadas
+                        val cell = c.cells.getOrNull(cellIdx) ?: continue
                         // B4: el 3×3 se tiñe de rojo. Sus casillas se rellenan con el MISMO rojo
                         // que el boton (accent == redForTheme) y su texto va en onCardTint
                         // (onRedColor), la tinta legible sobre ese rojo en los cinco temas. El 4×4

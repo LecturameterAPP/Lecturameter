@@ -248,19 +248,6 @@ private fun StatsWidgetContent(
             }
         }
 
-        // Frase rotativa "leído" (P-034): equivalencias de lectura, cambia cada día.
-        // Motor determinista por día del año en StatsWidgetPhrases (43 frases ES/EN).
-        // Solo si hay datos: evita frases tipo "0 ejemplares" a un Pro recién estrenado.
-        val phrase = if (stats.totalPages > 0 || stats.totalBooks > 0)
-            StatsWidgetPhrases.selectPhrase(ctx, stats) else ""
-        if (phrase.isNotEmpty()) {
-            Text(
-                text = phrase,
-                style = TextStyle(fontSize = 9.sp, color = textMuted, textAlign = TextAlign.Center),
-                maxLines = 2,
-                modifier = GlanceModifier.fillMaxWidth().padding(top = 3.dp, start = 4.dp, end = 4.dp)
-            )
-        }
     }
 }
 

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lecturameter</string>
     <string name="widget_description">Displays the book you\'re reading, including the cover, title, author, and the time and days spent reading it.</string>
@@ -458,6 +458,10 @@
     <string name="wrapped_banner_saved">Saved · tap to view</string>
     <string name="wrapped_banner_available">Available until January 26</string>
     <string name="pill_pags_dia">Pages/day</string>
+    <string name="pill_punt">Score</string>
+    <string name="stat_pages_short">📄 %1$d pgs</string>
+    <string name="stat_session_one">1 session</string>
+    <string name="stat_session_other">%1$d sessions</string>
     <string name="pill_leidos">Finished</string>
     <string name="pill_dias_libro">Days/book</string>
     <string name="pill_porcentaje_leido">% read</string>
@@ -472,6 +476,7 @@
     <string name="err_page_end_over_total">The final page exceeds the book\'s total pages.</string>
     <string name="err_page_end_over_func">The final page cannot exceed the last functional page (%1$d).</string>
     <string name="err_page_end_lt_start">The final page cannot be less than the starting page.</string>
+    <string name="err_minutes_range">Minutes must be between 1 and 1440 (24 h).</string>
     <string name="err_backup_format_invalid">Invalid backup format</string>
     <string name="err_backup_read_failed">Could not read the file</string>
     <string name="msg_import_goodreads_ok">✅ %1$d books imported successfully</string>
@@ -684,6 +689,9 @@
     <!-- History header stats -->
     <string name="history_stat_sessions">ses.</string>
     <string name="history_stat_total_time">Total time</string>
+    <string name="history_chip_sessions">📚 %1$d Ses</string>
+    <string name="history_chip_pages">📄 %1$d Pgs</string>
+    <string name="history_chip_pages_session">📄 %1$d pgs</string>
 
     <!-- History search results -->
     <string name="history_search_one">%1$d session found</string>
@@ -925,6 +933,13 @@
     <string name="pro_icon_gold">Golden</string>
     <string name="pro_icon_applied">Icon changed. May take a few seconds to refresh.</string>
     <string name="support_code_hint">If your donation reaches the price of Pro, write to me and I will send you a Pro code (one for each multiple).</string>
+    <string name="tip_jar_title">Tips</string>
+    <string name="tip_jar_subtitle">If you want to support development, pick a tip. Prices are adjusted to your country.</string>
+    <string name="tip_coffee">A coffee</string>
+    <string name="tip_meal">A meal</string>
+    <string name="tip_generous">Generous</string>
+    <string name="tip_thanks">Thanks for the tip. :)</string>
+    <string name="tip_error">Could not open Google Play. Try again in a few seconds.</string>
     <string name="pro_buy_button">Buy for %1$s</string>
     <string name="pro_buy_unavailable">Available on Google Play</string>
     <string name="pro_have_code">I have a code</string>
@@ -949,6 +964,8 @@
     <string name="pro_code_err_network">Could not reach the server. Try again.</string>
     <string name="pro_code_err_exhausted">This code has already been used on the maximum number of devices. If it\'s yours and you changed phones, email us at lecturameter.app@gmail.com.</string>
     <string name="pro_editions_hint">🔒 With Pro, unlimited editions per book</string>
+    <!-- RF-M23: buying is also possible from the Pro sheet during the trial -->
+    <string name="pro_trial_buy_hint">You have %1$d trial days left. Get Pro now and lose nothing when it ends.</string>
     <!-- v2.4 rework: advanced stats -->
     <string name="adv_stats_title">Advanced statistics</string>
     <string name="adv_hourly_title">Hourly heatmap</string>
@@ -1022,7 +1039,7 @@
     <string name="wrapped_streak_days">%1$d-day streak</string>
     <string name="wrapped_no_prev_year">No data from previous year</string>
     <string name="settings_section_backups">BACKUPS</string>
-    <string name="settings_section_widget">WIDGET</string>
+    <string name="settings_section_widget">WIDGETS</string>
     <!-- v2.5 -->
     <string name="adv_hourly_empty">No time data yet. New sessions record their time automatically; your hourly map will appear here in a few days.</string>
     <string name="wrapped_more_books">More books read</string>
@@ -1253,9 +1270,13 @@
     <string name="timer_resume_msg">This book has %1$s from an earlier session that was never saved. You can carry on from there or start over.</string>
     <string name="timer_resume_confirm">Resume (%1$s)</string>
     <string name="timer_resume_fresh">Start over</string>
+    <!-- RF-M27: body of the "edition change with active timer" dialog -->
+    <string name="timer_edition_change_save_msg">You have a session in progress. If you change edition now, the session will be saved automatically with the current edition before making the change.</string>
+    <string name="timer_edition_change_end_msg">You have a reading session in progress. If you change edition now, the session will be ended.</string>
 
     <!-- P-035: in-app update notice (Play In-App Updates, FLEXIBLE mode) -->
     <string name="msg_update_ready_to_install">Update ready to install</string>
+    <string name="msg_data_recovered">Some data was corrupted and has been recovered. Please check your library.</string>
     <string name="btn_restart_update">Restart</string>
 
     <!-- B5 idea 1 (mockup 17-07): the "+" asks instead of assuming a manual entry -->
@@ -1314,47 +1335,4 @@
     <string name="sw_config_entry_title">Pro widget: monthly comparison</string>
     <string name="sw_config_entry_subtitle">Choose which bars the stats widget shows</string>
     <!-- Stats Widget phrases (EN) -->
-    <string name="sw_phrase_01">You have read the equivalent of %1$d copies of The Little Prince</string>
-    <string name="sw_phrase_02">You have read %1$d full novels in pages</string>
-    <string name="sw_phrase_03">%1$d books finished. Each one, a new world.</string>
-    <string name="sw_phrase_04">%1$d days with a reading session. Pure consistency.</string>
-    <string name="sw_phrase_05">%1$d hours reading. Time well spent.</string>
-    <string name="sw_phrase_06">You are on a %1$d-day reading streak. Keep going.</string>
-    <string name="sw_phrase_07">Your best streak: %1$d days. Go for the next record.</string>
-    <string name="sw_phrase_08">You have read the equivalent of %1$d bibles in pages</string>
-    <string name="sw_phrase_09">Your books stacked would measure %1$d meters</string>
-    <string name="sw_phrase_10">You have read the equivalent of %1$d movies in time</string>
-    <string name="sw_phrase_11">%1$d pages. Each one was a moment with yourself.</string>
-    <string name="sw_phrase_12">You have covered %1$d Harry Potters in pages</string>
-    <string name="sw_phrase_13">You have spent %1$d full days reading</string>
-    <string name="sw_phrase_14">You have read the equivalent of %1$d podcast episodes</string>
-    <string name="sw_phrase_15">Your pages would fill %1$d encyclopedias</string>
-    <string name="sw_phrase_16">%1$d days opening a book. The habit is built.</string>
-    <string name="sw_phrase_17">You have read the equivalent of %1$d Don Quixotes in pages</string>
-    <string name="sw_phrase_18">You have invested the time of %1$d university lectures</string>
-    <string name="sw_phrase_19">With %1$d books you already have a personal library</string>
-    <string name="sw_phrase_20">%1$d hundreds of pages. Quite a collection of stories.</string>
-    <string name="sw_phrase_21">You have spent the time of %1$d TV episodes reading</string>
-    <string name="sw_phrase_22">You have spent more time reading than watching %1$d football matches</string>
-    <string name="sw_phrase_23">You have read more than %1$d Lord of the Rings movies</string>
-    <string name="sw_phrase_24">If each page were a step, you would have walked %1$d km</string>
-    <string name="sw_phrase_25">You have read the equivalent of %1$d episodes of your favorite show</string>
-    <string name="sw_phrase_26">Your reading hours surpass %1$d transatlantic flights</string>
-    <string name="sw_phrase_27">Your books in a row would measure %1$d meters of shelf</string>
-    <string name="sw_phrase_28">You have consumed %1$d kg of printed words</string>
-    <string name="sw_phrase_29">You have read more minutes than %1$d legendary naps</string>
-    <string name="sw_phrase_30">Your pages would weigh about %1$d kg in paper</string>
-    <string name="sw_phrase_31">You have read the equivalent of %1$d times War and Peace</string>
-    <string name="sw_phrase_32">You have invested %1$d full workdays reading</string>
-    <string name="sw_phrase_33">You have covered %1$d One Hundred Years of Solitude in pages</string>
-    <string name="sw_phrase_34">You have lived a thousand lives without leaving home</string>
-    <string name="sw_phrase_35">Every page is a door. You have already opened hundreds.</string>
-    <string name="sw_phrase_36">Books don\'t change the world, they change those who do</string>
-    <string name="sw_phrase_37">Reading is the only way to travel without moving</string>
-    <string name="sw_phrase_38">Your future self will thank every page you read today</string>
-    <string name="sw_phrase_39">There is no better investment than an open book</string>
-    <string name="sw_phrase_40">Every finished book is a better version of you</string>
-    <string name="sw_phrase_41">You don\'t count pages. You collect memories.</string>
-    <string name="sw_phrase_42">Some read books. You build universes.</string>
-    <string name="sw_phrase_43">Ink runs through your veins. You are a true reader.</string>
 </resources>

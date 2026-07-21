@@ -51,6 +51,9 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
     // D-004: books/sessions son StateFlow; se coleccionan en la raiz de la pantalla
     val books by vm.books.collectAsState()
     val sessions by vm.sessions.collectAsState()
+    // RF-C3: restauración en curso (JSON manual o Drive): deshabilita los botones de
+    // restaurar para impedir dos imports concurrentes y muestra el estado en el botón.
+    val isRestoring by vm.isRestoring.collectAsState()
     val context = LocalContext.current
     val acc = accentForTheme(theme)
     val coroutineScope = rememberCoroutineScope()
@@ -372,6 +375,8 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 }
                 Spacer(Modifier.height(10.dp))
                 // Restaurar backup JSON
+                // RF-C3: deshabilitado mientras hay una restauración en curso (antes se
+                // podían lanzar dos imports concurrentes sobre el mismo ViewModel).
                 OutlinedButton(
                     onClick = {
                         jsonRestoreLauncher.launch(arrayOf("application/json", "text/plain", "text/*", "*/*"))
@@ -380,8 +385,13 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     modifier = Modifier.fillMaxWidth().height(46.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Amber),
+                    enabled = !isRestoring
                 ) {
-                    Icon(Icons.Default.CloudDownload, null, modifier = Modifier.size(18.dp), tint = Amber)
+                    if (isRestoring) {
+                        CircularProgressIndicator(color = Amber, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.CloudDownload, null, modifier = Modifier.size(18.dp), tint = Amber)
+                    }
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.txt_37af485a), fontWeight = FontWeight.Bold, color = Amber)
                 }
@@ -550,7 +560,9 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 )
                             }
                         },
-                        enabled = !isDriveLoading,
+                        // RF-C3: también gateado por isRestoring: el restore de Drive y el
+                        // JSON manual comparten el mismo ViewModel y no deben solaparse.
+                        enabled = !isDriveLoading && !isRestoring,
                         modifier = Modifier.fillMaxWidth().height(46.dp),
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, Color(0xFF4285F4))

@@ -55,5 +55,6 @@ $cp = "$mainClasses;$testClasses;$junit;$hamcrest;$stdlib;$gson;$orgJson;$androi
     com.lecturameter.WrappedPaletteTest `
     com.lecturameter.NaturalWeekTest `
     com.lecturameter.WrappedSnapshotTest `
-    com.lecturameter.KitsuParseTest
+    com.lecturameter.KitsuParseTest `
+    com.lecturameter.CatalogNormalizeTest
 exit $LASTEXITCODE

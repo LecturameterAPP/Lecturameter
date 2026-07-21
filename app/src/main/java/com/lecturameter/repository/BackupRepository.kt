@@ -381,6 +381,11 @@ fun importFullBackupFromJson(
     prefs: android.content.SharedPreferences,
     context: android.content.Context
 ): Pair<Boolean, String> {
+    // RF-C3: flag de restauración en curso. La UI lo observa para deshabilitar los
+    // botones de restaurar (evita dos imports concurrentes) y se apaga SIEMPRE en el
+    // finally, tanto en éxito como en error.
+    vm.setRestoring(true)
+    try {
     return try {
         val gson = Gson()
 
@@ -405,6 +410,40 @@ fun importFullBackupFromJson(
         val type = object : TypeToken<FullBackup>() {}.type
         val backup: FullBackup = gson.fromJson(correctedJson, type)
             ?: return Pair(false, context.getString(R.string.err_backup_format_invalid))
+
+        // ── RF-M1: normalizar elemento a elemento ANTES de cualquier acceso ────
+        // Gson (Unsafe) deja a null los campos non-null que no existen en el JSON:
+        // los backups de la 2.7 original (y de cualquier versión sin editions,
+        // dateEvents o genres) petaban con NPE al primer acceso a b.editions, antes
+        // de llegar a sanitizeBook, y el import ENTERO fallaba. sanitizeBook ya
+        // repara todos esos nulls; basta con aplicarlo a cada libro AQUÍ, antes del
+        // primer acceso, y descartar (sin tumbar el import) el libro individual que
+        // ni aun así pueda repararse.
+        val backupBooks2 = (backup.books ?: emptyList()).mapNotNull { raw ->
+            try { sanitizeBook(raw) } catch (e: Exception) {
+                com.lecturameter.utils.AppLogger.logError("Backup: libro irreparable descartado en import", e, "BackupRestore")
+                null
+            }
+        }
+        val backupSessions2 = backup.sessions ?: emptyList()
+        val backupWrapped2 = backup.wrappedHistory ?: emptyList()
+
+        // ── RF-C3 fase IO: todo lo pesado, SIN tocar el ViewModel ──────────────
+        // Las portadas base64 se extraen a fichero ahora (decodificar y escribir es
+        // lo lento del restore). Puede dejar algún fichero huérfano si un libro
+        // resulta luego duplicado, pero deja el bloque de main en milisegundos.
+        val restoredBackupBooks = restoreLocalCoversFromBackup(context, backupBooks2)
+
+        // ── RF-C3 fase MAIN: aplicar TODO de una sola vez en el hilo principal ─
+        // Las mutaciones normales (fin de crono, addBook) corren en main; antes el
+        // read-modify-write del ViewModel se hacía desde Dispatchers.IO sin lock y
+        // una sesión terminada durante un restore largo se pisaba y la pérdida se
+        // persistía. Con el merge y la persistencia en main no hay carrera posible.
+        // Los dos llamantes (ImportExportScreen y DriveBackupManager.restore) entran
+        // por Dispatchers.IO, así que bloquear este hilo mientras main aplica es
+        // seguro; Main.immediate evita el deadlock si algún día se llamara desde main.
+        kotlinx.coroutines.runBlocking {
+        withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
 
         // ── M5: el tema, ANTES que nada ───────────────────────────────────────
         // Va lo primero a propósito: el grandfathering es un one-shot que se quema solo
@@ -440,14 +479,10 @@ fun importFullBackupFromJson(
             // instalación), no se toca theme_mode: se queda el actual o el de por defecto.
         }
 
-        val backupBooks2 = backup.books ?: emptyList()
-        val backupSessions2 = backup.sessions ?: emptyList()
-        val backupWrapped2 = backup.wrappedHistory ?: emptyList()
-
         val existingIsbns = vm.books.value.mapNotNull { it.isbn }.toSet()
         val existingKeys = vm.books.value.map { "${it.title.trim().lowercase()}|${it.author.trim().lowercase()}" }.toSet()
         val existingBookIds = vm.books.value.map { it.id }.toSet()
-        val newBooks = backupBooks2.filter { b ->
+        val newBooks = restoredBackupBooks.filter { b ->
             val key = "${b.title.trim().lowercase()}|${b.author.trim().lowercase()}"
             b.id !in existingBookIds && (b.isbn == null || b.isbn !in existingIsbns) && key !in existingKeys
         }
@@ -457,7 +492,7 @@ fun importFullBackupFromJson(
         // mismo ISBN o mismo título+autor — caso típico al restaurar un backup de OTRA instalación,
         // p.ej. dev -> public, donde los ids de libro son System.currentTimeMillis() y nunca coinciden)
         // las sesiones deben apuntar al id local existente, no quedar huérfanas.
-        val bookIdRemap: Map<Long, Long> = backupBooks2.associate { b ->
+        val bookIdRemap: Map<Long, Long> = restoredBackupBooks.associate { b ->
             val key = "${b.title.trim().lowercase()}|${b.author.trim().lowercase()}"
             val matched = vm.books.value.firstOrNull { it.id == b.id }
                 ?: vm.books.value.firstOrNull { b.isbn != null && it.isbn == b.isbn }
@@ -481,34 +516,27 @@ fun importFullBackupFromJson(
             .mapNotNull { s -> bookIdRemap[s.bookId]?.let { resolvedId -> s.copy(bookId = resolvedId) } }
             .filter { sessionKey(it.bookId, it) !in existingSessionKeys }
             .distinctBy { sessionKey(it.bookId, it) }   // y que el propio backup no traiga repes
-        val backupBookById2 = backupBooks2.associateBy { it.id }
+        val backupBookById2 = restoredBackupBooks.associateBy { it.id }
         vm.setBooks(vm.books.value.map { existing ->
             val fromBackup = backupBookById2[existing.id]
             if (fromBackup != null) {
                 // RC-1: merge editions additively (same pattern as challenges/bingo).
                 // Keep all local editions; add backup editions only when no local
                 // edition shares the same id OR same language code.
+                // RF-C3: las portadas del backup ya vienen restauradas a fichero desde
+                // la fase IO, así que aquí solo se combinan listas (rápido, en main).
                 val localEditionIds = existing.editions.map { it.id }.toSet()
                 val localEditionLangs = existing.editions.map { it.language }.toSet()
                 val incomingEditions = fromBackup.editions
                     .filter { it.id !in localEditionIds && it.language !in localEditionLangs }
-                val mergedEditions = existing.editions + incomingEditions
-                val restoredEditions2 = if (mergedEditions.isNotEmpty())
-                    restoreLocalCoversFromBackup(context, listOf(
-                        existing.copy(editions = mergedEditions)
-                    )).first().editions
-                else existing.editions
-                val restoredCover2 = if (fromBackup.coverUrl?.startsWith("data:image") == true)
-                    restoreLocalCoversFromBackup(context, listOf(fromBackup)).first().coverUrl
-                else fromBackup.coverUrl ?: existing.coverUrl
                 existing.copy(
                     firstFunctionalPage = existing.firstFunctionalPage ?: fromBackup.firstFunctionalPage,
                     lastFunctionalPage  = existing.lastFunctionalPage  ?: fromBackup.lastFunctionalPage,
-                    coverUrl  = existing.coverUrl ?: restoredCover2,
-                    editions  = restoredEditions2
+                    coverUrl  = existing.coverUrl ?: fromBackup.coverUrl,
+                    editions  = existing.editions + incomingEditions
                 )
             } else existing
-        } + newBooks.map { sanitizeBook(restoreLocalCoversFromBackup(context, listOf(it)).first()) })
+        } + newBooks)
         val backupSessionById2 = backupSessions2.associateBy { it.id }
         vm.setSessions(vm.sessions.value.map { existing ->
             val fromBackup = backupSessionById2[existing.id]
@@ -519,8 +547,13 @@ fun importFullBackupFromJson(
             ) else existing
         } + newSessions)
         val existingYears = vm.wrappedHistory.value.map { it.year }.toSet()
+        // RF-M1: mismo criterio que con los libros — un wrapped corrupto se descarta
+        // individualmente en vez de tumbar el import entero.
         val newWrapped = backupWrapped2.filter { it.year !in existingYears }
-            .map { com.lecturameter.repository.WrappedRepository.sanitizeWrapped(it) }
+            .mapNotNull { w ->
+                try { com.lecturameter.repository.WrappedRepository.sanitizeWrapped(w) }
+                catch (_: Exception) { null }
+            }
         vm.setWrappedHistory(vm.wrappedHistory.value + newWrapped)
         prefs.edit()
             .putString("books", gson.toJson(vm.books.value))
@@ -623,11 +656,18 @@ fun importFullBackupFromJson(
             if (isEmpty()) append(context.getString(R.string.import_all_up_to_date))
         }
         Pair(true, msg)
+
+        } // fin withContext(Main), RF-C3
+        } // fin runBlocking, RF-C3
     } catch (e: OutOfMemoryError) {
         throw e // No silenciar — el sistema necesita reaccionar
     } catch (e: Exception) {
         com.lecturameter.utils.AppLogger.logError("Restore backup failed", e, "BackupRestore")
         Pair(false, "Error: ${e.message}")
+    }
+    } finally {
+        // RF-C3: pase lo que pase, la UI recupera el botón de restaurar.
+        vm.setRestoring(false)
     }
 }
 

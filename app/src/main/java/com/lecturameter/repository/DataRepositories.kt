@@ -13,16 +13,37 @@ import com.lecturameter.model.*
 import com.lecturameter.utils.BingoManager
 import com.lecturameter.utils.sanitizeBook
 
+// RF-C2: recuperación ante JSON corrupto en prefs. Sin esto, una clave truncada convertía
+// el arranque en un crash-loop sin salida (ni siquiera para exportar). Se conserva el crudo
+// en "<clave>_corrupt" (clave fija, sobrescribe la anterior) por si hay rescate manual, se
+// elimina la clave dañada y se marca "repo_data_recovered" para que la UI avise al usuario.
+// El catch es amplio a propósito: Gson no solo lanza JsonSyntaxException, también
+// IllegalStateException, EOFException o NPEs internas según cómo esté roto el JSON.
+private fun recoverCorruptPref(prefs: SharedPreferences, key: String, json: String) {
+    prefs.edit()
+        .putString("${key}_corrupt", json)
+        .remove(key)
+        .putBoolean("repo_data_recovered", true)
+        .apply()
+}
+
 object BookRepository {
     private val gson = Gson()
 
-    /** null = clave "books" ausente (primera ejecución). */
+    /** null = clave "books" ausente (primera ejecución) o retirada por corrupción. */
     fun loadOrNull(prefs: SharedPreferences): List<Book>? {
         val json = prefs.getString("books", null) ?: return null
         val type = object : TypeToken<List<Book>>() {}.type
+        val parsed = try {
+            gson.fromJson<List<Book>>(json, type)
+        } catch (_: Exception) {
+            recoverCorruptPref(prefs, "books", json)
+            return null
+        }
         // distinctBy { id }: si un proceso previo (restauración con IDs colisionantes) dejó
         // libros fantasma con el mismo ID, se conserva solo el primero. Evita duplicados ocultos.
-        return (gson.fromJson<List<Book>>(json, type) ?: emptyList())
+        return (parsed ?: emptyList())
+            .filterNotNull()
             .map { sanitizeBook(it) }
             .distinctBy { it.id }
     }
@@ -36,11 +57,23 @@ object BookRepository {
 object SessionRepository {
     private val gson = Gson()
 
-    /** null = clave "sessions" ausente. */
+    /** null = clave "sessions" ausente o retirada por corrupción. */
     fun loadOrNull(prefs: SharedPreferences): List<ReadingSession>? {
         val json = prefs.getString("sessions", null) ?: return null
         val type = object : TypeToken<List<ReadingSession>>() {}.type
-        return (gson.fromJson<List<ReadingSession>>(json, type) ?: emptyList())
+        val parsed = try {
+            gson.fromJson<List<ReadingSession>>(json, type)
+        } catch (_: Exception) {
+            recoverCorruptPref(prefs, "sessions", json)
+            return null
+        }
+        // Sanitización: Gson instancia con Unsafe, así que un backup corrupto puede dejar
+        // date o note (declarados non-null) a null, y computeWrapped hace substring sobre
+        // date sin red. Se descartan las sesiones inservibles: elemento null, campo non-null
+        // a null o date más corto que "yyyy-MM" (mismo umbral length >= 7 que usa el heatmap).
+        return (parsed ?: emptyList())
+            .filterNotNull()
+            .filter { it.date != null && it.note != null && it.date.length >= 7 }
             .distinctBy { it.id }
     }
 
@@ -56,7 +89,7 @@ object WrappedRepository {
         val json = prefs.getString("wrapped_history", null) ?: return null
         val type = object : TypeToken<List<YearWrapped>>() {}.type
         return try {
-            (gson.fromJson<List<YearWrapped>>(json, type) ?: emptyList()).map { sanitizeWrapped(it) }
+            (gson.fromJson<List<YearWrapped>>(json, type) ?: emptyList()).filterNotNull().map { sanitizeWrapped(it) }
         } catch (_: Exception) { emptyList() }
     }
 
@@ -146,10 +179,18 @@ object BingoRepository {
 object ChallengeRepository {
     private val gson = Gson()
 
+    /** null = clave "challenges" ausente o retirada por corrupción. */
     fun loadOrNull(prefs: SharedPreferences): List<Challenge>? {
         val json = prefs.getString("challenges", null) ?: return null
         val type = object : TypeToken<List<Challenge>>() {}.type
-        return (gson.fromJson<List<Challenge>>(json, type) ?: emptyList())
+        val parsed = try {
+            gson.fromJson<List<Challenge>>(json, type)
+        } catch (_: Exception) {
+            recoverCorruptPref(prefs, "challenges", json)
+            return null
+        }
+        return (parsed ?: emptyList())
+            .filterNotNull()  // un elemento null en la lista haría NPE en el filtro siguiente
             .filter { it.name != null && it.type != null }  // Gson puede colar nulls desde JSON corrupto
     }
 
@@ -165,7 +206,14 @@ object ChallengeHistoryRepository {
     fun load(prefs: SharedPreferences): List<ChallengeSnapshot> {
         val json = prefs.getString("challenge_history", null) ?: return emptyList()
         val type = object : TypeToken<List<ChallengeSnapshot>>() {}.type
-        return (gson.fromJson<List<ChallengeSnapshot>>(json, type) ?: emptyList())
+        val parsed = try {
+            gson.fromJson<List<ChallengeSnapshot>>(json, type)
+        } catch (_: Exception) {
+            recoverCorruptPref(prefs, "challenge_history", json)
+            return emptyList()
+        }
+        return (parsed ?: emptyList())
+            .filterNotNull()  // un elemento null en la lista haría NPE en el filtro siguiente
             .filter { it.name != null && it.type != null }
     }
 

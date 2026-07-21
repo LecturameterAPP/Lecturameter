@@ -442,9 +442,9 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    DrawerStatChipH("📚 ${bookSessions.size} Ses", acc, Modifier.weight(1f))
+                                    DrawerStatChipH(stringResource(R.string.history_chip_sessions, bookSessions.size), acc, Modifier.weight(1f))
                                     DrawerStatChipH(if (bookTotalMins > 0) "⏱️ ${fmtMinutes(bookTotalMins)}" else "⏱️ -", Sky, Modifier.weight(1f))
-                                    DrawerStatChipH("📄 $bookTotalPages Págs", Green, Modifier.weight(1f))
+                                    DrawerStatChipH(stringResource(R.string.history_chip_pages, bookTotalPages), Green, Modifier.weight(1f))
                                 }
                             }
                         }
@@ -551,6 +551,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                                 session = session,
                                                 sessionNumber = fixedNum,
                                                 book = null,
+                                                validationBook = book,
                                                 theme = theme,
                                                 onDelete = { vm.deleteSession(session.id, prefs); refreshWidgetForBookIfSelected(context, session.bookId) },
                                                 onEdit = { updated -> vm.updateSession(updated, prefs); refreshWidgetForBookIfSelected(context, updated.bookId) },
@@ -569,6 +570,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                                         session = session,
                                         sessionNumber = fixedNum,
                                         book = null,
+                                        validationBook = book,
                                         theme = theme,
                                         onDelete = { vm.deleteSession(session.id, prefs); refreshWidgetForBookIfSelected(context, session.bookId) },
                                         onEdit = { updated -> vm.updateSession(updated, prefs); refreshWidgetForBookIfSelected(context, updated.bookId) },
@@ -686,6 +688,10 @@ fun HistorySessionCard(
     session: ReadingSession,
     sessionNumber: Int = 0,
     book: Book?,
+    // RF-M13: libro usado SOLO para validar la edición. book == null oculta el título
+    // (ya visible en la cabecera del grupo), pero el diálogo sigue necesitando el
+    // rango de páginas del libro para rechazar valores imposibles.
+    validationBook: Book? = null,
     theme: Theme,
     onDelete: (() -> Unit)? = null,
     onEdit: ((ReadingSession) -> Unit)? = null,
@@ -818,23 +824,36 @@ fun HistorySessionCard(
                 TextButton(onClick = {
                     val stored = parseFlexibleDate(dateText.trim())
                     if (stored == null) { dateError = context.getString(R.string.err_date_invalid_correct); return@TextButton }
-                    // v20.2 (B4+B5): validar páginas
-                    val newStart = startPageText.toIntOrNull()
-                    val newEnd   = endPageText.toIntOrNull()
+                    // RF-M13: validación coherente con SessionSaveDialog (permite start == end,
+                    // exige start >= 1 y no superar las páginas del libro si se conocen).
                     if (startPageText.isBlank() || endPageText.isBlank()) {
                         pageError = context.getString(R.string.err_pages_start_end_required); return@TextButton
                     }
-                    if (newStart != null && newEnd != null) {
-                        if (newStart >= newEnd) {
-                            pageError = if (newStart >= newEnd)
-                                context.getString(R.string.err_page_start_lt_end)
-                            else
-                                context.getString(R.string.err_page_end_gt_start)
-                            return@TextButton
-                        }
+                    val newStart = startPageText.toIntOrNull()
+                    val newEnd   = endPageText.toIntOrNull()
+                    if (newStart == null || newStart < 1) {
+                        pageError = context.getString(R.string.err_page_start_min1); return@TextButton
                     }
-                    val pages = if (newStart != null && newEnd != null) newEnd - newStart + 1 else session.pages
-                    val mins  = minsText.toIntOrNull()
+                    if (newEnd == null) {
+                        pageError = context.getString(R.string.err_pages_start_end_required); return@TextButton
+                    }
+                    if (newEnd < newStart) {
+                        pageError = context.getString(R.string.err_page_end_lt_start); return@TextButton
+                    }
+                    val bookForPages = book ?: validationBook
+                    val totalPages = bookForPages?.pages ?: 0
+                    if (totalPages > 0 && newEnd > totalPages) {
+                        pageError = context.getString(R.string.err_page_end_over_total_n, totalPages); return@TextButton
+                    }
+                    val lastFunc = bookForPages?.lastFunctionalPage
+                    if (lastFunc != null && newEnd > lastFunc) {
+                        pageError = context.getString(R.string.err_page_end_over_func, lastFunc); return@TextButton
+                    }
+                    val mins = minsText.toIntOrNull()
+                    if (minsText.isNotBlank() && (mins == null || mins < 1 || mins > 1440)) {
+                        pageError = context.getString(R.string.err_minutes_range); return@TextButton
+                    }
+                    val pages = newEnd - newStart + 1
                     onEdit?.invoke(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
                 }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
@@ -987,12 +1006,16 @@ fun DataChipSm(text: String, bg0: Color, fg0: Color, modifier: Modifier = Modifi
 @Composable
 fun SessionChart(sessions: List<ReadingSession>, theme: Theme, reversed: Boolean = false) {
     // Agrupa por fecha y suma páginas
+    // RF-M12: primero se ordena ascendente y se cogen los últimos 14, de forma que
+    // el gráfico muestre SIEMPRE los 14 días más recientes; después se invierte la
+    // presentación si el usuario eligió "más recientes primero".
     val sorted = sessions
         .groupBy { it.date }
         .mapValues { (_, list) -> list.sumOf { it.pages } }
         .entries
-        .let { if (reversed) it.sortedByDescending { e -> e.key } else it.sortedBy { e -> e.key } }
-        .takeLast(14) // últimos/primeros 14 días con sesiones
+        .sortedBy { e -> e.key }
+        .takeLast(14) // últimos 14 días con sesiones
+        .let { if (reversed) it.reversed() else it }
 
     if (sorted.isEmpty()) return
 
@@ -1125,23 +1148,28 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                 TextButton(onClick = {
                     val stored = parseFlexibleDate(dateText.trim())
                     if (stored == null) { dateError = context.getString(R.string.err_date_invalid_correct); return@TextButton }
-                    // v20.2 (B4+B5): validar páginas
-                    val newStart = startPageText.toIntOrNull()
-                    val newEnd   = endPageText.toIntOrNull()
+                    // RF-M13: validación coherente con SessionSaveDialog (permite start == end).
+                    // Aquí no hay Book en scope, así que el rango contra las páginas del libro
+                    // no puede comprobarse; sí el resto de invariantes.
                     if (startPageText.isBlank() || endPageText.isBlank()) {
                         pageError = context.getString(R.string.err_pages_start_end_required); return@TextButton
                     }
-                    if (newStart != null && newEnd != null) {
-                        if (newStart >= newEnd) {
-                            pageError = if (startPageText.toInt() >= endPageText.toInt())
-                                context.getString(R.string.err_page_start_lt_end)
-                            else
-                                context.getString(R.string.err_page_end_gt_start)
-                            return@TextButton
-                        }
+                    val newStart = startPageText.toIntOrNull()
+                    val newEnd   = endPageText.toIntOrNull()
+                    if (newStart == null || newStart < 1) {
+                        pageError = context.getString(R.string.err_page_start_min1); return@TextButton
                     }
-                    val pages = if (newStart != null && newEnd != null) newEnd - newStart + 1 else session.pages
-                    val mins  = minsText.toIntOrNull()
+                    if (newEnd == null) {
+                        pageError = context.getString(R.string.err_pages_start_end_required); return@TextButton
+                    }
+                    if (newEnd < newStart) {
+                        pageError = context.getString(R.string.err_page_end_lt_start); return@TextButton
+                    }
+                    val mins = minsText.toIntOrNull()
+                    if (minsText.isNotBlank() && (mins == null || mins < 1 || mins > 1440)) {
+                        pageError = context.getString(R.string.err_minutes_range); return@TextButton
+                    }
+                    val pages = newEnd - newStart + 1
                     onEdit(session.copy(pages = pages, minutes = mins, note = noteText.trim(), date = stored, startPage = newStart, endPage = newEnd))
                     showEditDialog = false
                 }) { Text(stringResource(R.string.txt_d3270bdb), color = acc, fontWeight = FontWeight.Bold) }
@@ -1188,7 +1216,7 @@ fun SessionRow(session: ReadingSession, sessionNumber: Int = 0, theme: Theme, on
                     modifier = Modifier.fillMaxWidth().padding(top = 5.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    DataChip("📄 ${session.pages} págs", acc.copy(alpha = 0.15f), acc, Modifier.weight(1f))
+                    DataChip(stringResource(R.string.history_chip_pages_session, session.pages), acc.copy(alpha = 0.15f), acc, Modifier.weight(1f))
                     if (session.minutes != null) {
                         DataChip("⏱️ ${session.minutes} min", Sky.copy(alpha = 0.15f), Sky, Modifier.weight(1f))
                     }
