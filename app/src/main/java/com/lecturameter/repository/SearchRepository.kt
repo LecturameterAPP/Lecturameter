@@ -182,17 +182,43 @@ private fun searchRelevance(tokens: Set<String>, title: String, authors: String)
     return tokens.count { hay.contains(it) }.toDouble() / tokens.size
 }
 
+// Relevancia SOLO contra el título, y por PALABRA en vez de por subcadena.
+//
+// Existe por un caso medido en el móvil el 21-07: buscando "La torre", el primer resultado
+// era "The Giver of Stars" de Jojo Moyes. No era un fallo del catálogo, que devolvió lo que
+// se le pidió: la ficha lleva a su traductor, "Jesús de la Torre Olid", así que el token
+// "torre" aparecía de verdad en sus metadatos y searchRelevance le daba 1,00. El segundo
+// resultado, "La porte étroite", casaba por la traductora "Blanca Torrents", y ahí ni
+// siquiera como palabra: `contains` encuentra "torre" DENTRO de "torrents".
+//
+// Con todos empatados a 1,00 el filtro de relevancia no filtraba nada y el desempate caía
+// siempre en el idioma de la app, que es como un libro sin relación encabezaba la lista.
+//
+// Esto NO sustituye a searchRelevance: el filtro global sigue usando título+autores, para
+// que buscar por autor siga funcionando. Esto solo ORDENA, poniendo delante a quien lleva
+// la consulta en el título.
+private fun searchTitleRelevance(tokens: Set<String>, title: String): Double {
+    if (tokens.isEmpty()) return 1.0
+    val palabras = normalizedEditionText(title).split(" ").filter { it.isNotBlank() }
+    if (palabras.isEmpty()) return 0.0
+    return tokens.count { t ->
+        // Palabra exacta, o la del título empieza por el token y solo la alarga en 1 o 2
+        // letras (plurales y flexiones: "torre" vale para "torres", no para "torrents").
+        palabras.any { p -> p == t || (p.startsWith(t) && p.length - t.length <= 2) }
+    }.toDouble() / tokens.size
+}
+
 data class BookMetadata(
     val coverUrl: String? = null,
     val genres: List<String> = emptyList()
 )
 
-// Fuentes manga (md_ = MangaDex, kt_ = Kitsu, P-029): quedan exentas del filtro de
-// relevancia global porque ya filtran con su propio matchScore contra TODOS los
+// Fuentes manga (md_ = MangaDex, kt_ = Kitsu, cv_ = Comic Vine): quedan exentas del
+// filtro de relevancia global porque ya filtran con su propio matchScore contra TODOS los
 // títulos de la serie, y el título que acaban mostrando puede no parecerse a la
 // query (se busca en español y la ficha viene en inglés o japonés).
 internal fun isMangaSourceKey(olKey: String): Boolean =
-    olKey.startsWith("md_") || olKey.startsWith("kt_")
+    olKey.startsWith("md_") || olKey.startsWith("kt_") || olKey.startsWith("cv_")
 
 // ── Google Books search ───────────────────────────────────────────────────────
 
@@ -1392,6 +1418,159 @@ private suspend fun fetchKitsuMangaResults(query: String, preferredLang: String)
         parseKitsuMangaResults(body, query, preferredLang)
     } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
     catch (_: Exception) { emptyList() }
+}
+
+// ── Comic Vine API ────────────────────────────────────────────────────────────
+// Cuarta fuente de cómic y manga, a nivel de SERIE (su recurso `volume`), igual que
+// AniList y Kitsu. Cubre el hueco que ninguna de las otras cubre bien: cómic occidental
+// (Invincible, Saga, The Walking Dead) y ediciones de manga que Kitsu no indexa.
+//
+// LO QUE **NO** HACE, escrito aquí para que nadie vuelva a intentarlo (verificado el
+// 21-07-2026 contra su documentación de campos):
+//   - NO indexa ISBN, ISSN, UPC ni EAN. Los campos de `issues` son aliases, cover_date,
+//     date_added, deck, description, id, image, issue_number, name, store_date y volume.
+//     Es una petición histórica de su foro de desarrolladores que nunca han implementado.
+//     Por tanto **no sirve para el escáner**: un código de barras no se resuelve aquí.
+//     Para códigos de barras de cómic la fuente correcta sería Grand Comics Database.
+//   - NO devuelve número de páginas. Las páginas de un cómic seguirán siendo manuales
+//     o de otra fuente.
+//
+// Límite oficial: 200 peticiones por recurso y hora, y piden no pasar de una por segundo.
+// De ahí el ApiThrottle y que la fase vaya la última.
+private const val COMIC_VINE_BASE = "https://comicvine.gamespot.com/api"
+private const val COMIC_VINE_LIMIT = 5
+
+// Tope de resultados NUEVOS, mismo criterio que KITSU_MAX_NEW: Comic Vine puede añadir
+// contexto, no sepultar a OpenLibrary y Google Books, que son los que traen ISBN y páginas.
+private const val COMIC_VINE_MAX_NEW = 3
+
+/**
+ * Parseo puro de la respuesta de Comic Vine → resultados normalizados.
+ * Separado de la red igual que [parseKitsuMangaResults]: los tests corren sin red.
+ *
+ * Filtra por parecido de títulos por la misma razón que Kitsu y MangaDex: la búsqueda de
+ * Comic Vine no devuelve vacío cuando no conoce algo, devuelve lo que más se le parece.
+ */
+internal fun parseComicVineResults(json: String, query: String): List<OpenLibraryResult> {
+    val root = try { JSONObject(json) } catch (_: Exception) { return emptyList() }
+    // status_code 1 es OK. Cualquier otro (100 = key inválida, 107 = rate limit) trae los
+    // resultados vacíos o ausentes, y tratarlo como éxito devolvería una lista fantasma.
+    if (root.optInt("status_code", -1) != 1) return emptyList()
+    val results = root.optJSONArray("results") ?: return emptyList()
+
+    val qTokens = query.lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.length > 1 }.toSet()
+    if (qTokens.isEmpty()) return emptyList()
+
+    val out = mutableListOf<OpenLibraryResult>()
+    for (i in 0 until results.length()) {
+        val obj = results.optJSONObject(i) ?: continue
+        val name = obj.optString("name", "").trim()
+        if (name.isBlank()) continue
+
+        // Parecido por solapamiento de tokens contra la query. Mismo umbral que Kitsu.
+        val tTokens = name.lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.length > 1 }.toSet()
+        val score = if (tTokens.isEmpty()) 0.0
+                    else qTokens.count { it in tTokens }.toDouble() / qTokens.size
+        if (score < 0.4) continue
+
+        // La portada de `volume` es la del primer número, que es la que el usuario
+        // reconoce. super_url es la grande; medium basta para una miniatura y pesa menos.
+        val image = obj.optJSONObject("image")
+        val cover = image?.optString("medium_url", "")?.takeIf { it.isNotBlank() }
+            ?: image?.optString("original_url", "")?.takeIf { it.isNotBlank() }
+
+        val year = obj.optString("start_year", "").takeIf { it.isNotBlank() && it != "null" }.orEmpty()
+        val id = obj.optInt("id", 0)
+        if (id == 0) continue
+
+        out.add(
+            OpenLibraryResult(
+                name,
+                "",              // Comic Vine no da autor en `volume`; lo rellenan las otras fases
+                0,               // ni páginas: no existe el campo
+                cover,
+                null,            // ni ISBN
+                "Cómic",
+                year,
+                "cv_$id"
+            )
+        )
+    }
+    return out
+}
+
+/** GET a Comic Vine. Lista vacía ante cualquier fallo: la búsqueda nunca depende de esto. */
+private suspend fun fetchComicVineResults(query: String): List<OpenLibraryResult> {
+    val key = BuildConfig.COMIC_VINE_API_KEY
+    if (key.isBlank()) return emptyList()
+    return try {
+        val encoded = URLEncoder.encode(query, "UTF-8")
+        val url = "$COMIC_VINE_BASE/search/?api_key=$key&format=json&resources=volume" +
+            "&limit=$COMIC_VINE_LIMIT&query=$encoded" +
+            "&field_list=id,name,start_year,image,count_of_issues,publisher"
+        ApiThrottle.gate("comicvine.gamespot.com")
+        val conn = URL(url).openConnection() as HttpURLConnection
+        // Comic Vine RECHAZA los User-Agent por defecto de las librerías HTTP. Sin esta
+        // cabecera devuelve 403 aunque la key sea correcta.
+        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
+        conn.connectTimeout = 7000; conn.readTimeout = 7000
+        val code = conn.responseCode
+        if (code !in 200..299) {
+            try { conn.errorStream?.close() } catch (_: Exception) {}
+            com.lecturameter.utils.AppLogger.log("Comic Vine HTTP $code", "Search")
+            return emptyList()
+        }
+        val body = conn.inputStream.use { it.bufferedReader().readText() }
+        parseComicVineResults(body, query)
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { emptyList() }
+}
+
+/**
+ * Busca SOLO la portada de un libro que el catálogo local ya ha resuelto.
+ *
+ * No trae metadatos: el catálogo ya sabe título, autor, páginas y año, y son mejores que
+ * los que devolvería una búsqueda genérica. Aquí lo único que falta es la imagen.
+ * Se prueba Google Books por ISBN (que es lo que mejor cubre ediciones españolas
+ * recientes) y, si no hay ISBN o no da nada, por título y autor.
+ *
+ * Devuelve null si ninguna fuente tiene portada. Quien llama debe cachear también ese
+ * null, o el mismo libro se preguntará a la red en cada búsqueda para siempre.
+ */
+private suspend fun fetchCoverUrlOnline(isbn13: String?, title: String, author: String): String? {
+    suspend fun pedir(url: String): String? = try {
+        ApiThrottle.gate(URL(url))
+        val conn = URL(url).openConnection() as HttpURLConnection
+        conn.setRequestProperty("User-Agent", APP_USER_AGENT)
+        conn.connectTimeout = 6000; conn.readTimeout = 6000
+        if (conn.responseCode !in 200..299) {
+            try { conn.errorStream?.close() } catch (_: Exception) {}
+            null
+        } else {
+            val root = JSONObject(conn.inputStream.use { it.bufferedReader().readText() })
+            val item = root.optJSONArray("items")?.optJSONObject(0)
+            val links = item?.optJSONObject("volumeInfo")?.optJSONObject("imageLinks")
+            // Google Books sirve estas URLs por http; la app no permite tráfico en claro,
+            // así que hay que forzar https o la imagen no carga nunca.
+            (links?.optString("thumbnail", "")?.takeIf { it.isNotBlank() }
+                ?: links?.optString("smallThumbnail", "")?.takeIf { it.isNotBlank() })
+                ?.replace("http://", "https://")
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+    catch (_: Exception) { null }
+
+    if (!isbn13.isNullOrBlank()) {
+        pedir(withGbKey(
+            "https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn13&maxResults=1&printType=books"
+        ))?.let { return it }
+    }
+    if (title.isBlank()) return null
+    val q = URLEncoder.encode(
+        if (author.isBlank()) title else "$title $author", "UTF-8"
+    )
+    return pedir(withGbKey(
+        "https://www.googleapis.com/books/v1/volumes?q=$q&maxResults=1&printType=books"
+    ))
 }
 
 // chooseBetterGenre eliminado en v8.0; reemplazado por votación en fetchBookMetadata
@@ -2849,9 +3028,43 @@ suspend fun searchOpenLibrary(
             searchRelevance(aliasTokens, r.title, r.matchAuthors.ifBlank { r.author }) else 0.0
         maxOf(direct, viaAlias)
     }
+    // Claves de las obras que ha aportado el catálogo local (fase 0). Se rellena abajo y
+    // el comparator la lee, por eso se declara aquí arriba.
+    val delCatalogo = HashSet<String>()
+
+    // Relevancia en TRAMOS GRUESOS de 0,25 en vez del valor continuo. Es lo que permite
+    // ponerla por encima del idioma sin cargarse la preferencia de idioma: dos resultados
+    // igual de relevantes caen en el mismo tramo y entonces decide el idioma, como antes.
+    fun relevanceTier(r: OpenLibraryResult): Int = (relevance(r) * 4).toInt()
+
+    // Relevancia del título, cacheada aparte. Ver searchTitleRelevance: es la que impide
+    // que el apellido de un traductor pese lo mismo que el título del libro.
+    val titleRelOf = HashMap<String, Double>()
+    fun titleTier(r: OpenLibraryResult): Int = titleRelOf.getOrPut(r.olKey.ifBlank { r.title }) {
+        val directo = searchTitleRelevance(qTokens, r.title)
+        val viaAlias = if (aliasTokens.isNotEmpty()) searchTitleRelevance(aliasTokens, r.title) else 0.0
+        maxOf(directo, viaAlias)
+    }.let { (it * 4).toInt() }
+
     val comparator =
-        compareByDescending<OpenLibraryResult> { it.language == preferredLang }  // idioma del usuario primero
-            .thenByDescending { relevance(it) }                                  // relevancia real con la query
+        // La relevancia manda. Antes mandaba el idioma, y el resultado medido en el movil
+        // el 21-07 fue que buscando "La torre" salia primero "The Giver of Stars" de Jojo
+        // Moyes: un libro sin ninguna relacion con la consulta ganaba a una coincidencia
+        // exacta de titulo solo por estar en el idioma de la app. Afecta a TODAS las
+        // busquedas, con catalogo o sin el.
+        // El TÍTULO manda. Sin este primer criterio, un libro cuyo traductor se apellida
+        // "de la Torre" empataba a 1,00 con "La torre nera" y decidía el idioma.
+        compareByDescending<OpenLibraryResult> { titleTier(it) }
+            .thenByDescending { relevanceTier(it) }                               // luego título+autores
+            .thenByDescending { it.language == preferredLang }                    // a igual relevancia, tu idioma
+            .thenByDescending { relevance(it) }                                  // desempate fino dentro del tramo
+            // El catálogo local manda: es la fuente principal, no un respaldo para cuando
+            // no hay red. Va por ENCIMA de "tiene portada" a propósito, y ese orden importa:
+            // las 250.000 obras que aporta la Biblioteca Nacional entran sin portada (no se
+            // pueden empaquetar cubiertas, es copyright de las editoriales), así que con el
+            // orden anterior CUALQUIER resultado de API con imagen las hundía. El catálogo
+            // se consultaba primero y luego el orden lo tiraba abajo.
+            .thenByDescending { it.olKey.isNotBlank() && it.olKey in delCatalogo }
             .thenByDescending { it.coverUrl != null }                            // con portada antes
             .thenByDescending { it.pages > 1 }                                   // páginas funcionales
             .thenByDescending { it.pages }
@@ -2877,7 +3090,13 @@ suspend fun searchOpenLibrary(
             val locales = CatalogRepository.search(query, preferredLang, limit = 20)
             for (r in locales) {
                 val k = if (r.olKey.isNotBlank()) "/works/${r.olKey}" else r.title
-                if (seen.add(k)) results.add(r)
+                if (seen.add(k)) {
+                    results.add(r)
+                    // Marcar el origen para que el comparator pueda priorizarlo. No vale
+                    // mirar el olKey: una obra de Open Library traída por la API tiene una
+                    // clave con la misma forma ("OL…W") que la del catálogo.
+                    if (r.olKey.isNotBlank()) delCatalogo.add(r.olKey)
+                }
             }
             if (locales.isNotEmpty()) {
                 com.lecturameter.utils.AppLogger.log(
@@ -3133,6 +3352,40 @@ suspend fun searchOpenLibrary(
         emitPartial()
     }
 
+    // 3c. Comic Vine — va la ÚLTIMA de las fuentes de cómic a propósito, por dos motivos:
+    // su límite es el más estrecho de todas (200/hora por recurso) y es la que menos datos
+    // aporta por resultado (no trae ni páginas ni autor). Su valor está en el cómic
+    // occidental y en las series que Kitsu no indexa, y sobre todo en la PORTADA.
+    if (queryLooksManga) {
+        val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+        // Comic Vine devuelve una entrada por EDICIÓN NACIONAL de la misma serie, todas con
+        // el mismo nombre: "Dandadan" sale 6 veces (Viz, Shueisha, Crunchyroll SAS,
+        // Crunchyroll SA, Edizioni BD...). Verificado contra la API real el 21-07. Sin
+        // colapsarlas, el tope de 3 nuevas pinta tres filas idénticas y el usuario no
+        // puede distinguirlas, porque la editorial no se muestra en la tarjeta.
+        // Se queda la primera de cada título, que es la que Comic Vine considera más relevante.
+        val cvResults = fetchComicVineResults(seriesQuery.ifBlank { query })
+            .distinctBy { it.title.lowercase().trim() }
+        var addedCv = 0
+        for (cv in cvResults) {
+            val normCv = cv.title.lowercase().trim()
+            val dupIdx = results.indexOfFirst { it.title.lowercase().trim() == normCv }
+            if (dupIdx >= 0) {
+                // Solo rellena huecos, nunca pisa: las otras fuentes traen mejores datos.
+                val ex = results[dupIdx]
+                results[dupIdx] = ex.copy(coverUrl = ex.coverUrl ?: cv.coverUrl)
+            } else if (addedCv < COMIC_VINE_MAX_NEW) {
+                results.add(cv)
+                addedCv++
+            }
+        }
+        if (cvResults.isNotEmpty()) {
+            com.lecturameter.utils.AppLogger.log(
+                "Comic Vine aporta ${cvResults.size} series ($addedCv nuevas)", "Search")
+            emitPartial()
+        }
+    }
+
     // ── v2.6 (búsqueda r1): relevancia + idioma del usuario + portadas válidas ──
     // Sustituye la heurística de tildes (fallaba con "El hombre Iluminado", "el nombre",
     // "El Imperio Final": ninguna lleva tilde → no se detectaban como español).
@@ -3162,6 +3415,56 @@ suspend fun searchOpenLibrary(
             }
         }
         if (changed) results.sortWith(comparator)
+    }
+
+    // ── Portadas de los resultados del catálogo ──────────────────────────────
+    // El catálogo decide QUÉ libro es; la red solo lo viste. Las obras de la Biblioteca
+    // Nacional entran con `cover_id` nulo, así que `coverUrlFor()` cae en la vía por ISBN
+    // de Open Library, limitada a 100 peticiones cada 5 minutos (luego 403) y sin imagen
+    // para muchos ISBN españoles. Aquí se pregunta a Google Books SOLO por la imagen.
+    //
+    // Se cachea una semana, incluido el "no hay portada": sin cachear el negativo, un
+    // libro sin cubierta se vuelve a preguntar a la red en cada búsqueda para siempre.
+    // Solo el top 8: el coste de red queda acotado y nadie mira más abajo sin desplazarse.
+    run {
+        val sinPortada = results.take(8).filter {
+            it.coverUrl == null && it.olKey.isNotBlank() && it.olKey in delCatalogo
+        }
+        if (sinPortada.isNotEmpty()) {
+            var cambio = false
+            coroutineScope {
+                val trabajos = sinPortada.map { r ->
+                    async {
+                        val clave = com.lecturameter.utils.SearchCoverCache
+                            .keyFor(r.isbn, r.title, r.author)
+                        val cacheado = com.lecturameter.utils.SearchCoverCache.get(clave)
+                        val url = when {
+                            cacheado == null ->
+                                fetchCoverUrlOnline(r.isbn, r.title, r.author)
+                                    .also { com.lecturameter.utils.SearchCoverCache.put(clave, it) }
+                            cacheado.isBlank() -> null    // comprobado: no tiene portada
+                            else -> cacheado
+                        }
+                        r to url
+                    }
+                }
+                for (t in trabajos) {
+                    val (r, url) = try { t.await() }
+                        catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
+                        catch (_: Exception) { continue }
+                    if (url != null) {
+                        val i = results.indexOf(r)
+                        if (i >= 0) { results[i] = r.copy(coverUrl = url); cambio = true }
+                    }
+                }
+            }
+            if (cambio) {
+                results.sortWith(comparator)
+                com.lecturameter.utils.AppLogger.log(
+                    "portadas del catálogo completadas online (${sinPortada.size} pedidas)", "Search")
+                emitPartial()
+            }
+        }
     }
 
     true

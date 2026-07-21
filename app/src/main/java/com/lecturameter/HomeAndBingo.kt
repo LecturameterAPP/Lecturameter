@@ -701,7 +701,7 @@ fun DuplicateBookDialog(candidate: Book, existing: Book, theme: Theme, onConfirm
 // despliega como panel encajado contra el rail. Iconos = emojis del sistema (D-002b).
 // Long-press en un destino → modo edición con arrastre vertical; ✓ guarda en prefs.
 // Feedback 13-07: la lupa sale del rail (la búsqueda online vive en la barra de búsqueda)
-private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped")
+private val RAIL_DEFAULT_ORDER = listOf("challenges", "stats", "bingo", "wrapped", "scan")
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -713,6 +713,7 @@ private fun RailItem(
     // Feedback 13-07: los destinos vuelven a los iconos Material azules; solo
     // historial (📜) y biblioteca (📚) conservan emoji (más el icono del tema en la barra)
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    painter: androidx.compose.ui.graphics.painter.Painter? = null,
     onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
@@ -734,6 +735,7 @@ private fun RailItem(
     ) {
         // D-015 r3: en Cuero los iconos del rail van en oro suave; azul en el resto de temas
         if (icon != null) Icon(icon, contentDescription = null, tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
+        else if (painter != null) Icon(painter, contentDescription = null, tint = actionIconTint(theme), modifier = Modifier.size(19.dp))
         else Text(emoji ?: "", fontSize = 17.sp)
     }
 }
@@ -748,6 +750,7 @@ fun HomeRail(
     onChallenges: () -> Unit,
     onBingo: () -> Unit,
     onWrapped: () -> Unit,
+    onScan: () -> Unit = {},
     // Feedback 14-07: swipe → sobre 📜 abre el historial; swipe ← en cualquier punto
     // del rail (incluida la raya separadora, que forma parte de su borde) lo cierra
     onHistoryOpen: () -> Unit = {},
@@ -848,7 +851,8 @@ fun HomeRail(
             ) {
                 RailItem(
                     null, theme,
-                    icon = railIcon(dest),
+                    icon = if (dest != "scan") railIcon(dest) else null,
+                    painter = if (dest == "scan") androidx.compose.ui.res.painterResource(com.lecturameter.R.drawable.ic_barcode) else null,
                     highlighted = editMode,
                     enabled = !editMode,
                     onLongPress = { editMode = true },
@@ -857,6 +861,7 @@ fun HomeRail(
                             "challenges" -> onChallenges()
                             "stats"      -> onStats()
                             "bingo"      -> onBingo()
+                            "scan"       -> onScan()
                             else         -> onWrapped()
                         }
                     }

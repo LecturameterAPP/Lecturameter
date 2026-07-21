@@ -42,6 +42,12 @@ app/imagen_*.jpg
 # Archivos de prueba
 app/src/main/assets/test.html
 
+# Catálogo local: 168 MB generados por catalog-etl, NO van a git.
+# Se regenera con `python etl.py emit` en C:\Refrac\catalog-etl y se copia a assets.
+# Git no borra nada de su historia: un solo commit de este fichero infla el repo para
+# siempre, y además supera el límite de 100 MB por fichero de GitHub.
+app/src/main/assets/catalog_*.db
+
 # Keystores y secretos de firma
 *.jks
 *.keystore

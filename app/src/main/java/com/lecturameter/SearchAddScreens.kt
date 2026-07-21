@@ -215,7 +215,7 @@ fun BookSearchScreen(
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        BookCover(r.coverUrl, r.title, size = 60)
+                        BookCover(r.coverUrl, r.title, size = 60, author = r.author)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(r.title, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -390,7 +390,11 @@ fun BookSearchScreen(
             // resultado; con parciales se muestra la lista con un indicador pequeño.
             isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(color = acc); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_65dc881f), color = theme.textMuted, fontSize = 14.sp) } }
             errorMsg.isNotBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(if (networkError) "📡" else "🔍", fontSize = 40.sp); Spacer(Modifier.height(12.dp)); Text(errorMsg, color = if (networkError) Red else theme.textMuted, fontSize = 14.sp, fontWeight = if (networkError) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)); Text(if (networkError) stringResource(R.string.err_check_wifi_retry) else stringResource(R.string.err_try_other_language), color = if (networkError) Red.copy(alpha = 0.7f) else theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
-            !searched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🔎", fontSize = 48.sp); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_af80d2f5), color = theme.textMain, fontSize = 16.sp) } }
+            // Onboarding de la búsqueda sin conexión (1 de 3): este estado vacío lo ve todo
+            // el que entra a buscar, no interrumpe a nadie y aparece justo cuando la
+            // información sirve. Los otros dos sitios son la hoja de añadir libro y la
+            // slide 4 del tutorial. Se descartaron una pantalla dedicada y una slide nueva.
+            !searched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🔎", fontSize = 48.sp); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_af80d2f5), color = theme.textMain, fontSize = 16.sp); Spacer(Modifier.height(6.dp)); Text(stringResource(R.string.search_empty_offline_hint), color = theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
             else -> {
                 if (isLoading) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -415,7 +419,7 @@ fun SearchResultCard(result: OpenLibraryResult, theme: Theme, onAdd: () -> Unit)
     val acc = accentForTheme(theme)
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            BookCover(result.coverUrl, result.title, size = 60)
+            BookCover(result.coverUrl, result.title, size = 60, author = result.author)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(result.title, color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)

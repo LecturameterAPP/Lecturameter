@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -684,10 +685,16 @@ fun BookCard(
 }
 
 @Composable
-fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? = null, isbnFallback: String? = null) {
+fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? = null, isbnFallback: String? = null, author: String = "") {
     // Estado local para fallback: si la imagen principal falla y tenemos ISBN,
     // reintentamos con la URL OL por ISBN antes de marcar como rota
     var fallbackTriggered by remember(url) { mutableStateOf(false) }
+    // Una URL de portada que existe pero no carga (404, imagen de relleno, host caído)
+    // dejaba un HUECO VACÍO del tamaño exacto de la portada, sin nada dentro. Se veía en
+    // los resultados del catálogo: las obras de la Biblioteca Nacional no traen cover_id,
+    // así que caen en la URL por ISBN de Open Library, que para muchas no existe.
+    // Al fallar la carga se pasa a la portada generada, igual que si no hubiera URL.
+    var imagenRota by remember(url) { mutableStateOf(false) }
     val effectiveUrl: String? = when {
         url.isNullOrBlank() -> null
         fallbackTriggered && !isbnFallback.isNullOrBlank() -> {
@@ -697,7 +704,7 @@ fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? =
         }
         else -> url
     }
-    if (!effectiveUrl.isNullOrBlank()) {
+    if (!effectiveUrl.isNullOrBlank() && !imagenRota) {
         // Si empieza por '/' es una ruta local al almacenamiento interno
         val isLocal = effectiveUrl.startsWith("/")
         val localFile = if (isLocal) java.io.File(effectiveUrl) else null
@@ -718,18 +725,110 @@ fun BookCover(url: String?, _title: String, size: Int, onBroken: (() -> Unit)? =
             onError = {
                 // Si ya hemos probado el fallback ISBN o no hay ISBN → marcar rota
                 if (fallbackTriggered || isbnFallback.isNullOrBlank()) {
+                    imagenRota = true
                     onBroken?.invoke()
                 } else {
                     fallbackTriggered = true
                 }
             },
+            onSuccess = { estado ->
+                // Open Library NO devuelve 404 cuando no tiene portada: responde HTTP 200
+                // con un GIF TRANSPARENTE DE 1x1 PÍXEL, y encima servido como .jpg.
+                // Verificado el 21-07 con
+                // covers.openlibrary.org/b/isbn/9798234101372-L.jpg → 200, 43 bytes, GIF 1x1.
+                // Coil lo carga sin error, lo escala a 60dp y pinta un píxel transparente:
+                // el resultado era un HUECO PERFECTO del tamaño de la portada, sin nada
+                // dentro, y `onError` nunca se disparaba. Por eso hay que mirar el tamaño
+                // real de lo que llega, no solo si la carga tuvo éxito.
+                val d = estado.result.drawable
+                if (d.intrinsicWidth in 1..2 || d.intrinsicHeight in 1..2) imagenRota = true
+            },
             modifier = Modifier.size(size.dp, (size * 1.42f).dp).clip(RoundedCornerShape(8.dp))
         )
     } else {
-        // BookCover es un composable hoja sin `theme`: el degradado se resuelve por
-        // LocalAppTheme, el mecanismo previsto para esto (mismo caso que themedAccentOr).
-        val coverGradient = LocalAppTheme.current?.let { accentGradient(it) } ?: listOf(Accent, Accent2)
-        Box(Modifier.size(size.dp, (size * 1.42f).dp).clip(RoundedCornerShape(8.dp)).background(Brush.verticalGradient(coverGradient)), contentAlignment = Alignment.Center) { Text("📖", fontSize = (size / 3.2f).sp) }
+        GeneratedCover(_title, author, isbnFallback, size)
+    }
+}
+
+/**
+ * Portada dibujada en el dispositivo para libros sin cubierta.
+ *
+ * Hace falta porque las cubiertas no se pueden empaquetar (copyright de las editoriales,
+ * ninguna fuente las sublicencia) y las 250.000 obras que aporta la Biblioteca Nacional
+ * llegan sin imagen. Antes se pintaba un degradado con un emoji de libro, igual para
+ * todos: ocho resultados sin portada eran ocho rectángulos idénticos.
+ *
+ * El color sale del libro (ver [CoverPalette]), así que la misma obra tiene siempre la
+ * misma portada en búsqueda, biblioteca y detalle. Nivel P2, elegido por Víctor.
+ *
+ * Es dibujo puro: ni disco, ni red, ni Canvas. Un Box con color de fondo y dos textos.
+ */
+@Composable
+fun GeneratedCover(title: String, author: String, isbn: String?, size: Int) {
+    val theme = LocalAppTheme.current
+    val oscuro = theme?.isDark ?: true
+    // Las dos tintas candidatas salen del propio tema, así que Cuero conserva sus cremas
+    // cálidas y el tema Claro su tinta azulada en vez de un negro genérico.
+    val inkClaro = if (oscuro) (theme?.textMain ?: Color.White) else Color.White
+    val inkOscuro = if (oscuro) (theme?.bgDark ?: Color(0xFF14141F))
+                    else (theme?.textMain ?: Color(0xFF26283A))
+
+    val c = remember(title, author, isbn, inkClaro, inkOscuro) {
+        CoverPalette.colorsFor(isbn, title, inkClaro.toArgb(), inkOscuro.toArgb())
+    }
+    val ink = Color(c.ink)
+    // El autor solo cabe en portadas grandes: a tamaño 34 (la miniatura de la lista) su
+    // texto saldría a 2,6sp, ilegible, y le robaría líneas al título, que es lo que de
+    // verdad identifica el libro.
+    val conAutor = author.isNotBlank() && size >= 50
+
+    Box(
+        Modifier
+            .size(size.dp, (size * 1.42f).dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(c.background))
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = (size * 0.10f).dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                title,
+                color = ink,
+                fontSize = (size * 0.125f).sp,
+                lineHeight = (size * 0.145f).sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                // Sin autor el título gana una línea en vez de dejar un hueco.
+                maxLines = if (conAutor) 4 else 5,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            if (conAutor) {
+                Spacer(Modifier.height((size * 0.07f).dp))
+                Box(
+                    Modifier
+                        .size(width = (size * 0.26f).dp, height = (size * 0.02f).dp)
+                        .background(ink.copy(alpha = 0.62f))
+                )
+                Spacer(Modifier.height((size * 0.07f).dp))
+                Text(
+                    author,
+                    color = ink.copy(alpha = 0.82f),
+                    fontSize = (size * 0.076f).sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+        // Lomo: da lectura de libro y rompe la sensación de etiqueta de color plana.
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .width((size * 0.05f).dp)
+                .background(Color(c.spine).copy(alpha = 0.34f))
+        )
     }
 }
 

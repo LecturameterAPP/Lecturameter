@@ -54,7 +54,14 @@ class ScannerActivity : ComponentActivity() {
 
         // Overlay de instrucciones — fondo semitransparente separado del botón
         val hint = TextView(this)
-        hint.text = "📷  Apunta al código de barras del libro"
+        // NO prometer ISSN aquí: ninguna fuente gratuita resuelve un ISSN. Comic Vine, que
+        // era la candidata, no indexa ISBN, ISSN ni UPC (verificado el 21-07-2026 contra su
+        // documentación de campos). Además un ISSN es un EAN-13 que empieza por 977 y pasa
+        // el mismo dígito de control que un ISBN-13, así que el escáner lo acepta y luego
+        // no lo encuentra en ninguna fuente: prometerlo sería garantizar la decepción.
+        // Extraído a string resource de paso: estaba hardcodeado en español y a un usuario
+        // en inglés le salía en español.
+        hint.text = getString(R.string.scanner_hint_isbn)
         hint.setTextColor(0xFFFFFFFF.toInt())   // blanco (#3)
         hint.textSize = 14f
         hint.setPadding(32, 20, 32, 20)

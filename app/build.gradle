@@ -11,8 +11,8 @@ android {
         applicationId "com.lecturameter.public"
         minSdk 26
         targetSdk 35
-        // 10033: v3.1 — noche 7: género semana, iconos recap, widget oscuro, toast, fixes
-        versionCode 10033
+        // 10034: v3.1 — resubida con código de versión corregido
+        versionCode 10034
         versionName "3.1"
         multiDexEnabled true
 
@@ -22,6 +22,10 @@ android {
         def lp = rootProject.file('local.properties')
         if (lp.exists()) lp.withInputStream { props.load(it) }
         buildConfigField "String", "GOOGLE_BOOKS_API_KEY", "\"${props.getProperty('GOOGLE_BOOKS_API_KEY', '')}\""
+        // Comic Vine (COMIC_VINE_API_KEY). Mismo patrón: si falta, la fase de cómic se
+        // salta entera en vez de fallar. La key estaba en local.properties desde hace
+        // días pero NO llegaba a compilarse: sin esta línea BuildConfig no la tenía.
+        buildConfigField "String", "COMIC_VINE_API_KEY", "\"${props.getProperty('COMIC_VINE_API_KEY', '')}\""
     }
 
     // Firma de release. Las credenciales salen de local.properties (fuera de git,

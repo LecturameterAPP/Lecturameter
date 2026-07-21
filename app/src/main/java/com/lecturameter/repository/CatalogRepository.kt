@@ -11,6 +11,8 @@ package com.lecturameter
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
+import com.lecturameter.utils.isbn10To13
+import com.lecturameter.utils.isbn13To10
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -24,8 +26,19 @@ object CatalogRepository {
 
     private const val TAG = "CatalogRepo"
 
-    /** Subir cuando se regenere el catalogo con un ETL nuevo: fuerza recopiar desde assets. */
-    private const val CATALOG_VERSION = 1
+    /**
+     * Subir SIEMPRE que se regenere catalog_core.db: es lo unico que fuerza recopiarlo
+     * desde assets. Si no se sube, el APK lleva el catalogo nuevo dentro pero la app sigue
+     * abriendo el viejo de `filesDir/catalog/`, sin ningun error visible.
+     *
+     * Ya paso el 21-07: se emitio el catalogo con la BNE fusionada, se instalo el APK y la
+     * app siguio usando la base anterior. La unica pista era la AUSENCIA del log
+     * "copiando catalog_core.db desde assets". No hay forma de detectarlo desde la UI.
+     *
+     * v1: Open Library solo, 118 MB.
+     * v2: + BNE con criterio mix y title_es deduplicado, 168 MB (21-07-2026).
+     */
+    private const val CATALOG_VERSION = 2
     private const val PREFS = "catalog_prefs"
     private const val KEY_INSTALLED_VERSION = "installed_version"
 
@@ -106,6 +119,13 @@ object CatalogRepository {
     /**
      * Busqueda FTS4 por titulo y autor. Devuelve lista vacia si no hay catalogo
      * o la consulta no da resultados: quien llama decide si va a las APIs.
+     *
+     * Si la consulta ES un ISBN se resuelve por `lookupIsbn` en vez de por el FTS. No es
+     * un extra: el indice FTS solo contiene titulos y autores, asi que tecleiar un ISBN en
+     * la caja de busqueda no casaba con nada y el catalogo local no aportaba nada, pese a
+     * que el campo dice "Titulo, autor, ISBN" y el estado vacio promete lo mismo.
+     * Reproducido sin conexion el 21-07 con 9788416858361 (La torre), que SI esta en el
+     * catalogo: la pantalla decia "sin resultados" tras esperar a que la red fallase.
      */
     suspend fun search(
         query: String,
@@ -113,6 +133,14 @@ object CatalogRepository {
         limit: Int = 25
     ): List<OpenLibraryResult> = withContext(Dispatchers.IO) {
         if (open.isEmpty()) return@withContext emptyList()
+
+        val posibleIsbn = query.filter { it.isDigit() || it == 'X' || it == 'x' }
+        if ((posibleIsbn.length == 13 || posibleIsbn.length == 10) &&
+            posibleIsbn.length == query.count { !it.isWhitespace() && it != '-' }
+        ) {
+            lookupIsbn(posibleIsbn, preferredLang)?.let { return@withContext listOf(it) }
+        }
+
         val match = ftsQuery(query) ?: return@withContext emptyList()
 
         val out = LinkedHashMap<String, OpenLibraryResult>()
@@ -136,21 +164,19 @@ object CatalogRepository {
         preferredLang: String,
         limit: Int
     ): List<OpenLibraryResult> {
-        val prefOl = appLangToMarc(preferredLang)
-        // Por cada obra que casa el FTS se elige UNA edicion representativa:
-        // primero en el idioma del usuario, luego la que tenga ISBN y paginas, luego la mas reciente.
+        // Por cada obra que casa el FTS se elige UN ISBN representativo: primero en el
+        // idioma del usuario, luego el que traiga paginacion.
+        // isbn13 es INTEGER PRIMARY KEY, o sea alias de rowid: el join va por el B-tree de
+        // la propia tabla, sin indice secundario.
         val sql = """
             SELECT w.ol_key, w.title, w.author_names, w.first_publish_year, w.subjects,
-                   e.isbn13, e.language, e.pages, w.title_es, w.cover_id
+                   i.isbn13, i.lang, i.pages, w.title_es, w.cover_id
             FROM works_fts f
-            JOIN works w ON w.rowid = f.docid
-            LEFT JOIN editions e ON e.ol_key = (
-                SELECT e2.ol_key FROM editions e2
-                WHERE e2.work_key = w.ol_key
-                ORDER BY (e2.language = ?) DESC,
-                         (e2.isbn13 IS NOT NULL) DESC,
-                         (e2.pages IS NOT NULL) DESC,
-                         e2.year DESC
+            JOIN works w ON w.id = f.docid
+            LEFT JOIN isbn i ON i.rowid = (
+                SELECT i2.isbn13 FROM isbn i2
+                WHERE i2.work_id = w.id
+                ORDER BY (i2.lang = ?) DESC, (i2.pages IS NOT NULL) DESC
                 LIMIT 1
             )
             WHERE works_fts MATCH ?
@@ -158,7 +184,10 @@ object CatalogRepository {
         """.trimIndent()
 
         val results = ArrayList<OpenLibraryResult>()
-        db.rawQuery(sql, arrayOf(prefOl, match, limit.toString())).use { c ->
+        db.rawQuery(
+            sql,
+            arrayOf(langCode(preferredLang).toString(), match, limit.toString())
+        ).use { c ->
             while (c.moveToNext()) results += readResult(c, preferredLang) ?: continue
         }
         return results
@@ -180,7 +209,9 @@ object CatalogRepository {
             original
         }
         val authors = c.getString(2).orEmpty().split('|').filter { it.isNotBlank() }
-        val isbn13 = c.getString(5)
+        // isbn13 se guarda como INTEGER para ocupar 7 bytes en vez de 14; se re-formatea
+        // a 13 digitos con ceros a la izquierda (los ISBN 979... y algunos 978 los pierden).
+        val isbn13 = if (c.isNull(5)) null else c.getLong(5).toString().padStart(13, '0')
         return OpenLibraryResult(
             title = title,
             author = authors.firstOrNull().orEmpty(),
@@ -190,31 +221,48 @@ object CatalogRepository {
             genre = c.getString(4).orEmpty().split('|').firstOrNull { it.isNotBlank() }.orEmpty(),
             publishYear = if (c.isNull(3)) "" else c.getInt(3).toString(),
             olKey = c.getString(0).orEmpty(),
-            language = marcToAppLang(c.getString(6)),
+            language = if (c.isNull(6)) "" else langFromCode(c.getInt(6)),
             matchAuthors = authors.joinToString(" ")
         )
     }
 
-    /** Lookup directo por ISBN13: la ruta del escaner de codigos de barras. */
+    /**
+     * Lookup directo por ISBN: la ruta del escaner de codigos de barras.
+     *
+     * Acepta ISBN-10 y ISBN-13, y busca por AMBAS columnas convirtiendo entre formatos.
+     * No es un detalle: en una biblioteca real medida, 62 de 108 libros guardaban ISBN-10
+     * (los de fondo antiguo y las ediciones importadas). Mirar solo `isbn13` dejaba fuera
+     * al 57% de la biblioteca sin ningun error visible.
+     */
     suspend fun lookupIsbn(
-        isbn13: String,
+        isbn: String,
         preferredLang: String = "es"
     ): OpenLibraryResult? = withContext(Dispatchers.IO) {
-        val clean = isbn13.filter { it.isDigit() }
-        if (clean.length != 13 || open.isEmpty()) return@withContext null
+        if (open.isEmpty()) return@withContext null
+        val limpio = isbn.filter { it.isDigit() || it == 'X' || it == 'x' }.uppercase()
+        val par: Pair<String?, String?> = when (limpio.length) {
+            13 -> limpio to isbn13To10(limpio)
+            10 -> isbn10To13(limpio) to limpio
+            else -> return@withContext null
+        }
+        val (i13, i10) = par
+        if (i13 == null && i10 == null) return@withContext null
 
+        // El catalogo guarda una sola forma canonica del ISBN, el 13 como INTEGER, asi que
+        // aqui basta con una consulta por clave primaria. El ISBN-10 se convirtio arriba.
         val sql = """
             SELECT w.ol_key, w.title, w.author_names, w.first_publish_year, w.subjects,
-                   e.isbn13, e.language, e.pages, w.title_es, w.cover_id
-            FROM editions e
-            JOIN works w ON w.ol_key = e.work_key
-            WHERE e.isbn13 = ?
+                   i.isbn13, i.lang, i.pages, w.title_es, w.cover_id
+            FROM isbn i
+            JOIN works w ON w.id = i.work_id
+            WHERE i.isbn13 = ?
             LIMIT 1
         """.trimIndent()
+        val args = arrayOf(i13)
 
         for ((name, db) in open) {
             try {
-                val hit = db.rawQuery(sql, arrayOf(clean)).use { c ->
+                val hit = db.rawQuery(sql, args).use { c ->
                     if (c.moveToFirst()) readResult(c, preferredLang) else null
                 }
                 if (hit != null) return@withContext hit
@@ -269,15 +317,14 @@ object CatalogRepository {
         else -> null
     }
 
-    private fun appLangToMarc(code: String) = when (code.lowercase(Locale.ROOT)) {
-        "es" -> "spa"; "en" -> "eng"; "ca" -> "cat"; "fr" -> "fre"
-        "de" -> "ger"; "it" -> "ita"; "pt" -> "por"; else -> code.lowercase(Locale.ROOT)
+    // El idioma se guarda como codigo corto en vez de cadena de 3 letras. Debe coincidir
+    // con LANG_CODE en catalog-etl/etl.py. El catalogo solo contiene es, en y ca: el resto
+    // de idiomas se resuelve online (MangaDex/Kitsu/AniList para japones, APIs para el resto).
+    private fun langCode(code: String) = when (code.lowercase(Locale.ROOT)) {
+        "es" -> 1; "en" -> 2; "ca" -> 3; else -> 0
     }
 
-    private fun marcToAppLang(marc: String?) = when (marc?.lowercase(Locale.ROOT)) {
-        "spa" -> "es"; "eng" -> "en"; "cat" -> "ca"
-        "fre", "fra" -> "fr"; "ger", "deu" -> "de"; "ita" -> "it"; "por" -> "pt"
-        null, "" -> ""
-        else -> marc.lowercase(Locale.ROOT)
+    private fun langFromCode(code: Int) = when (code) {
+        1 -> "es"; 2 -> "en"; 3 -> "ca"; else -> ""
     }
 }

@@ -189,7 +189,10 @@
     <string name="dialog_delete_cycle_msg">Se eliminarán las %1$d sesiones de «%2$s». Las demás ediciones y ciclos no se tocan.</string>
     <string name="dialog_delete_cycle_one">Se eliminará 1 sesión de «%1$s». Las demás ediciones y ciclos no se tocan.</string>
     <string name="txt_64b46771">Continuar</string>
-    <string name="txt_65dc881f">Buscando en OpenLibrary y Google Books…</string>
+    <!-- Solo "Buscando…": enumerar proveedores le cuenta al usuario nuestra arquitectura,
+         que ni conoce ni le importa, y ademas este texto sale INCLUSO SIN CONEXION, que es
+         cuando mas miente. La transparencia sobre las APIs va en la landing, no aqui. -->
+    <string name="txt_65dc881f">Buscando…</string>
     <string name="txt_66308bc7">Tu biblioteca está vacía</string>
     <string name="txt_667166ae">📚 Por género</string>
     <string name="txt_69e20782">Buscar automáticamente</string>
@@ -260,6 +263,8 @@
     <string name="txt_ae333e6f">Elige cada cuánto se hacen las copias de seguridad</string>
     <string name="txt_af20f31b">Comprueba tu Wi-Fi o datos móviles</string>
     <string name="txt_af80d2f5">Busca por título, autor o ISBN</string>
+    <!-- Onboarding busqueda offline (1 de 3): segunda linea del estado vacio de busqueda. -->
+    <string name="search_empty_offline_hint">También funciona sin conexión</string>
     <string name="txt_af85d57c">Limpiar filtros</string>
     <string name="txt_afe10477">Copia en Google Drive</string>
     <string name="txt_b375487f">Eliminar libro</string>
@@ -481,7 +486,11 @@
     <string name="err_backup_read_failed">No se pudo leer el archivo</string>
     <string name="msg_import_goodreads_ok">✅ %1$d libros importados correctamente</string>
     <string name="msg_import_goodreads_empty">⚠️ No se encontraron libros válidos en el archivo</string>
-    <string name="err_no_internet_search">Sin conexión a internet. No se pueden buscar libros.</string>
+    <!-- Solo salta cuando NO hay conexion Y NO hay catalogo local, que con Play Asset
+         Delivery es la ventana entre instalar la app y que baje el pack del catalogo.
+         Es el UNICO sitio donde se le cuenta algo al usuario sobre esa descarga: el
+         criterio general es que pase en silencio. -->
+    <string name="err_no_internet_search">Conéctate a Internet para poder empezar a buscar libros. La app necesita una primera conexión para poder ofrecerte después la búsqueda sin conexión.</string>
     <string name="err_check_wifi_retry">Comprueba tu Wi-Fi o datos móviles y vuelve a intentarlo</string>
     <string name="err_try_other_language">Prueba con el título en otro idioma o el ISBN</string>
     <string name="err_title_required">El título es obligatorio.</string>
@@ -627,7 +636,7 @@
     <string name="privacy_policy_section_analytics_title">Sin analíticas ni publicidad</string>
     <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla.</string>
     <string name="privacy_policy_section_search_title">Búsqueda y escaneo de libros</string>
-    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
+    <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu, Comic Vine) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
     <string name="privacy_policy_section_feedback_title">Feedback y encuestas</string>
     <string name="privacy_policy_feedback_body">Enviar feedback o responder a una encuesta dentro de la app es totalmente opcional. Si lo haces, se envía el texto que has escrito junto con información técnica del dispositivo (modelo, versión de Android, versión de la app) a un servidor propio de Lecturameter para que el desarrollador pueda leerlo.</string>
     <string name="privacy_policy_section_pro_title">Lecturameter Pro</string>
@@ -1150,7 +1159,10 @@
     <string name="tut5_goodreads_s3">Aquí: Importar/Exportar (↑↓) → Goodreads CSV</string>
     <string name="tut5_goodreads_note">(Exportar de Lecturameter a Goodreads también es posible)</string>
     <string name="tut5_promise_title">El resto llega solo</string>
-    <string name="tut5_promise_desc">Con el tiempo descubrirás estadísticas, retos y resúmenes de tu año lector.</string>
+    <!-- Onboarding busqueda offline (3 de 3). Se anaden cosas que descubrir (bingo, widget
+         y la busqueda sin conexion) SIN crear una slide nueva: el tutorial se ha recortado
+         de 14 a 10 y luego a 5 slides, y esa direccion se respeta. -->
+    <string name="tut5_promise_desc">Con el tiempo descubrirás estadísticas, retos, un bingo mensual, un widget para tu pantalla de inicio y resúmenes de tu año lector. Y buscar libros funciona incluso sin conexión.</string>
     <string name="tut5_privacy_title">Tus datos son tuyos</string>
     <string name="tut5_privacy_desc">Todo queda en tu dispositivo. Lecturameter no sabe qué lees ni cómo lees.</string>
     <string name="tut5_battery_title">Un ajuste importante</string>
@@ -1291,9 +1303,14 @@
     <string name="add_sheet_subtitle">Elige cómo quieres empezar.</string>
     <string name="add_sheet_catalog_title">Buscar en el catálogo</string>
     <string name="add_sheet_catalog_badge">Recomendado</string>
-    <string name="add_sheet_catalog_desc">Portada, páginas e ISBN ya rellenos</string>
+    <!-- Onboarding busqueda offline (2 de 3): explica por que esta opcion es la recomendada. -->
+    <string name="add_sheet_catalog_desc">Portada, páginas e ISBN ya rellenos, aunque no tengas conexión</string>
     <string name="add_sheet_manual_title">Añadirlo a mano</string>
     <string name="add_sheet_manual_desc">Para ediciones que no están en el catálogo</string>
+    <string name="add_sheet_scan_title">Escanear código de barras</string>
+    <string name="add_sheet_scan_desc">Apunta al ISBN del libro con la cámara</string>
+    <!-- Overlay de la cámara del escáner. Solo ISBN: ninguna fuente gratuita resuelve un ISSN. -->
+    <string name="scanner_hint_isbn">📷  Apunta al ISBN del libro</string>
     <!-- P-032: regalo de un tema al acabar la prueba de 7 días (Bloque 4, feature 7) -->
     <string name="trial_gift_title">Se acabó la prueba 🎁</string>
     <string name="trial_gift_body">Elige uno de los tres temas Pro y se queda contigo para siempre, sin pagar nada. Los otros dos vuelven a estar bloqueados.</string>

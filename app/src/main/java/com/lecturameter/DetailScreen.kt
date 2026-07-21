@@ -982,7 +982,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
 
                 // Cover + Edit + Refresh
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    BookCover(book.coverUrl, book.title, size = 120, onBroken = { vm.markCoverBroken(id, prefs) }, isbnFallback = book.isbn)
+                    BookCover(book.coverUrl, book.title, size = 120, onBroken = { vm.markCoverBroken(id, prefs) }, isbnFallback = book.isbn, author = book.author)
                     Box(Modifier.align(Alignment.BottomEnd).offset(x = (-32).dp).size(32.dp).clip(CircleShape).background(acc).clickable { coverUrlInput = book.coverUrl ?: ""; showCoverDialog = true }, contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Edit, null, tint = onAcc, modifier = Modifier.size(16.dp))
                     }

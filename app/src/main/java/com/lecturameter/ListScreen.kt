@@ -399,6 +399,7 @@ fun ListScreen(
                 onSearch()
             },
             onManual = { showAddChoiceSheet = false; onAdd() },
+            onScan = { showAddChoiceSheet = false; onScanIsbnSearch() },
             onDismiss = { showAddChoiceSheet = false }
         )
     }
@@ -840,6 +841,7 @@ fun ListScreen(
                 onChallenges = { historyOpen = false; onChallenges() },
                 onBingo = { historyOpen = false; onEasterEgg() },
                 onWrapped = { historyOpen = false; onWrappedHistory() },
+                onScan = { historyOpen = false; onScanIsbnSearch() },
                 onHistoryOpen = { historyOpen = true },
                 onRailClose = { railManuallyHidden = true; railVisible = false },
             )
@@ -1386,6 +1388,7 @@ private fun AddChoiceSheet(
     theme: Theme,
     onCatalog: () -> Unit,
     onManual: () -> Unit,
+    onScan: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val acc = accentForTheme(theme)
@@ -1459,7 +1462,7 @@ private fun AddChoiceSheet(
                 shape = RoundedCornerShape(12.dp),
                 color = Color.Transparent,
                 border = BorderStroke(1.dp, theme.border),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1474,6 +1477,34 @@ private fun AddChoiceSheet(
                         )
                         Text(
                             stringResource(R.string.add_sheet_manual_desc),
+                            color = theme.textMuted, fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            // Escanear ISBN: acceso directo a la cámara sin pasar por el formulario manual.
+            Surface(
+                onClick = onScan,
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, theme.border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 13.dp)
+                ) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_barcode), contentDescription = null, tint = actionIconTint(theme), modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.add_sheet_scan_title),
+                            color = theme.textMain, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            stringResource(R.string.add_sheet_scan_desc),
                             color = theme.textMuted, fontSize = 11.sp,
                             modifier = Modifier.padding(top = 2.dp)
                         )

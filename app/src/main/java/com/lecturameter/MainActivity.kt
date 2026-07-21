@@ -1519,6 +1519,11 @@ class MainActivity : ComponentActivity() {
         // si falla la búsqueda simplemente sigue funcionando solo online (init lo traga).
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             CatalogRepository.init(applicationContext)
+            // Caché de portadas de los resultados del catálogo. Va aquí porque comparte
+            // motivo con el catálogo y porque leer sus prefs no debe tocar el hilo
+            // principal. Si nunca se inicializara, la caché degrada a memoria y la
+            // búsqueda sigue funcionando.
+            com.lecturameter.utils.SearchCoverCache.init(applicationContext)
         }
         // D-013: conectar Play Billing (restaura compras de lecturameter_pro si las hay)
         LmBilling.init(this)
