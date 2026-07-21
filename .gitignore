@@ -26,6 +26,10 @@ Lecturameter_documentacion.md
 # Carpeta de feedback (capturas, MDs de sesión)
 Feedback 2.6/
 
+# Documentacion interna: NINGUN documento va a git (regla de Victor, 21-07). Se crean en
+# sesiones en paralelo y son notas de trabajo, no codigo.
+Documentacion/
+
 # MDs y archivos de trabajo en app/
 app/auditoria_apis_resultados.md
 app/auditoría de APIs.md
