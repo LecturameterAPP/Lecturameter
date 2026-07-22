@@ -2304,6 +2304,18 @@ class BooksViewModel : ViewModel() {
             val idxDateRead = cols.indexOfFirst { it.contains("Date Read", true) }
             val idxISBN = cols.indexOfFirst { it.contains("ISBN", true) }
             val idxBookshelves = cols.indexOfFirst { it.equals("Bookshelves", true) }
+            // D4 (feedback 22-07): los tomos de manga importados de Goodreads traen el ISBN de la
+            // edicion ORIGINAL EXTRANJERA (japonesa 978-4, italiana 978-88, EEUU/UK 978-0/978-1, etc.),
+            // NO la edicion espanola que el usuario tiene en la estanteria. Ese ISBN extranjero luego
+            // "envenena" los lookups por ISBN: el catalogo local y las APIs no encuentran esa edicion o
+            // traen la equivocada. Por eso los 52 manga de la biblioteca resolvian 0/52. Solucion: para
+            // tomos de manga con ISBN NO espanol, vaciar el ISBN (isbn = "") y dejar que la app resuelva
+            // la edicion despues por serie+titulo (contra el catalogo/APIs). Un ISBN espanol (978-84 /
+            // 979-84, o grupo 84 en ISBN-10) se respeta tal cual, igual que cualquier libro que NO sea
+            // manga. Aqui NO se hace ninguna llamada de red: es solo un filtro sincrono sobre el ISBN.
+            // Regex del marcador de tomo duplicada localmente (misma que SearchRepository) para no
+            // depender de ese fichero, que se edita en paralelo.
+            val volumeMarkerRegex = Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*(\d{1,3})\b""")
             reader.forEachLine { line ->
                 if (line.isBlank()) return@forEachLine
                 val parts = parseCsvLine(line)
@@ -2324,13 +2336,32 @@ class BooksViewModel : ViewModel() {
                     shelfRaw.contains("currently") || shelfRaw.contains("reading") -> BookStatus.READING
                     else -> BookStatus.PENDING
                 }
-                val coverUrl = if (!isbn.isNullOrBlank()) "https://covers.openlibrary.org/b/isbn/$isbn-M.jpg" else null
                 // Auto-assign genre: try Bookshelves column first, then infer from title
                 val bookshelvesRaw = if (idxBookshelves >= 0) parts.getOrNull(idxBookshelves)?.trim()?.trim('"') ?: "" else ""
                 // Solo intentar inferir género desde la columna Bookshelves (etiquetas reales de Goodreads).
                 // No intentar inferir desde el título — produce demasiados falsos positivos.
                 val autoGenres = if (bookshelvesRaw.isNotBlank()) mapApiGenre(bookshelvesRaw) else emptyList()
-                booksInternal = listOf(Book(id = System.currentTimeMillis() + imported, title = title, author = author, pages = if (pages > 0) pages else 1, startDate = if (status != BookStatus.PENDING) (dateRead ?: today()) else null, endDate = if (status == BookStatus.FINISHED) dateRead else null, status = status, rating = rating10, coverUrl = coverUrl, isbn = isbn, genres = autoGenres, importedFromGoodreads = true)) + booksInternal
+                // Deteccion de tomo de manga: (a) el titulo casa el marcador de tomo, (b) el genero
+                // inferido es Manga/Comics, o (c) la estanteria de Goodreads sugiere manga/comic.
+                val looksLikeManga = volumeMarkerRegex.containsMatchIn(title) ||
+                    autoGenres.any { it == "Manga" || it == "Cómics y novela gráfica" } ||
+                    bookshelvesRaw.lowercase().let { bs ->
+                        bs.contains("manga") || bs.contains("manhwa") || bs.contains("manhua") ||
+                        bs.contains("webtoon") || bs.contains("comic") || bs.contains("cómic") ||
+                        bs.contains("graphic novel")
+                    }
+                // ISBN espanol: 978-84 / 979-84 (ISBN-13) o grupo 84 (ISBN-10). Cualquier otro prefijo
+                // (978-4 Japon, 978-88 Italia, 978-0/978-1 EEUU/UK, etc.) se considera extranjero.
+                val isSpanishIsbn = isbn != null && (
+                    isbn.startsWith("97884") || isbn.startsWith("97984") ||
+                    (isbn.length == 10 && isbn.startsWith("84"))
+                )
+                // Solo vaciamos el ISBN de manga con edicion extranjera; el resto se respeta tal cual.
+                val effectiveIsbn = if (looksLikeManga && !isbn.isNullOrBlank() && !isSpanishIsbn) "" else isbn
+                // La portada por ISBN de OpenLibrary usaria la edicion extranjera equivocada; con el
+                // ISBN vaciado queda null y la app buscara la portada correcta por serie+titulo.
+                val coverUrl = if (!effectiveIsbn.isNullOrBlank()) "https://covers.openlibrary.org/b/isbn/$effectiveIsbn-M.jpg" else null
+                booksInternal = listOf(Book(id = System.currentTimeMillis() + imported, title = title, author = author, pages = if (pages > 0) pages else 1, startDate = if (status != BookStatus.PENDING) (dateRead ?: today()) else null, endDate = if (status == BookStatus.FINISHED) dateRead else null, status = status, rating = rating10, coverUrl = coverUrl, isbn = effectiveIsbn, genres = autoGenres, importedFromGoodreads = true)) + booksInternal
                 imported++
             }
             if (imported > 0) save(prefs)

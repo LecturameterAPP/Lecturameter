@@ -932,7 +932,9 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
         var showProUpsell by remember { mutableStateOf(false) }
         var proRefresh by remember { mutableStateOf(0) }
         // Deep link "lecturameter://pro" (candado del widget Pro): abre la hoja al entrar.
-        androidx.compose.runtime.LaunchedEffect(Unit) {
+        // Feedback 22-07 (punto 5): keyed en pending (estado observable) en vez de Unit, para
+        // que la hoja se abra tambien cuando Ajustes ya estaba compuesto al llegar el deep link.
+        androidx.compose.runtime.LaunchedEffect(ProSheetTrigger.pending) {
             if (ProSheetTrigger.pending) {
                 ProSheetTrigger.pending = false
                 showProUpsell = true
@@ -1204,6 +1206,9 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     Text(stringResource(R.string.txt_bfd55cba), color = if (localBackupEnabled) theme.textMain else theme.textDim, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(stringResource(R.string.txt_f68be150), color = theme.textMuted, fontSize = 12.sp)
                 }
+                // Feedback 22-07 (punto 8): hueco entre el texto y el Switch para que en
+                // pantallas estrechas (Mi 9T) la palabra larga no se pegue al interruptor.
+                Spacer(Modifier.width(8.dp))
                 Switch(
                     checked = localBackupEnabled,
                     onCheckedChange = { checked ->
@@ -1254,6 +1259,8 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                     Text(stringResource(R.string.txt_2ac042cb), color = if (driveBackupEnabled) theme.textMain else theme.textDim, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Text(stringResource(R.string.txt_02d47d1a), color = theme.textMuted, fontSize = 12.sp)
                 }
+                // Feedback 22-07 (punto 8): hueco entre el texto y el Switch (ver fila local).
+                Spacer(Modifier.width(8.dp))
                 Switch(
                     checked = driveBackupEnabled,
                     onCheckedChange = { checked ->
@@ -1672,14 +1679,14 @@ private fun TipJarRow(theme: Theme) {
     LaunchedEffect(tipTick) { if (tipTick > 0) showThanks = true }
 
     val acc = accentForTheme(theme)
-    Text(stringResource(R.string.tip_jar_title), color = acc, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+    // Feedback 22-07: se quita el titulo "Propinas"; el bloque ya vive bajo "APOYA EL PROYECTO".
     Text(stringResource(R.string.tip_jar_subtitle), color = theme.textMuted, fontSize = 11.sp)
     Spacer(Modifier.height(8.dp))
 
     val tips = listOf(
         Triple(SKU_TIP_COFFEE, R.string.tip_coffee, "☕"),
-        Triple(SKU_TIP_MEAL, R.string.tip_meal, "🍽️"),
-        Triple(SKU_TIP_GENEROUS, R.string.tip_generous, "💎")
+        Triple(SKU_TIP_MEAL, R.string.tip_meal, "🥤"),
+        Triple(SKU_TIP_GENEROUS, R.string.tip_generous, "🥰")
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         tips.forEach { (sku, labelRes, emoji) ->
@@ -1702,7 +1709,16 @@ private fun TipJarRow(theme: Theme) {
             ) {
                 Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(emoji, fontSize = 22.sp)
-                    Text(stringResource(labelRes), color = theme.textMain, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    // Feedback 22-07: el tip "Para algo chulo" no debe partirse en dos lineas.
+                    Text(
+                        stringResource(labelRes),
+                        color = theme.textMain,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Visible
+                    )
                     Text(price ?: "...", color = theme.textMuted, fontSize = 11.sp)
                 }
             }

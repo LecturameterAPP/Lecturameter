@@ -1508,7 +1508,12 @@ fun WrappedHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, o
             IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.txt_2d903c83), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                // Feedback 22-07: emoji de regalo del Wrapped a Material Icon (CardGiftcard).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CardGiftcard, null, tint = theme.textMain, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.txt_2d903c83), color = theme.textMain, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                }
                 Text(if (history.size == 1) stringResource(R.string.wrapped_history_count_one, history.size) else stringResource(R.string.wrapped_history_count_other, history.size), color = theme.textMuted, fontSize = 13.sp)
                 // B-037: iba en Gold, que sobre el papel da 1,52:1 (invisible).
                 Text(nextWrappedSubtitle(), color = wrappedInk(Gold, theme), fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
@@ -1517,7 +1522,7 @@ fun WrappedHistoryScreen(vm: BooksViewModel, theme: Theme, onBack: () -> Unit, o
         if (history.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🎁", fontSize = 48.sp); Spacer(Modifier.height(12.dp))
+                    Icon(Icons.Filled.CardGiftcard, null, tint = theme.textDim, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp))
                     Text(stringResource(R.string.txt_5718979a), color = theme.textMain, fontSize = 16.sp)
                     Text(stringResource(R.string.txt_80b7fc7c), color = theme.textDim, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
                 }

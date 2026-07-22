@@ -2026,7 +2026,11 @@ sealed class Screen {
 // (candado del widget Pro). Lo consume la pantalla de Ajustes, que es quien aloja
 // ProUpsellSheet — mismo patrón de objeto @Volatile que TimerStateHolder.
 object ProSheetTrigger {
-    @Volatile var pending: Boolean = false
+    // Feedback 22-07 (punto 5): estado observable de Compose (no @Volatile) para que el consumo
+    // en Ajustes reaccione aunque la pantalla ya estuviera compuesta cuando llega el deep link
+    // del widget Pro. Antes el LaunchedEffect(Unit) solo miraba pending al entrar en composicion,
+    // asi que si Ajustes ya estaba en el backstack la hoja no llegaba a abrirse.
+    var pending by mutableStateOf(false)
 }
 
 // Fase 1.4: navegación migrada a Compose Navigation (NavController).

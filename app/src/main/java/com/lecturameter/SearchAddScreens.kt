@@ -588,6 +588,13 @@ fun AddScreen(
     // v20.9: también autorellena título, autor, páginas y géneros vía API
     var isbnSearching by remember { mutableStateOf(false) }
     var isbnAutoError by remember { mutableStateOf(false) }
+    // D5 (feedback 22-07): aviso de que un tomo de manga no trae paginas (solo se resuelve por
+    // API de serie, que no da paginas por tomo); el usuario las introduce a mano.
+    var mangaPagesWarning by remember { mutableStateOf(false) }
+    // D3 (feedback 22-07): pop-up cuando el escaneo es un tomo de manga de edicion EXTRANJERA
+    // (el ISBN no casa con la edicion espanola). Se pregunta si rellenar con lo encontrado (de
+    // serie, y el usuario ajusta el numero de tomo) o empezar a mano.
+    var showMangaScanDialog by remember { mutableStateOf(false) }
     LaunchedEffect(externalIsbn) {
         if (!externalIsbn.isNullOrBlank()) {
             val safeIsbn = externalIsbn.replace(Regex("[^\\dXx]"), "").uppercase()
@@ -595,6 +602,8 @@ fun AddScreen(
                 isbn = safeIsbn
                 isbnSearching = true
                 isbnAutoError = false
+                mangaPagesWarning = false
+                showMangaScanDialog = false
                 // withContext en vez de launch anidado: si LaunchedEffect se cancela,
                 // la búsqueda también se cancela (sin race condition).
                 val meta = withContext(Dispatchers.IO) { fetchIsbnFullMetadata(safeIsbn) }
@@ -604,6 +613,17 @@ fun AddScreen(
                 if (meta.pages != null && pages.isBlank()) pages = meta.pages.toString()
                 if (meta.genres.isNotEmpty() && genres.isEmpty()) genres = meta.genres
                 if (meta.coverUrl != null && manualCoverUrl == null) manualCoverUrl = meta.coverUrl
+                // D5: un tomo de manga que solo resolvio por API de serie (Kitsu/AniList) no trae
+                // paginas por tomo; avisar para que se pongan a mano.
+                val looksMangaScan = extractSeriesAndVolume(title).second != null || genres.any { it.contains("manga", true) }
+                mangaPagesWarning = pages.isBlank() && looksMangaScan
+                // D3: si el ISBN escaneado es EXTRANJERO (no 978-84/979-84/84...) y parece manga,
+                // los datos pueden ser de otra edicion; preguntar al usuario como rellenar.
+                val foreignIsbn = !(safeIsbn.startsWith("97884") || safeIsbn.startsWith("97984") ||
+                    (safeIsbn.length == 10 && safeIsbn.startsWith("84")))
+                if (foreignIsbn && looksMangaScan && (title.isNotBlank() || meta.coverUrl != null)) {
+                    showMangaScanDialog = true
+                }
                 if (meta.title == null && meta.author == null && meta.pages == null) {
                     isbnAutoError = true
                 }
@@ -763,6 +783,9 @@ fun AddScreen(
                     // v2.5: rojo (antes gris/textDim) + i18n (antes hardcoded ES)
                     // Feedback 2.7: informativo (el ISBN se conserva), no error fatal → ámbar
                     Text(stringResource(R.string.isbn_scan_not_found), color = Amber, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
+                } else if (mangaPagesWarning) {
+                    // D5 (feedback 22-07): manga sin paginas por tomo desde las APIs de serie.
+                    Text(stringResource(R.string.manga_pages_warning), color = Amber, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
                 }
                 Text(stringResource(R.string.txt_a3b8e497), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
                 OutlinedTextField(value = comment, onValueChange = { comment = it }, placeholder = { Text(stringResource(R.string.txt_f52cebe0), color = theme.textDim, fontSize = 13.sp) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp).heightIn(min = 80.dp), colors = fieldColors(theme), shape = RoundedCornerShape(10.dp), maxLines = 4)
@@ -781,6 +804,30 @@ fun AddScreen(
                     RatingSelector(rating) { rating = it }; Spacer(Modifier.height(16.dp))
                 }
                 if (error.isNotEmpty()) Text(error, color = Red, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
+                // D3 (feedback 22-07): escaneo de tomo de manga con ISBN extranjero.
+                if (showMangaScanDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showMangaScanDialog = false },
+                        containerColor = theme.bgMid,
+                        title = { Text(stringResource(R.string.manga_scan_dialog_title), color = theme.textMain, fontWeight = FontWeight.Bold) },
+                        text = { Text(stringResource(R.string.manga_scan_dialog_body), color = theme.textMuted, fontSize = 13.sp) },
+                        confirmButton = {
+                            TextButton(onClick = { showMangaScanDialog = false }) {
+                                Text(stringResource(R.string.manga_scan_dialog_keep), color = acc, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                // "A mano": limpiar lo autorellenado (puede ser de otra edicion)
+                                // para que el usuario lo introduzca. El ISBN escaneado se conserva.
+                                title = ""; author = ""; pages = ""; genres = emptyList(); manualCoverUrl = null
+                                showMangaScanDialog = false
+                            }) {
+                                Text(stringResource(R.string.manga_scan_dialog_manual), color = theme.textDim)
+                            }
+                        }
+                    )
+                }
                 if (showOnePage) {
                     AlertDialog(
                         onDismissRequest = { showOnePage = false },

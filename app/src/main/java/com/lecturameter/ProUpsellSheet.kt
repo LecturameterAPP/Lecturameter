@@ -82,7 +82,9 @@ fun ProUpsellSheet(
     // si ya está conectado.
     LaunchedEffect(Unit) { LmBilling.reconnect() }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
+    // Feedback 22-07 (punto 3): la hoja de Pro debe abrir COMPLETA, no a media altura.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = theme.bgMid) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -156,15 +158,17 @@ fun ProUpsellSheet(
                 // Compra: botón compartido con la rama de trial (RF-M23), ver ProBuyButton.
                 ProBuyButton(theme, acc)
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { showCodeEntry = true }, modifier = Modifier.fillMaxWidth()) {
+                // Feedback 22-07: los tres botones en su propio recuadro; "Ahora no" en rojo (texto+borde).
+                OutlinedButton(onClick = { showCodeEntry = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, acc)) {
                     Text(stringResource(R.string.pro_have_code), color = acc, fontSize = 13.sp)
                 }
+                Spacer(Modifier.height(8.dp))
                 // Restauración manual: si compró con esta cuenta y el restore automático
                 // del arranque no llegó (caché de Play desincronizada), este botón lo fuerza.
                 var restoring by remember { mutableStateOf(false) }
                 val restoreNoneMsg = stringResource(R.string.pro_restore_none)
                 val restoreUnavailableMsg = stringResource(R.string.pro_restore_unavailable)
-                TextButton(
+                OutlinedButton(
                     onClick = {
                         restoring = true
                         // C2: los tres casos son distintos y antes dos de ellos daban el
@@ -187,12 +191,15 @@ fun ProUpsellSheet(
                         }
                     },
                     enabled = !restoring,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, theme.border)
                 ) {
                     Text(stringResource(R.string.pro_restore_button), color = theme.textMuted, fontSize = 12.sp)
                 }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.pro_not_now), color = theme.textDim, fontSize = 12.sp)
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Red)) {
+                    Text(stringResource(R.string.pro_not_now), color = Red, fontSize = 12.sp)
                 }
             }
         }
@@ -254,6 +261,8 @@ private fun ProCompareTable(theme: Theme) {
             // Wrapped); ediciones gratis base + 2 (3 totales) y Pro sin límite
             ProCompareRow(theme, R.string.pro_compare_editions_label, R.string.pro_compare_editions_free, R.string.pro_compare_editions_pro)
             ProCompareRow(theme, R.string.pro_compare_icon_label, R.string.pro_compare_icon_free, R.string.pro_compare_icon_pro)
+            // Feedback 22-07 (punto 4a): el widget de comparativa mensual es Pro; el de libro, gratis.
+            ProCompareRow(theme, R.string.pro_compare_widget_label, R.string.pro_compare_widget_free, R.string.pro_compare_widget_pro)
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.pro_compare_footer),

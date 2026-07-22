@@ -904,6 +904,44 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         if (rawGenres.isEmpty() && catalogHit.genre.isNotBlank()) rawGenres.add(catalogHit.genre)
     }
 
+    // Feedback 22-07 (MangaResolver, paso 2): si es un TOMO DE MANGA y le falta portada o
+    // genero real, enriquecer por SERIE con las APIs de manga (van por serie, NO por ISBN: el
+    // ISBN del escaneo puede ser una edicion extranjera). Orden D2: Kitsu -> AniList -> MangaDex
+    // (bloqueado por ISP en ES, ultimo; aporta la portada del TOMO exacto via volumeNum). NUNCA
+    // se tocan paginas ni ISBN: la identidad ya la fijaron el catalogo/GB por ISBN.
+    run {
+        val t = title
+        fun needCover() = coverUrl == null
+        fun needGenre() = bestGenreFromRawCandidates(rawGenres).isEmpty()
+        val looksManga = t != null && (extractVolumeNumber(t) != null ||
+            rawGenres.any { g -> g.contains("manga", true) || g.contains("comic", true) || g.contains("cómic", true) })
+        if (t != null && looksManga && (needCover() || needGenre())) {
+            val (serie, tomo) = extractSeriesAndVolume(t)
+            val q = serie.ifBlank { t }
+            if (needCover() || needGenre()) {
+                val kitsu = try { fetchKitsuMangaResults(q, "es") }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (_: Exception) { emptyList() }
+                kitsu.firstOrNull()?.let { r ->
+                    if (needCover()) coverUrl = r.coverUrl
+                    if (needGenre() && r.genre.isNotBlank()) rawGenres.add(r.genre)
+                }
+            }
+            if (needCover() || needGenre()) {
+                val an = fetchAniListMetadata(q, author ?: "")
+                if (needCover()) coverUrl = an.coverUrl
+                if (needGenre()) rawGenres.addAll(an.genres)
+            }
+            if ((needCover() || needGenre()) && !mangaDexUnreachable) {
+                val md = fetchMangaDexMetadata(q, tomo)
+                if (needCover()) coverUrl = md.coverUrl
+                if (needGenre()) rawGenres.addAll(md.genres)
+            }
+            com.lecturameter.utils.AppLogger.log(
+                "MangaResolver escaneo: serie=$serie tomo=${tomo ?: "-"} cover=${coverUrl != null} genres=${rawGenres.size}", "IsbnScan")
+        }
+    }
+
     val genres = bestGenreFromRawCandidates(rawGenres)
     com.lecturameter.utils.AppLogger.log(
         "RESULTADO: title=${title != null} author=${author != null} pages=${pages ?: "-"} votos=${pageVotes.map { it.first }} genres=${genres.size} cover=${coverUrl != null} total=${System.currentTimeMillis() - tStart}ms",
@@ -1132,7 +1170,7 @@ private fun fetchAniListMetadata(title: String, _author: String): BookMetadata {
 // POST https://api.mangaupdates.com/v1/series/search  {"search": "<título>"}
 private fun fetchMangaUpdatesMetadata(title: String): BookMetadata {
     return try {
-        val searchTitle = title.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+        val searchTitle = extractSeriesAndVolume(title).first
         val payload = org.json.JSONObject().put("search", searchTitle).put("perpage", 3).toString()
         val conn = URL("https://api.mangaupdates.com/v1/series/search").openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
@@ -1170,8 +1208,21 @@ private fun fetchMangaUpdatesMetadata(title: String): BookMetadata {
 // ── Detección de número de tomo/volumen ──────────────────────────────────────
 // Usado para: (a) heurística de respaldo de isManga cuando GB/OL no traen género,
 // y (b) pedir a MangaDex la portada del TOMO exacto, no la de la serie completa.
+// Regex UNICA del marcador de tomo/volumen (grupo 1 = numero). Consolidada: antes estaba
+// copiada en fetchMangaUpdatesMetadata, fetchMangaDexMetadata y las fases 3a/3b de
+// searchOpenLibrary. Si se amplian los marcadores (parte, libro, romanos) se toca aqui.
+// El "#" NO lleva \b delante: "Berserk #3" (# tras espacio) no casaria, y Goodreads escribe
+// justo asi ("Serie, #9"). Los marcadores de palabra (tomo/vol/volumen) SI llevan \b cada uno.
+internal val VOLUME_MARKER_REGEX = Regex("""(?i)(?:\btomo|\bvol\.?|\bvolumen|#)\s*0*(\d{1,3})\b""")
+
 private fun extractVolumeNumber(title: String): Int? =
-    Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*(\d{1,3})\b""").find(title)?.groupValues?.get(1)?.toIntOrNull()
+    VOLUME_MARKER_REGEX.find(title)?.groupValues?.get(1)?.toIntOrNull()
+
+// (serie sin el marcador de tomo, numero de tomo si lo hay). Puro y testeable (MangaVolumeTest,
+// caso CP-4). La serie puede quedar en blanco si el titulo era solo el marcador; el llamante
+// decide el fallback con .ifBlank { ... }. Base del MangaResolver (serie+tomo, no por ISBN).
+internal fun extractSeriesAndVolume(title: String): Pair<String, Int?> =
+    VOLUME_MARKER_REGEX.replace(title, "").trim() to extractVolumeNumber(title)
 
 // ── MangaDex REST API ─────────────────────────────────────────────────────────
 // Sin key. A diferencia de AniList (datos a nivel de SERIE), MangaDex expone
@@ -1182,7 +1233,7 @@ private fun fetchMangaDexMetadata(title: String, volumeNum: Int?): BookMetadata 
     if (mangaDexUnreachable) return BookMetadata()
     return try {
         // Quitar el marcador de tomo/volumen para buscar la SERIE (MangaDex indexa por serie)
-        val seriesTitle = title.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+        val seriesTitle = extractSeriesAndVolume(title).first
         val q = seriesTitle.ifBlank { title }
         val searchUrl = "https://api.mangadex.org/manga?title=${URLEncoder.encode(q, "UTF-8")}&limit=5"
         val conn = URL(searchUrl).openConnection() as HttpURLConnection
@@ -3229,7 +3280,7 @@ suspend fun searchOpenLibrary(
     if (queryLooksManga && !mangaDexUnreachable) {
         try {
             // Buscar serie en MangaDex
-            val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+            val seriesQuery = extractSeriesAndVolume(query).first
             val mdEncoded = URLEncoder.encode(seriesQuery.ifBlank { query }, "UTF-8")
             val mdConn = URL("https://api.mangadex.org/manga?title=$mdEncoded&limit=10").openConnection() as HttpURLConnection
             mdConn.setRequestProperty("User-Agent", APP_USER_AGENT)
@@ -3292,12 +3343,13 @@ suspend fun searchOpenLibrary(
                     val normMain = mainTitle.lowercase().trim()
                     val dupIdx = results.indexOfFirst { it.title.lowercase().trim() == normMain }
                     if (dupIdx >= 0) {
-                        // Enriquecer con portada si el resultado existente no la tiene
+                        // D2 (feedback 22-07): MangaDex solo ENRIQUECE la portada de resultados
+                        // ya existentes; ya NO crea fichas nuevas. Kitsu es la fuente manga
+                        // primaria (MangaDex esta bloqueado por ISP en Espana). Ver fase Kitsu.
                         val ex = results[dupIdx]
                         if (ex.coverUrl == null && coverUrl != null) results[dupIdx] = ex.copy(coverUrl = coverUrl)
-                    } else {
-                        results.add(OpenLibraryResult(mainTitle, mdAuthor, 0, coverUrl, null, "Manga", "", "md_$mangaId"))
                     }
+                    // else (sin duplicado): D2 -> MangaDex no anade ficha nueva; ya lo hara Kitsu.
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }   // RF-M16
@@ -3313,11 +3365,12 @@ suspend fun searchOpenLibrary(
         emitPartial()
     }
 
-    // 3b. Kitsu (P-029) — misma puerta que MangaDex. Va DESPUÉS a propósito: MangaDex
-    // manda en portadas (las tiene por tomo) y Kitsu solo debe rellenar huecos. Si
-    // MangaDex está caído o bloqueado por la red, esta fase es la única que responde.
+    // Kitsu (P-029): FUENTE MANGA PRIMARIA (D2, feedback 22-07). Anade las fichas nuevas de
+    // serie (hasta KITSU_MAX_NEW) y enriquece portada/genero de las existentes. MangaDex quedo
+    // arriba como mero enriquecedor de portada (ya no anade fichas): esta bloqueado por ISP en
+    // Espana, asi que en la practica Kitsu es la unica fuente manga que responde aqui.
     if (queryLooksManga) {
-        val seriesQuery = query.replace(Regex("""(?i)\b(?:tomo|vol\.?|volumen|#)\s*0*\d{1,3}\b"""), "").trim()
+        val seriesQuery = extractSeriesAndVolume(query).first
         val kitsuResults = fetchKitsuMangaResults(seriesQuery.ifBlank { query }, preferredLang)
         var added = 0
         for (kt in kitsuResults) {

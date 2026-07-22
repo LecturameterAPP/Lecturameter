@@ -55,7 +55,7 @@
     <string name="txt_2ac042cb">Copia de seguridad en Drive</string>
     <string name="txt_2d283ff6">Adjuntar imágenes (máx. 3)</string>
     <string name="txt_2d639552">Copia de seguridad local desactivada</string>
-    <string name="txt_2d903c83">🎁 Wrapped</string>
+    <string name="txt_2d903c83">Wrapped</string>
     <string name="txt_2fc6405a">✍️</string>
     <string name="txt_3015bbac">ej. 120</string>
     <string name="txt_30cc00ae">Enviar</string>
@@ -327,7 +327,7 @@
     <string name="txt_dcd9cd29">Copia de seguridad de Drive desactivada</string>
     <string name="txt_def36a08">📤 Exportar estadísticas</string>
     <string name="txt_df94c6d3">p\u00e1gs</string>
-    <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes invitarme a un café. :)</string>
+    <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes apoyarme invitándome a algo ;)</string>
     <string name="txt_e33e3006">Sin comentario. Toca ✏️ para añadir uno.</string>
     <string name="txt_e346618a">IMPORTAR</string>
     <string name="txt_e38ba5d3">EDICIONES</string>
@@ -945,17 +945,20 @@
     <string name="pro_compare_icon_label">Icono de la app</string>
     <string name="pro_compare_icon_free">Clásico</string>
     <string name="pro_compare_icon_pro">+ Dorado</string>
-    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, mapas de calor, historial de retos completo, widget y copias de seguridad: siempre gratis para todos.</string>
+    <string name="pro_compare_widget_label">Widgets</string>
+    <string name="pro_compare_widget_free">De libro</string>
+    <string name="pro_compare_widget_pro">+ Comparativa</string>
+    <string name="pro_compare_footer">Wrapped, recaps, estadísticas, mapas de calor, historial de retos completo y copias de seguridad: siempre gratis para todos.</string>
     <string name="pro_icon_label">Icono de la app</string>
     <string name="pro_icon_classic">Clásico</string>
     <string name="pro_icon_gold">Dorado</string>
     <string name="pro_icon_applied">Icono cambiado. Puede tardar unos segundos en refrescar.</string>
-    <string name="support_code_hint">Si tu donación llega al precio de Pro, escríbeme y te doy un código de Pro (uno por cada múltiplo).</string>
+    <string name="support_code_hint">Si tu donación o propina llega al precio de Pro, escríbeme a lecturameter.app@gmail.com y te doy un código Pro (uno por cada múltiplo).</string>
     <string name="tip_jar_title">Propinas</string>
     <string name="tip_jar_subtitle">Si quieres apoyar el desarrollo, elige una propina. Los precios se ajustan a tu país.</string>
     <string name="tip_coffee">Un café</string>
-    <string name="tip_meal">Una comida</string>
-    <string name="tip_generous">Generoso</string>
+    <string name="tip_meal">Un refresco</string>
+    <string name="tip_generous">Para algo chulo</string>
     <string name="tip_thanks">Gracias por la propina. :)</string>
     <string name="tip_error">No se ha podido abrir Google Play. Inténtalo de nuevo en unos segundos.</string>
     <string name="pro_buy_button">Comprar por %1$s</string>
@@ -1090,6 +1093,11 @@
     <!-- P-028: el idioma asignado a la edición escaneada es una suposición, no una detección segura -->
     <string name="edition_scan_language_uncertain">No hemos podido confirmar el idioma de esta edición con seguridad. Revisa que el idioma marcado sea correcto antes de guardar.</string>
     <string name="isbn_scan_not_found">ISBN aún sin indexar en las bases de datos. Se conserva el ISBN: rellena título y páginas a mano y podrás completar el resto más adelante.</string>
+    <string name="manga_pages_warning">Es un tomo de manga: las fuentes por serie no dan las páginas de cada tomo. Introdúcelas a mano.</string>
+    <string name="manga_scan_dialog_title">Tomo de manga</string>
+    <string name="manga_scan_dialog_body">Este ISBN parece de una edición extranjera, así que los datos podrían no ser los de tu tomo en español. ¿Cómo quieres rellenarlo?</string>
+    <string name="manga_scan_dialog_keep">Con estos datos</string>
+    <string name="manga_scan_dialog_manual">A mano</string>
     <!-- Feedback 13-07 (9): la slide 1 menciona también el asa del rail colapsable -->
     <!-- QA 12-07 r2: espacio no separable antes del emoji — el 🎉 saltaba de línea en el toast -->
     <string name="tut_done_toast">¡Ya estás listo para empezar!&#160;🎉</string>

@@ -55,7 +55,7 @@
     <string name="txt_2ac042cb">Drive backup</string>
     <string name="txt_2d283ff6">Attach images (max. 3)</string>
     <string name="txt_2d639552">Local Backup disabled</string>
-    <string name="txt_2d903c83">🎁 Wrapped</string>
+    <string name="txt_2d903c83">Wrapped</string>
     <string name="txt_2fc6405a">✍️</string>
     <string name="txt_3015bbac">e.g. 120</string>
     <string name="txt_30cc00ae">Send</string>
@@ -323,7 +323,7 @@
     <string name="txt_dcd9cd29">Drive backup disabled</string>
     <string name="txt_def36a08">📤 Export statistics</string>
     <string name="txt_df94c6d3">pgs</string>
-    <string name="txt_e30acdbb">If you like Lecturameter, you can buy me a coffee. :)</string>
+    <string name="txt_e30acdbb">If you like Lecturameter, you can support me by treating me to something ;)</string>
     <string name="txt_e33e3006">No comment. Tap ✏️ to add one.</string>
     <string name="txt_e346618a">IMPORT</string>
     <string name="txt_e38ba5d3">EDITIONS</string>
@@ -940,17 +940,20 @@
     <string name="pro_compare_icon_label">App icon</string>
     <string name="pro_compare_icon_free">Classic</string>
     <string name="pro_compare_icon_pro">+ Golden</string>
-    <string name="pro_compare_footer">Wrapped, recaps, stats, heatmaps, full challenge history, widget and backups: always free for everyone.</string>
+    <string name="pro_compare_widget_label">Widgets</string>
+    <string name="pro_compare_widget_free">Book</string>
+    <string name="pro_compare_widget_pro">+ Comparison</string>
+    <string name="pro_compare_footer">Wrapped, recaps, stats, heatmaps, full challenge history and backups: always free for everyone.</string>
     <string name="pro_icon_label">App icon</string>
     <string name="pro_icon_classic">Classic</string>
     <string name="pro_icon_gold">Golden</string>
     <string name="pro_icon_applied">Icon changed. May take a few seconds to refresh.</string>
-    <string name="support_code_hint">If your donation reaches the price of Pro, write to me and I will send you a Pro code (one for each multiple).</string>
+    <string name="support_code_hint">If your donation or tip reaches the Pro price, email me at lecturameter.app@gmail.com and I will send you a Pro code (one per multiple).</string>
     <string name="tip_jar_title">Tips</string>
     <string name="tip_jar_subtitle">If you want to support development, pick a tip. Prices are adjusted to your country.</string>
     <string name="tip_coffee">A coffee</string>
-    <string name="tip_meal">A meal</string>
-    <string name="tip_generous">Generous</string>
+    <string name="tip_meal">A soft drink</string>
+    <string name="tip_generous">For something nice</string>
     <string name="tip_thanks">Thanks for the tip. :)</string>
     <string name="tip_error">Could not open Google Play. Try again in a few seconds.</string>
     <string name="pro_buy_button">Buy for %1$s</string>
@@ -1084,6 +1087,11 @@
     <!-- P-028: the language assigned to the scanned edition is a guess, not a confirmed detection -->
     <string name="edition_scan_language_uncertain">We couldn\'t confirm this edition\'s language with certainty. Please check the language shown is correct before saving.</string>
     <string name="isbn_scan_not_found">ISBN not yet indexed in the databases. The ISBN is kept: fill in title and pages manually and you can complete the rest later.</string>
+    <string name="manga_pages_warning">This is a manga volume: series sources do not provide per-volume page counts. Please enter them manually.</string>
+    <string name="manga_scan_dialog_title">Manga volume</string>
+    <string name="manga_scan_dialog_body">This ISBN looks like a foreign edition, so the details may not match your Spanish volume. How do you want to fill it in?</string>
+    <string name="manga_scan_dialog_keep">Use these details</string>
+    <string name="manga_scan_dialog_manual">Start blank</string>
     <string name="tut_done_toast">You\'re all set!&#160;🎉</string>
     <!-- Feedback 13-07: online search CTA when local search finds nothing -->
     <string name="search_online_cta">Search “%1$s” in the online catalog</string>
