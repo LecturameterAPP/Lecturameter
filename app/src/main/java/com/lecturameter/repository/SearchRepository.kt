@@ -3329,17 +3329,8 @@ suspend fun searchOpenLibrary(
                             if (fileName.isNotBlank()) coverUrl = "https://uploads.mangadex.org/covers/$mangaId/$fileName"
                         } catch (_: Exception) {}
                     }
-                    // Autor desde relationships
-                    var mdAuthor = ""
-                    manga.optJSONArray("relationships")?.let { rels ->
-                        for (j in 0 until rels.length()) {
-                            val rel = rels.getJSONObject(j)
-                            if (rel.optString("type") == "author") {
-                                mdAuthor = rel.optJSONObject("attributes")?.optString("name", "") ?: ""
-                                break
-                            }
-                        }
-                    }
+                    // D2 (22-07): MangaDex ya no aporta ficha nueva (solo enriquece portada), asi
+                    // que no hace falta leer el autor de las relationships.
                     val normMain = mainTitle.lowercase().trim()
                     val dupIdx = results.indexOfFirst { it.title.lowercase().trim() == normMain }
                     if (dupIdx >= 0) {

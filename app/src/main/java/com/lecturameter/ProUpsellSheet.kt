@@ -6,6 +6,8 @@ package com.lecturameter
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -86,7 +88,10 @@ fun ProUpsellSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = theme.bgMid) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            // Review 22-07 (critico): sin scroll, la hoja de Pro (tabla comparativa + prueba +
+            // botones) podia dejar el CTA de compra o "Ahora no" fuera de pantalla en moviles
+            // bajos o con fuente grande, agravado al abrir completa (skipPartiallyExpanded). Scrollea.
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (showCodeEntry) {
