@@ -1356,6 +1356,7 @@
     <string name="filter_range_clear">Clear range</string>
     <string name="filter_range_from">From</string>
     <string name="filter_range_to">To</string>
+    <string name="filter_range_order_error">The start date is after the end date</string>
     <string name="filter_range_hint">🔒 With Pro, filter by any date range</string>
     <string name="filter_range_ok">OK</string>
     <string name="filter_range_cancel">Cancel</string>

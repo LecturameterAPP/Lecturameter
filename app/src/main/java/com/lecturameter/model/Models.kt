@@ -49,6 +49,10 @@ data class BookEdition(
     val id: Long = System.currentTimeMillis(),
     val language: String = "unknown",          // "es" | "original" | código ISO
     val languageLabel: String = "Edición principal",// etiqueta visible: "Español", "English", etc.
+    // B2 (2B): marcador canónico y NO localizado de la edición principal/global. Sustituye a
+    // comparar el string español "Edición principal"/"Global" (parche 2A) como clave. Gson pone
+    // false en datos antiguos; el sanitizador de carga lo deriva del label (migración idempotente).
+    val isMainEdition: Boolean = false,
     val flag: String = "🌐",             // emoji de bandera o 🌐
     val title: String = "",               // título en este idioma (puede diferir)
     val pages: Int = 0,
@@ -60,6 +64,14 @@ data class BookEdition(
     val isActive: Boolean = true,          // edición cuya portada se muestra en la biblioteca
     val comment: String = ""              // comentario específico de esta edición/idioma
 )
+
+// B2 (2B): "¿es la edición principal/global (no un idioma real)?" en UN solo sitio. Usa el flag
+// canónico y, como respaldo para datos aún no migrados, el label español de siempre. Todo el
+// código debe preguntar por aquí en vez de comparar el string suelto.
+fun BookEdition.isMainEditionOrGlobal(): Boolean =
+    isMainEdition ||
+    languageLabel.equals("Edición principal", ignoreCase = true) ||
+    languageLabel.equals("Global", ignoreCase = true)
 
 data class Book(
     val id: Long = System.currentTimeMillis(),

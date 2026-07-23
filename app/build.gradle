@@ -23,7 +23,19 @@ android {
         // 10036: v3.2 — feedback 22-07 (16 KB, Pro 3/4/5, Apoya el proyecto, Wrapped, toggle Drive)
         // 10037: v3.3 — fix catalogo offline (listener PAD hasta COMPLETED) + retoques UI (email
         //        resaltado, "+ Añadir portada", frase precios propinas)
-        versionCode 10038
+        // 10038: v3.3 — feedback 23-07 + fixes review (MAGI) + fix regresion crono + D1
+        // 10039: v3.3 — pulido pre-lanzamiento: A2 dialogo "Fechas libres" + B1 senal editorial manga
+        // 10040: v3.3 — A2 rehecho (selector compacto propio Desde/Hasta) + fix rotacion (configChanges,
+        //        no se pierde el proceso al girar) + fix busqueda ISBN debil (manga con titulo japones,
+        //        sin genero/paginas -> recompone por cadena por ISBN)
+        // 10041: v3.3 — B2 (2B): marcador canonico isMainEdition (flag) + migracion idempotente en el
+        //        sanitizador; el donut de idiomas excluye por el flag, no por el string "Edicion principal"
+        // 10042: v3.3 — la ✕ de limpiar rango de fechas en rojo (convencion de negacion)
+        // 10043: v3.3 — A1 de verdad: "Exportar estadisticas" (CSV/JSON) movido a lo ULTIMO de la
+        //        pantalla, tras "Estadisticas avanzadas" (antes quedaba en medio)
+        // 10044: v3.3 — autor de manga en romaji: si el resultado trae el autor en kanji y GB tiene el
+        //        mismo libro con autor latino, se adopta el latino (Yukinobu Tatsu en vez de 龍幸伸)
+        versionCode 10044
         versionName "3.3"
         multiDexEnabled true
 

@@ -1191,18 +1191,62 @@ private fun StatsDateRangeRow(
                 color = cardColor(theme),
                 border = BorderStroke(1.dp, theme.border)
             ) {
-                Text("✕", color = theme.textMuted, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
+                Text("✕", color = Red, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
             }
         }
     }
 }
 
+// Colores del DatePicker de M3 vestidos con los tokens del tema activo. NO son opcionales: por
+// defecto el picker se pinta con el ColorScheme de Material, que en esta app no es el tema real
+// (los temas son tokens propios). Sin esto, en Cuero o Aurora saldría un diálogo morado de fábrica.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun statsDatePickerColors(theme: Theme, acc: Color) = DatePickerDefaults.colors(
+    containerColor = theme.bgMid,
+    titleContentColor = theme.textMain,
+    headlineContentColor = theme.textMain,
+    weekdayContentColor = theme.textMuted,
+    subheadContentColor = theme.textMuted,
+    yearContentColor = theme.textMain,
+    currentYearContentColor = acc,
+    selectedYearContentColor = onAccentColor(theme),
+    selectedYearContainerColor = acc,
+    dayContentColor = theme.textMain,
+    disabledDayContentColor = theme.textDim,
+    selectedDayContentColor = onAccentColor(theme),
+    selectedDayContainerColor = acc,
+    todayContentColor = theme.textMain,
+    todayDateBorderColor = acc,
+    navigationContentColor = theme.textMain
+)
+
+// Campo pulsable de fecha para el diálogo de rango (Desde / Hasta)
+@Composable
+private fun StatsDateField(theme: Theme, acc: Color, label: String, value: String?, onClick: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = theme.textMuted, fontSize = 12.sp)
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(10.dp),
+            color = cardColor(theme),
+            border = BorderStroke(1.dp, if (value != null) acc else theme.border),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                value ?: "—",
+                color = if (value != null) theme.textMain else theme.textDim,
+                fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp)
+            )
+        }
+    }
+}
+
 /**
- * Selector de rango de fechas de Material 3, vestido con los tokens del tema activo.
- *
- * Los colores NO son opcionales aquí: por defecto el DateRangePicker se pinta con el
- * ColorScheme de Material, que en esta app no es el tema real (los temas son tokens propios,
- * no un ColorScheme). Sin esto, en Cuero o Aurora saldría un diálogo morado de fábrica.
+ * Selector de rango de fechas COMPACTO y propio. El DateRangePicker de M3 mete un calendario de
+ * dos meses con encabezado que a este ancho desborda y se ve roto; aquí solo mostramos dos campos
+ * (Desde/Hasta) y cada uno abre un calendario de fecha ÚNICA (el normal, que sí cabe bien).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1222,59 +1266,82 @@ private fun StatsDateRangePicker(
     fun toIso(ms: Long?): String? = ms?.let {
         java.time.LocalDate.ofEpochDay(Math.floorDiv(it, 86_400_000L)).toString()
     }
+    fun fmtLong(iso: String?): String? = iso?.takeIf { it.length >= 10 }?.let {
+        runCatching {
+            val d = java.time.LocalDate.parse(it)
+            "%02d/%02d/%04d".format(d.dayOfMonth, d.monthValue, d.year)
+        }.getOrNull()
+    }
 
-    val state = rememberDateRangePickerState(
-        initialSelectedStartDateMillis = toMillis(initialStart),
-        initialSelectedEndDateMillis = toMillis(initialEnd)
-    )
-    val colors = DatePickerDefaults.colors(
-        // bgMid, como el resto de diálogos del proyecto. theme.surface es TRANSLÚCIDO en
-        // Oscuro/Aurora/AMOLED y dejaría ver el fondo a través del calendario.
-        containerColor = theme.bgMid,
-        titleContentColor = theme.textMain,
-        headlineContentColor = theme.textMain,
-        weekdayContentColor = theme.textMuted,
-        subheadContentColor = theme.textMuted,
-        yearContentColor = theme.textMain,
-        currentYearContentColor = acc,
-        selectedYearContentColor = onAccentColor(theme),
-        selectedYearContainerColor = acc,
-        dayContentColor = theme.textMain,
-        disabledDayContentColor = theme.textDim,
-        selectedDayContentColor = onAccentColor(theme),
-        selectedDayContainerColor = acc,
-        // "Hoy" en textMain (14,6:1 peor caso) y no en el acento: medido, el acento sobre
-        // bgMid se queda en 3,58:1 en Oscuro y eso es un número de día, o sea texto. Lo que
-        // señala "hoy" es su borde, que es gráfico (3:1) y ahí el acento sí llega.
-        todayContentColor = theme.textMain,
-        todayDateBorderColor = acc,
-        dayInSelectionRangeContentColor = theme.textMain,
-        dayInSelectionRangeContainerColor = acc.copy(alpha = 0.25f),
-        navigationContentColor = theme.textMain
-    )
-    DatePickerDialog(
+    var start by remember { mutableStateOf(initialStart) }
+    var end by remember { mutableStateOf(initialEnd) }
+    var picking by remember { mutableStateOf<String?>(null) }   // "start" | "end" | null
+    val colors = statsDatePickerColors(theme, acc)
+
+    // Sub-diálogo de fecha única (para Desde o Hasta)
+    if (picking != null) {
+        val isStart = picking == "start"
+        val subState = rememberDatePickerState(initialSelectedDateMillis = toMillis(if (isStart) start else end))
+        DatePickerDialog(
+            onDismissRequest = { picking = null },
+            colors = colors,
+            confirmButton = {
+                TextButton(
+                    enabled = subState.selectedDateMillis != null,
+                    onClick = {
+                        val iso = toIso(subState.selectedDateMillis)
+                        if (isStart) start = iso else end = iso
+                        picking = null
+                    }
+                ) {
+                    Text(stringResource(R.string.filter_range_ok),
+                        color = if (subState.selectedDateMillis != null) acc else theme.textDim)
+                }
+            },
+            dismissButton = { TextButton(onClick = { picking = null }) { Text(stringResource(R.string.filter_range_cancel), color = Red) } }
+        ) {
+            DatePicker(
+                state = subState,
+                colors = colors,
+                showModeToggle = false,
+                title = null,
+                headline = {
+                    Text(
+                        fmtLong(toIso(subState.selectedDateMillis))
+                            ?: stringResource(if (isStart) R.string.filter_range_from else R.string.filter_range_to),
+                        color = theme.textMain, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                    )
+                }
+            )
+        }
+    }
+
+    val invalidOrder = start != null && end != null && start!! > end!!
+    val canConfirm = start != null && end != null && !invalidOrder
+
+    AlertDialog(
         onDismissRequest = onDismiss,
-        colors = colors,
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(toIso(state.selectedStartDateMillis), toIso(state.selectedEndDateMillis)) },
-                // Sin las dos puntas no hay rango: confirmar dejaría un filtro a medias
-                enabled = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null
-            ) {
-                Text(
-                    stringResource(R.string.filter_range_ok),
-                    color = if (state.selectedStartDateMillis != null && state.selectedEndDateMillis != null) acc else theme.textDim
-                )
+        containerColor = theme.bgMid,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.92f),
+        title = { Text(stringResource(R.string.filter_range_placeholder), color = theme.textMain, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                StatsDateField(theme, acc, stringResource(R.string.filter_range_from), fmtLong(start)) { picking = "start" }
+                StatsDateField(theme, acc, stringResource(R.string.filter_range_to), fmtLong(end)) { picking = "end" }
+                if (invalidOrder) Text(stringResource(R.string.filter_range_order_error), color = Red, fontSize = 11.sp)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.filter_range_cancel), color = theme.textMuted) } }
-    ) {
-        DateRangePicker(
-            state = state,
-            colors = colors,
-            title = { Text(stringResource(R.string.filter_range_placeholder), color = theme.textMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 16.dp, top = 12.dp)) }
-        )
-    }
+        confirmButton = {
+            TextButton(enabled = canConfirm, onClick = { onConfirm(start, end) }) {
+                Text(stringResource(R.string.filter_range_ok), color = if (canConfirm) acc else theme.textDim)
+            }
+        },
+        // Convención del proyecto: el botón de negación va en rojo
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.filter_range_cancel), color = Red) } }
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -1625,14 +1692,16 @@ fun StatsChartsView(
             }
         }
 
-        // ── Idioma (donut) — "Global"/"Edición principal" NO es idioma: se excluye ──
+        // ── Idioma (donut) — la edición principal/global NO es idioma: se excluye ──
+        // B2 (2B): la exclusión pregunta por el marcador canónico (isMainEditionOrGlobal), no por
+        // el string español "Edición principal"/"Global". El label sigue siendo lo que se pinta.
         val langList = booksInPeriod.mapNotNull { book ->
-            val lbl = book.editions.firstOrNull { it.isActive }?.languageLabel
+            val ed = book.editions.firstOrNull { it.isActive }
             when {
-                lbl == null -> null
-                lbl.equals("Edición principal", ignoreCase = true) -> null  // Global no es un idioma
-                lbl.equals("Global", ignoreCase = true) -> null
-                else -> lbl
+                ed == null -> null
+                ed.isMainEditionOrGlobal() -> null
+                ed.languageLabel.isBlank() -> null
+                else -> ed.languageLabel
             }
         }.groupBy { it }.mapValues { it.value.size }
             .entries.let { if (ascending) it.sortedBy { e -> e.value } else it.sortedByDescending { e -> e.value } }
@@ -1726,53 +1795,60 @@ fun StatsChartsView(
             }
         }
 
-        // ── Exportar estadísticas ─────────────────────────────────────────────
-        val scope = rememberCoroutineScope()
-        var exportError by remember { mutableStateOf<String?>(null) }
-        fun exportStats(asCsv: Boolean) {
-            scope.launch {
-                try {
-                    val (fileName, mime, content) = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        if (asCsv) Triple("estadisticas_lecturameter.csv", "text/csv", buildStatsCSV(vm))
-                        else Triple("estadisticas_lecturameter.json", "application/json", buildStatsJSON(vm))
-                    }
-                    val file = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        java.io.File(context.cacheDir, fileName).apply { writeText(content) }
-                    }
-                    val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = mime
-                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    // startActivity siempre en el hilo principal — en IO crashea en MIUI
-                    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.chooser_export_stats)))
-                    exportError = null
-                } catch (e: Exception) {
-                    exportError = "❌ Error al exportar: ${e.message}"
+        // El bloque "Exportar estadísticas" se pinta ahora como ÚLTIMA sección de la pantalla
+        // (StatsScreen), DESPUÉS de "Estadísticas avanzadas". Ver StatsExportSection.
+    }
+}
+
+// ── Exportar estadísticas ─── Va al final del todo de la pantalla de Estadísticas ──────────
+@Composable
+fun StatsExportSection(vm: BooksViewModel, theme: Theme) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exportError by remember { mutableStateOf<String?>(null) }
+    fun exportStats(asCsv: Boolean) {
+        scope.launch {
+            try {
+                val (fileName, mime, content) = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    if (asCsv) Triple("estadisticas_lecturameter.csv", "text/csv", buildStatsCSV(vm))
+                    else Triple("estadisticas_lecturameter.json", "application/json", buildStatsJSON(vm))
                 }
+                val file = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    java.io.File(context.cacheDir, fileName).apply { writeText(content) }
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = mime
+                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                // startActivity siempre en el hilo principal — en IO crashea en MIUI
+                context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.chooser_export_stats)))
+                exportError = null
+            } catch (e: Exception) {
+                exportError = "❌ Error al exportar: ${e.message}"
             }
         }
-        Surface(shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            Column(Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.txt_def36a08), color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { exportStats(asCsv = true) },
-                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Color.White)
-                    ) { Text(stringResource(R.string.txt_cc8d68c5), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                    Button(
-                        onClick = { exportStats(asCsv = false) },
-                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Color.White)
-                    ) { Text(stringResource(R.string.txt_0ecd11c1), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                }
-                exportError?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, color = Red, fontSize = 12.sp)
-                }
+    }
+    Surface(shape = RoundedCornerShape(14.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border), modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.txt_def36a08), color = theme.textMain, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { exportStats(asCsv = true) },
+                    modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Green, contentColor = Color.White)
+                ) { Text(stringResource(R.string.txt_cc8d68c5), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                Button(
+                    onClick = { exportStats(asCsv = false) },
+                    modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Color.White)
+                ) { Text(stringResource(R.string.txt_0ecd11c1), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            }
+            exportError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = Red, fontSize = 12.sp)
             }
         }
     }

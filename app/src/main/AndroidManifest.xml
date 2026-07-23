@@ -46,7 +46,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation">
             <!-- Deep link desde el widget al detalle de un libro.
                  El widget construye intents lecturameter://book/{id} que se preservan
                  en el PendingIntent que crea Glance (los extras se pierden, la URI no). -->

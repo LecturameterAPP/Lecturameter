@@ -1367,6 +1367,7 @@
     <string name="filter_range_clear">Quitar rango</string>
     <string name="filter_range_from">Desde</string>
     <string name="filter_range_to">Hasta</string>
+    <string name="filter_range_order_error">La fecha de inicio es posterior a la de fin</string>
     <string name="filter_range_hint">🔒 Con Pro, filtra por cualquier rango de fechas</string>
     <string name="filter_range_ok">Aceptar</string>
     <string name="filter_range_cancel">Cancelar</string>

@@ -233,6 +233,8 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                 item { StatsChartsView(vm, theme, filterGenre, { filterGenre = it; genreUserSelected = true }, allGenres, filterAuthor, { filterAuthor = it; authorUserSelected = true }, allAuthors) }
                 // v2.4 rework: secciones avanzadas al final de la pantalla
                 item { AdvancedStatsSections(vm, theme) }
+                // Feedback 23-07: "Exportar estadísticas" va lo ÚLTIMO del todo, tras las avanzadas
+                item { StatsExportSection(vm, theme) }
             }
         } else if (filtered.isEmpty()) {
             recapCards()

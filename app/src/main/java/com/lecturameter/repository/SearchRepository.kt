@@ -634,6 +634,29 @@ private fun consensusPages(votes: List<Pair<Int, Boolean>>): Int? {
     return (pool.firstOrNull { it.second } ?: pool.first()).first
 }
 
+// B1 (4B): editoriales de manga en Espana. Senal para reactivar el enriquecimiento por serie
+// cuando un tomo llega SOLO con genero "comic"/"novela grafica" y SIN numero de tomo en el
+// titulo (el caso que la exclusion de "comic" como senal manga dejaba sin portada/genero).
+// Se incluyen mixtas (Norma, Planeta Comic) porque el falso positivo del comic occidental de
+// esas mismas editoriales lo frena la validacion por titulo de las tres APIs de manga
+// (matchScore/pertenencia >= 0.4-0.5): un comic europeo no casa fuerte con una serie japonesa.
+private val SPAIN_MANGA_PUBLISHERS = listOf(
+    "norma editorial", "planeta comic", "planeta cómic", "ivrea", "milky way",
+    "distrito manga", "panini manga", "ediciones babylon", "kitsune manga",
+    "arechi manga", "fandogamia", "tomodomo", "ponent mon", "editorial hidra", "odaiba"
+)
+private fun hasSpainMangaPublisher(publisher: String?): Boolean {
+    val p = publisher?.lowercase() ?: return false
+    return SPAIN_MANGA_PUBLISHERS.any { p.contains(it) }
+}
+
+// Feedback 23-07: un titulo de una edicion espanola no deberia traer kana/kanji. Si los trae
+// (p. ej. OL devuelve el titulo japones de un tomo de manga), el registro esta flojo y conviene
+// recomponerlo por la cadena por ISBN. Rangos: hiragana/katakana + CJK unificado (+ ext. A).
+private fun hasCjk(s: String): Boolean = s.any {
+    it.code in 0x3040..0x30FF || it.code in 0x4E00..0x9FFF || it.code in 0x3400..0x4DBF
+}
+
 internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     if (isbn.isBlank()) return IsbnFullMetadata()
     isbnMetaCache[isbn]?.let {
@@ -645,6 +668,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
     var pages: Int? = null
     val rawGenres = mutableListOf<String>()
     var coverUrl: String? = null
+    var publisher: String? = null   // B1 (4B): senal de editorial para reactivar el enriquecimiento manga
 
     // Catálogo local: lookup instantáneo por ISBN, sin red. NO corta la cadena online a
     // propósito: las fases P1-P4 aportan consenso de páginas y géneros que el catálogo no
@@ -692,6 +716,9 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             val authors = info.optJSONArray("authors")
             if (authors != null && authors.length() > 0) author = authors.optString(0).ifBlank { null }
         }
+        // B1 (4B): la editorial es la senal que reactiva el enriquecimiento manga para tomos
+        // etiquetados solo como "comic". GB es donde el manga espanol (Norma/Planeta) se indexa.
+        if (publisher.isNullOrBlank()) publisher = info.optString("publisher").ifBlank { null }
         votePages(info.optInt("pageCount", 0), editionLevel = true)  // Feedback 2.7: voto, no asignación
         info.optJSONArray("categories")?.let { cats ->
             for (i in 0 until cats.length()) rawGenres.add(cats.optString(i, ""))
@@ -785,6 +812,11 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             val subjects = book.optJSONArray("subjects")
             if (subjects != null) for (i in 0 until subjects.length())
                 rawGenres.add(subjects.getJSONObject(i).optString("name", ""))
+            if (publisher.isNullOrBlank()) {   // B1 (4B): fuente secundaria de editorial si GB no la trajo
+                val pubs = book.optJSONArray("publishers")
+                if (pubs != null && pubs.length() > 0)
+                    publisher = pubs.optJSONObject(0)?.optString("name")?.ifBlank { null }
+            }
         }
         com.lecturameter.utils.AppLogger.log(
             "P2 OL_bibkeys: found=${book != null} pages=${pages ?: "-"} cover=${coverUrl != null} ${System.currentTimeMillis() - t0}ms",
@@ -924,7 +956,16 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
             g.contains("manga", true) || g.contains("manhwa", true) ||
             g.contains("manhua", true) || g.contains("webtoon", true)
         }
-        val looksManga = t != null && (mangaSignal || extractVolumeNumber(t) != null)
+        // B1 (4B): recuperar el manga espanol etiquetado SOLO como "comic"/"novela grafica" y sin
+        // numero de tomo. Se dispara cuando hay genero de comic Y la editorial es de manga en
+        // Espana. La pertenencia por titulo de las APIs evita el falso positivo del comic occidental.
+        val comicGenre = rawGenres.any { g ->
+            g.contains("comic", true) || g.contains("cómic", true) ||
+            g.contains("graphic novel", true) ||
+            g.contains("novela gráfica", true) || g.contains("novela grafica", true)
+        }
+        val publisherMangaSignal = comicGenre && hasSpainMangaPublisher(publisher)
+        val looksManga = t != null && (mangaSignal || publisherMangaSignal || extractVolumeNumber(t) != null)
         if (t != null && looksManga && (needCover() || needGenre())) {
             val (serie, tomo) = extractSeriesAndVolume(t)
             val q = serie.ifBlank { t }
@@ -948,7 +989,7 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
                 if (needGenre()) rawGenres.addAll(md.genres)
             }
             com.lecturameter.utils.AppLogger.log(
-                "MangaResolver escaneo: serie=$serie tomo=${tomo ?: "-"} cover=${coverUrl != null} genres=${rawGenres.size}", "IsbnScan")
+                "MangaResolver escaneo: serie=$serie tomo=${tomo ?: "-"} pubSignal=$publisherMangaSignal pub=${publisher ?: "-"} cover=${coverUrl != null} genres=${rawGenres.size}", "IsbnScan")
         }
     }
 
@@ -3227,14 +3268,30 @@ suspend fun searchOpenLibrary(
             if (results.isNotEmpty()) break
         }
         emitPartial()
-        if (results.isEmpty()) {
+        // Feedback 23-07: para un ISBN escaneado OL suele venir pobre (manga con titulo en
+        // japones, sin genero ni paginas). Si no hay resultado o el mejor esta flojo, recomponer
+        // por la cadena completa por ISBN (GB + catalogo + enriquecimiento manga por serie: la
+        // que trae titulo de la edicion espanola, paginas, genero y portada del tomo).
+        val top = results.firstOrNull()
+        val weak = top == null || top.genre.isBlank() || top.pages <= 1 ||
+            top.coverUrl == null || hasCjk(top.title)
+        if (weak) {
             val meta = fetchIsbnFullMetadata(isbnQuery)
             if (!meta.title.isNullOrBlank()) {
                 val (lId, _, _) = isbnToLanguageMeta(isbnQuery)
-                results.add(OpenLibraryResult(
-                    meta.title, meta.author ?: "", meta.pages ?: 0, meta.coverUrl,
-                    canonicalIsbn(isbnQuery) ?: isbnQuery, meta.genres.joinToString("; "), "",
-                    "isbn_$isbnQuery", language = lId.takeIf { it.length == 2 } ?: ""))
+                val lang = lId.takeIf { it.length == 2 } ?: top?.language ?: ""
+                // Preferir el titulo de la cadena por ISBN si el de OL trae CJK; en el resto,
+                // completar solo los huecos (paginas/genero/portada) sin pisar lo bueno de OL.
+                val preferMetaTitle = top == null || hasCjk(top.title)
+                val enriched = OpenLibraryResult(
+                    if (preferMetaTitle) meta.title!! else top!!.title,
+                    meta.author?.ifBlank { null } ?: top?.author ?: "",
+                    meta.pages?.takeIf { it > 1 } ?: top?.pages ?: 0,
+                    meta.coverUrl ?: top?.coverUrl,
+                    canonicalIsbn(isbnQuery) ?: isbnQuery,
+                    meta.genres.joinToString("; ").ifBlank { top?.genre ?: "" }, "",
+                    "isbn_$isbnQuery", language = lang)
+                if (top != null) results[0] = enriched else results.add(enriched)
                 emitPartial()
             }
         }
@@ -3298,12 +3355,16 @@ suspend fun searchOpenLibrary(
                 val betterGenre = existing.genre.isBlank() && gb.genre.isNotBlank()
                 val betterPages = gb.pages <= 1 && existing.pages > 1
                 val betterLang  = existing.language.isBlank() && gb.language.isNotBlank()   // v2.6
-                if (betterCover || betterGenre || betterLang) {
+                // Feedback 23-07: el autor de un manga suele venir en kanji (龍幸伸) del catalogo/OL.
+                // Si GB trae el mismo libro con autor en alfabeto latino (Yukinobu Tatsu), adoptarlo.
+                val betterAuthor = hasCjk(existing.author) && gb.author.isNotBlank() && !hasCjk(gb.author)
+                if (betterCover || betterGenre || betterLang || betterAuthor) {
                     results[dupIdx] = existing.copy(
                         coverUrl = if (betterCover) gb.coverUrl else existing.coverUrl,
                         genre    = if (betterGenre) gb.genre    else existing.genre,
                         pages    = if (betterPages) existing.pages else if (gb.pages > existing.pages) gb.pages else existing.pages,
-                        language = if (betterLang)  gb.language else existing.language
+                        language = if (betterLang)  gb.language else existing.language,
+                        author   = if (betterAuthor) gb.author else existing.author
                     )
                 }
             } else if (!olTitlesNorm.contains(norm)) {

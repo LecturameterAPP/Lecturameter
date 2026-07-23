@@ -343,13 +343,18 @@ fun sanitizeBook(b: Book): Book {
         resumedDate = fixInternalDate(b.resumedDate),
         dateEvents = b.dateEvents ?: emptyList(),   // v19.9 fix: Gson pone null si el campo no existe en el JSON
         editions = safeEditions.map { e ->
+            val lbl = e.languageLabel ?: "Edición principal"
             val sanitized = e.copy(
                 language      = e.language      ?: "unknown",
-                languageLabel = e.languageLabel ?: "Edición principal",
+                languageLabel = lbl,
                 flag          = e.flag          ?: "🌐",
                 title         = e.title         ?: "",
                 publisher     = e.publisher     ?: "",
-                publishYear   = e.publishYear   ?: ""
+                publishYear   = e.publishYear   ?: "",
+                // B2 (2B): migración idempotente — deriva el flag canónico del label de siempre.
+                isMainEdition = e.isMainEdition ||
+                    lbl.equals("Edición principal", ignoreCase = true) ||
+                    lbl.equals("Global", ignoreCase = true)
             )
             // v18.4: auto-clasificación US/UK para ediciones inglesas con flag=🌐.
             // Solo se aplica si el usuario no ha elegido manualmente otra bandera.
