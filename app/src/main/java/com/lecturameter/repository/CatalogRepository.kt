@@ -112,18 +112,27 @@ object CatalogRepository {
         val listener = object : AssetPackStateUpdateListener {
             override fun onStateUpdate(state: AssetPackState) {
                 if (state.name() != PACK_NAME) return
+                // Fix 1A (decisión MAGI): lógica invertida. Solo se sigue escuchando en estados EN
+                // CURSO; CUALQUIER otro estado es terminal y desregistra el listener, para no fugarlo.
+                // El error del `when` anterior era terminar solo en COMPLETED/FAILED: CANCELED,
+                // REQUIRES_USER_CONFIRMATION, NOT_INSTALLED y UNKNOWN caían en `else -> {}` y dejaban
+                // el listener colgado para siempre (fuga + catálogo que no instala nunca). No se
+                // eleva a Activity para el diálogo de confirmación de Play: queda diferido a
+                // post-release; si Play lo pide, se reintenta al siguiente arranque.
                 when (state.status()) {
+                    AssetPackStatus.PENDING,
+                    AssetPackStatus.DOWNLOADING,
+                    AssetPackStatus.TRANSFERRING,
+                    AssetPackStatus.WAITING_FOR_WIFI -> { /* en curso: seguir escuchando */ }
                     AssetPackStatus.COMPLETED -> {
                         corePackFile(context)?.let { openIfPresent(it) }
                         runCatching { mgr.unregisterListener(this) }
                         Log.i(TAG, "catalog_pack COMPLETED, catalogo abierto en caliente: ${open.keys}")
                     }
-                    AssetPackStatus.FAILED -> {
+                    else -> {
                         runCatching { mgr.unregisterListener(this) }
-                        Log.w(TAG, "catalog_pack FAILED, errorCode=${state.errorCode()}")
+                        Log.w(TAG, "catalog_pack estado terminal ${state.status()}, errorCode=${state.errorCode()}; reintento al proximo arranque")
                     }
-                    // PENDING / DOWNLOADING / TRANSFERRING / WAITING_FOR_WIFI: seguir escuchando.
-                    else -> {}
                 }
             }
         }

@@ -417,7 +417,8 @@ fun ListScreen(
     // ── Diálogo educativo de permiso de notificaciones (crono desde la hoja) ──────
     if (showQsNotifPermDialog) {
         AlertDialog(
-            onDismissRequest = { showQsNotifPermDialog = false },
+            // Cerrar con atrás = rechazar: enruta al aviso que sí arranca el crono en "Entendido" (M2).
+            onDismissRequest = { showQsNotifPermDialog = false; showQsNotifPermDeniedDialog = true },
             containerColor = theme.bgMid,
             title = { Text(stringResource(R.string.txt_5c0e66ea), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_33fe5747), color = theme.textMuted, fontSize = 13.sp) },
@@ -440,7 +441,8 @@ fun ListScreen(
     }
     if (showQsNotifPermDeniedDialog) {
         AlertDialog(
-            onDismissRequest = { showQsNotifPermDeniedDialog = false },
+            // Cerrar con atrás también arranca el crono (M2): mismo efecto que "Entendido".
+            onDismissRequest = { showQsNotifPermDeniedDialog = false; qsPendingTimerAction?.invoke(); qsPendingTimerAction = null },
             containerColor = theme.bgMid,
             title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },

@@ -23,7 +23,7 @@ android {
         // 10036: v3.2 — feedback 22-07 (16 KB, Pro 3/4/5, Apoya el proyecto, Wrapped, toggle Drive)
         // 10037: v3.3 — fix catalogo offline (listener PAD hasta COMPLETED) + retoques UI (email
         //        resaltado, "+ Añadir portada", frase precios propinas)
-        versionCode 10037
+        versionCode 10038
         versionName "3.3"
         multiDexEnabled true
 

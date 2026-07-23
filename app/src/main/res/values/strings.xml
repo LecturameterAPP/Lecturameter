@@ -1338,6 +1338,8 @@
     <string name="feedback_type_suggestion">Sugerencia</string>
     <string name="feedback_type_other">Otro</string>
     <string name="main_edition">Edición principal</string>
+    <string name="edition_lang_en_us">Inglés (EE.UU.)</string>
+    <string name="edition_lang_en_uk">Inglés (Reino Unido)</string>
     <string name="chooser_export_stats">Exportar estadísticas</string>
     <string name="add_field_title_label">Título *</string>
     <string name="add_field_title_hint">El nombre del libro</string>

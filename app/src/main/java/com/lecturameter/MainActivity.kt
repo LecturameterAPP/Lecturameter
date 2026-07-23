@@ -1144,6 +1144,17 @@ fun displayGenre(raw: String): String {
     return if (resId != null) stringResource(resId) else raw
 }
 
+// Fix 2A (MAGI): las etiquetas de idioma de edición se guardan en la BD como clave canónica
+// en español (Edición principal, Inglés (EE.UU.)…) porque StatsViews las compara para excluir
+// ediciones globales del donut. NO se toca el valor almacenado; se traduce solo al pintar.
+@Composable
+fun displayEditionLabel(raw: String): String = when (raw) {
+    "Edición principal" -> stringResource(R.string.main_edition)
+    "Inglés (EE.UU.)" -> stringResource(R.string.edition_lang_en_us)
+    "Inglés (Reino Unido)" -> stringResource(R.string.edition_lang_en_uk)
+    else -> raw
+}
+
 // Mapea géneros crudos de Google Books / OpenLibrary a géneros canónicos.
 // Devuelve 0, 1 o 2 géneros de BOOK_GENRES.
 // Correcciones clave vs versión anterior:

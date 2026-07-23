@@ -1057,7 +1057,7 @@ fun EditionsSection(
                             // take(4)); mostrar "Inglés, Oct" cantaba. Si el valor no es un año de
                             // 4 cifras, no se enseña. El parser también se arregló para futuras altas.
                             val yearShown = ed.publishYear.takeIf { Regex("^\\d{4}$").matches(it) }
-                            val edLangLabel = if (ed.languageLabel == "Edición principal") stringResource(R.string.main_edition) else ed.languageLabel
+                            val edLangLabel = displayEditionLabel(ed.languageLabel)
                             val head = listOfNotNull(
                                 edLangLabel.ifBlank { null },
                                 yearShown

@@ -1327,6 +1327,8 @@
     <string name="feedback_type_suggestion">Suggestion</string>
     <string name="feedback_type_other">Other</string>
     <string name="main_edition">Main edition</string>
+    <string name="edition_lang_en_us">English (US)</string>
+    <string name="edition_lang_en_uk">English (UK)</string>
     <string name="chooser_export_stats">Export statistics</string>
     <string name="add_field_title_label">Title *</string>
     <string name="add_field_title_hint">The book\'s name</string>

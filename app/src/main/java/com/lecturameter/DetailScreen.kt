@@ -129,7 +129,10 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     }
     if (showNotifPermDialog) {
         AlertDialog(
-            onDismissRequest = { showNotifPermDialog = false },
+            // Cerrar con atrás/tocar fuera = rechazar: enruta al aviso educativo que sí arranca
+            // el crono en "Entendido". Si no, se perdería pendingTimerAction (M1) y la sesión
+            // no se registraría en silencio.
+            onDismissRequest = { showNotifPermDialog = false; showNotifPermDeniedDialog = true },
             containerColor = theme.bgMid,
             title = { Text(stringResource(R.string.txt_5c0e66ea), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_33fe5747), color = theme.textMuted, fontSize = 13.sp) },
@@ -153,7 +156,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     // Aviso tras rechazar: explica cómo activarlo más tarde desde permisos de la app
     if (showNotifPermDeniedDialog) {
         AlertDialog(
-            onDismissRequest = { showNotifPermDeniedDialog = false },
+            // Cerrar con atrás también debe arrancar el crono (M1): mismo efecto que "Entendido".
+            onDismissRequest = { showNotifPermDeniedDialog = false; pendingTimerAction?.invoke(); pendingTimerAction = null },
             containerColor = theme.bgMid,
             title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
@@ -718,8 +722,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                                     Text(ed.flag, fontSize = 22.sp)
                                                     Column(Modifier.weight(1f)) {
                                                         Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                        val edLangLabel = if (ed.languageLabel == "Edición principal") stringResource(R.string.main_edition) else ed.languageLabel
-                                                        Text("$edLangLabel · ${ed.publisher.ifBlank { "-" }} · ${ed.publishYear.ifBlank { "-" }}", color = theme.textDim, fontSize = 11.sp)
+                                                        Text("${displayEditionLabel(ed.languageLabel)} · ${ed.publisher.ifBlank { "-" }} · ${ed.publishYear.ifBlank { "-" }}", color = theme.textDim, fontSize = 11.sp)
                                                         if (!ed.isbn.isNullOrBlank()) Text("ISBN: ${ed.isbn}", color = theme.textMuted, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                                                         if (ed.pages > 0) Text(stringResource(R.string.search_pages_count, ed.pages), color = theme.textMuted, fontSize = 11.sp)
                                                     }

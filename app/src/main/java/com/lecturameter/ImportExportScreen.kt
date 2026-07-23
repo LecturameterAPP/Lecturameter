@@ -45,6 +45,21 @@ import com.lecturameter.model.*
 import com.lecturameter.utils.*
 import androidx.navigation.compose.composable
 
+// Fix 3B (decisión MAGI): el color del banner de estado se decide por este enum, NO por
+// inspeccionar el emoji del texto (msg.startsWith("✅"…)), que se rompía en silencio si una
+// traducción alteraba o quitaba el emoji. Quien produce el mensaje asigna el kind.
+private enum class BannerKind { OK, WARN, ERROR }
+private data class Banner(val text: String, val kind: BannerKind)
+private fun bannerBg(k: BannerKind): Color = when (k) {
+    BannerKind.OK -> Color(0x1A10B981); BannerKind.WARN -> Color(0x1AF59E0B); BannerKind.ERROR -> Color(0x1AF87171)
+}
+private fun bannerBorder(k: BannerKind): Color = when (k) {
+    BannerKind.OK -> Color(0x4D10B981); BannerKind.WARN -> Color(0x4DF59E0B); BannerKind.ERROR -> Color(0x4DF87171)
+}
+private fun bannerFg(k: BannerKind): Color = when (k) {
+    BannerKind.OK -> Green; BannerKind.WARN -> Amber; BannerKind.ERROR -> Red
+}
+
 // ── ImportExportScreen ────────────────────────────────────────────────────────
 @Composable
 fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, theme: Theme, onBack: () -> Unit) {
@@ -57,10 +72,10 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
     val context = LocalContext.current
     val acc = accentForTheme(theme)
     val coroutineScope = rememberCoroutineScope()
-    var importMsg by remember { mutableStateOf<String?>(null) }
-    var exportMsg by remember { mutableStateOf<String?>(null) }
+    var importMsg by remember { mutableStateOf<Banner?>(null) }
+    var exportMsg by remember { mutableStateOf<Banner?>(null) }
     var isExporting by remember { mutableStateOf(false) }
-    var backupMsg by remember { mutableStateOf<String?>(null) }
+    var backupMsg by remember { mutableStateOf<Banner?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
     var isLocalAutoBackingUp by remember { mutableStateOf(false) }
     var lastLocalBackupText by remember { mutableStateOf(formatLastLocalBackup(context, prefs)) }
@@ -109,7 +124,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
         GoogleSignIn.getClient(context, DriveBackupManager.buildSignInOptions())
     }
     var driveAccount by remember { mutableStateOf(DriveBackupManager.getSignedInAccount(context)) }
-    var driveMsg by remember { mutableStateOf<String?>(null) }
+    var driveMsg by remember { mutableStateOf<Banner?>(null) }
     var isDriveLoading by remember { mutableStateOf(false) }
     var lastBackupText by remember { mutableStateOf(DriveBackupManager.formatLastBackup(context, prefs)) }
 
@@ -149,7 +164,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             val count = vm.importFromGoodreads(context, uri, prefs)
-            importMsg = if (count > 0) context.getString(R.string.msg_import_goodreads_ok, count) else context.getString(R.string.msg_import_goodreads_empty)
+            importMsg = if (count > 0) Banner(context.getString(R.string.msg_import_goodreads_ok, count), BannerKind.OK) else Banner(context.getString(R.string.msg_import_goodreads_empty), BannerKind.WARN)
             exportMsg = null
         }
     }
@@ -161,7 +176,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             coroutineScope.launch(Dispatchers.IO) {
                 val (ok, msg) = importFullBackup(context, uri, vm, prefs)
                 withContext(Dispatchers.Main) {
-                    backupMsg = if (ok) "✅ $msg" else "❌ $msg"
+                    backupMsg = Banner(msg, if (ok) BannerKind.OK else BannerKind.ERROR)
                     importMsg = null; exportMsg = null
                 }
             }
@@ -174,12 +189,12 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             val account = task.getResult(ApiException::class.java)
             if (GoogleSignIn.hasPermissions(account, DriveBackupManager.REQUIRED_SCOPE)) {
                 driveAccount = account
-                driveMsg = context.getString(R.string.msg_drive_connected, account.email ?: "")
+                driveMsg = Banner(context.getString(R.string.msg_drive_connected, account.email ?: ""), BannerKind.OK)
             } else {
-                driveMsg = context.getString(R.string.msg_drive_no_perms)
+                driveMsg = Banner(context.getString(R.string.msg_drive_no_perms), BannerKind.ERROR)
             }
         } catch (e: ApiException) {
-            driveMsg = context.getString(R.string.msg_drive_connect_error, e.message ?: "")
+            driveMsg = Banner(context.getString(R.string.msg_drive_connect_error, e.message ?: ""), BannerKind.ERROR)
         }
     }
 
@@ -223,10 +238,10 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.txt_e6b9af9f), fontWeight = FontWeight.Bold)
                 }
-                importMsg?.let { msg ->
+                importMsg?.let { b ->
                     Spacer(Modifier.height(10.dp))
-                    Surface(shape = RoundedCornerShape(10.dp), color = if (msg.startsWith("✅")) Color(0x1A10B981) else Color(0x1AF59E0B), border = BorderStroke(1.dp, if (msg.startsWith("✅")) Color(0x4D10B981) else Color(0x4DF59E0B))) {
-                        Text(msg, color = if (msg.startsWith("✅")) Green else Amber, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                    Surface(shape = RoundedCornerShape(10.dp), color = bannerBg(b.kind), border = BorderStroke(1.dp, bannerBorder(b.kind))) {
+                        Text(b.text, color = bannerFg(b.kind), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
                     }
                 }
             }
@@ -270,7 +285,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
 
                 Button(
                     onClick = {
-                        if (books.isEmpty()) { exportMsg = context.getString(R.string.msg_no_books_export); return@Button }
+                        if (books.isEmpty()) { exportMsg = Banner(context.getString(R.string.msg_no_books_export), BannerKind.WARN); return@Button }
                         isExporting = true; exportMsg = null; importMsg = null
                         scope.launch {
                             val uri = exportBooksToCSV(context, books)
@@ -284,9 +299,9 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_library_chooser)))
-                                exportMsg = context.getString(R.string.msg_export_ready)
+                                exportMsg = Banner(context.getString(R.string.msg_export_ready), BannerKind.OK)
                             } else {
-                                exportMsg = context.getString(R.string.msg_export_error_gen)
+                                exportMsg = Banner(context.getString(R.string.msg_export_error_gen), BannerKind.ERROR)
                             }
                         }
                     },
@@ -305,10 +320,10 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                         Text(stringResource(R.string.txt_583569fd), fontWeight = FontWeight.Bold)
                     }
                 }
-                exportMsg?.let { msg ->
+                exportMsg?.let { b ->
                     Spacer(Modifier.height(10.dp))
-                    Surface(shape = RoundedCornerShape(10.dp), color = if (msg.startsWith("✅")) Color(0x1A10B981) else if (msg.startsWith("⚠️")) Color(0x1AF59E0B) else Color(0x1AF87171), border = BorderStroke(1.dp, if (msg.startsWith("✅")) Color(0x4D10B981) else if (msg.startsWith("⚠️")) Color(0x4DF59E0B) else Color(0x4DF87171)), modifier = Modifier.fillMaxWidth()) {
-                        Text(msg, color = if (msg.startsWith("✅")) Green else if (msg.startsWith("⚠️")) Amber else Red, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                    Surface(shape = RoundedCornerShape(10.dp), color = bannerBg(b.kind), border = BorderStroke(1.dp, bannerBorder(b.kind)), modifier = Modifier.fillMaxWidth()) {
+                        Text(b.text, color = bannerFg(b.kind), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
                     }
                 }
             }
@@ -338,7 +353,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 // Exportar backup JSON
                 Button(
                     onClick = {
-                        if (books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@Button }
+                        if (books.isEmpty()) { backupMsg = Banner(context.getString(R.string.msg_no_data_export), BannerKind.WARN); return@Button }
                         isBackingUp = true; backupMsg = null
                         scope.launch {
                             val uri = withContext(kotlinx.coroutines.Dispatchers.IO) { exportFullBackup(context, vm) }
@@ -352,9 +367,9 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_backup_chooser)))
-                                backupMsg = context.getString(R.string.msg_backup_ready_share)
+                                backupMsg = Banner(context.getString(R.string.msg_backup_ready_share), BannerKind.OK)
                             } else {
-                                backupMsg = context.getString(R.string.msg_backup_error_gen)
+                                backupMsg = Banner(context.getString(R.string.msg_backup_error_gen), BannerKind.ERROR)
                             }
                         }
                     },
@@ -403,7 +418,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                 OutlinedButton(
                     onClick = {
                         if (!localBackupOn) { showActivateLocalBk = true; return@OutlinedButton }
-                        if (books.isEmpty()) { backupMsg = context.getString(R.string.msg_no_data_export); return@OutlinedButton }
+                        if (books.isEmpty()) { backupMsg = Banner(context.getString(R.string.msg_no_data_export), BannerKind.WARN); return@OutlinedButton }
                         runWithStoragePerm {
                         isLocalAutoBackingUp = true; backupMsg = null
                         val req = OneTimeWorkRequestBuilder<JsonBackupWorker>().build()
@@ -428,11 +443,11 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                             val customFolder = prefs.getString("local_backup_folder_uri", null)
                             backupMsg = when {
                                 finalState == null ->
-                                    context.getString(R.string.msg_backup_pending)
+                                    Banner(context.getString(R.string.msg_backup_pending), BannerKind.WARN)
                                 finalState.state == androidx.work.WorkInfo.State.SUCCEEDED ->
-                                    if (customFolder != null) context.getString(R.string.msg_backup_saved_custom, readableFolderName(customFolder))
-                                    else context.getString(R.string.msg_backup_saved_default)
-                                else -> context.getString(R.string.msg_backup_error)
+                                    if (customFolder != null) Banner(context.getString(R.string.msg_backup_saved_custom, readableFolderName(customFolder)), BannerKind.OK)
+                                    else Banner(context.getString(R.string.msg_backup_saved_default), BannerKind.OK)
+                                else -> Banner(context.getString(R.string.msg_backup_error), BannerKind.ERROR)
                             }
                         }
                         }
@@ -452,10 +467,10 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                         Text(stringResource(R.string.txt_56446f3b), fontWeight = FontWeight.Bold, color = if (localBackupOn) Green else theme.textDim)
                     }
                 }
-                backupMsg?.let { msg ->
+                backupMsg?.let { b ->
                     Spacer(Modifier.height(10.dp))
-                    Surface(shape = RoundedCornerShape(10.dp), color = if (msg.startsWith("✅")) Color(0x1A10B981) else if (msg.startsWith("⚠️")) Color(0x1AF59E0B) else Color(0x1AF87171), border = BorderStroke(1.dp, if (msg.startsWith("✅")) Color(0x4D10B981) else if (msg.startsWith("⚠️")) Color(0x4DF59E0B) else Color(0x4DF87171)), modifier = Modifier.fillMaxWidth()) {
-                        Text(msg, color = if (msg.startsWith("✅")) Green else if (msg.startsWith("⚠️")) Amber else Red, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                    Surface(shape = RoundedCornerShape(10.dp), color = bannerBg(b.kind), border = BorderStroke(1.dp, bannerBorder(b.kind)), modifier = Modifier.fillMaxWidth()) {
+                        Text(b.text, color = bannerFg(b.kind), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
                     }
                 }
             }
@@ -527,8 +542,8 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 isDriveLoading = false
                                 lastBackupText = DriveBackupManager.formatLastBackup(context, prefs)
                                 driveMsg = result.fold(
-                                    onSuccess = { context.getString(R.string.msg_drive_saved) },
-                                    onFailure = { context.getString(R.string.msg_drive_error, it.message ?: "") }
+                                    onSuccess = { Banner(context.getString(R.string.msg_drive_saved), BannerKind.OK) },
+                                    onFailure = { Banner(context.getString(R.string.msg_drive_error, it.message ?: ""), BannerKind.ERROR) }
                                 )
                             }
                         },
@@ -555,8 +570,8 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                                 val result = DriveBackupManager.restore(context, vm, prefs)
                                 isDriveLoading = false
                                 driveMsg = result.fold(
-                                    onSuccess = { "✅ $it" },
-                                    onFailure = { context.getString(R.string.msg_drive_error, it.message ?: "") }
+                                    onSuccess = { Banner(it, BannerKind.OK) },
+                                    onFailure = { Banner(context.getString(R.string.msg_drive_error, it.message ?: ""), BannerKind.ERROR) }
                                 )
                             }
                         },
@@ -573,16 +588,15 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
                     }
                 }
 
-                driveMsg?.let { msg ->
+                driveMsg?.let { b ->
                     Spacer(Modifier.height(10.dp))
-                    val isOk = msg.startsWith("✅")
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isOk) Color(0x1A10B981) else Color(0x1AF87171),
-                        border = BorderStroke(1.dp, if (isOk) Color(0x4D10B981) else Color(0x4DF87171)),
+                        color = bannerBg(b.kind),
+                        border = BorderStroke(1.dp, bannerBorder(b.kind)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(msg, color = if (isOk) Green else Red, fontSize = 13.sp, modifier = Modifier.padding(12.dp))
+                        Text(b.text, color = bannerFg(b.kind), fontSize = 13.sp, modifier = Modifier.padding(12.dp))
                     }
                 }
             }
