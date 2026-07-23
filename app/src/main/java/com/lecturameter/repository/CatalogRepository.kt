@@ -54,6 +54,43 @@ object CatalogRepository {
     // core + packs descargados. Se consultan todos y se fusionan resultados.
     private val open = LinkedHashMap<String, SQLiteDatabase>()
 
+    // Mapa autor kanji/kana -> romaji (assets/author_romaji.json). Cubre resultados de
+    // Google Books/OpenLibrary, que devuelven el autor japones para ediciones espanolas.
+    private var authorRomaji: Map<String, String> = emptyMap()
+
+    private fun hasCjk(s: String) = s.any {
+        it.code in 0x3040..0x30FF || it.code in 0x4E00..0x9FFF || it.code in 0x3400..0x4DBF
+    }
+
+    private fun loadAuthorMap(context: Context) {
+        if (authorRomaji.isNotEmpty()) return
+        try {
+            val txt = context.assets.open("author_romaji.json").bufferedReader().use { it.readText() }
+            val obj = org.json.JSONObject(txt)
+            val m = HashMap<String, String>(obj.length() * 2)
+            val keys = obj.keys()
+            while (keys.hasNext()) { val k = keys.next(); m[k] = obj.getString(k) }
+            authorRomaji = m
+            Log.i(TAG, "author_romaji.json: ${m.size} entradas")
+        } catch (e: Exception) {
+            Log.w(TAG, "no se pudo cargar author_romaji.json: ${e.message}")
+        }
+    }
+
+    /** Devuelve el autor en alfabeto latino si se conoce; si no, el original. */
+    fun romanizeAuthor(raw: String?): String {
+        val a = raw?.trim().orEmpty()
+        if (a.isEmpty() || authorRomaji.isEmpty() || !hasCjk(a)) return a
+        authorRomaji[a]?.let { return it }                 // cadena completa conocida
+        // por partes (varios autores separados por | ; /)
+        val parts = a.split('|', ';', '/').map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.size <= 1) return a
+        val out = LinkedHashSet<String>()
+        for (p in parts) out.add(authorRomaji[p] ?: p)
+        val joined = out.joinToString(" & ")
+        return if (hasCjk(joined) && !authorRomaji.containsKey(a)) a else joined
+    }
+
     // -- ciclo de vida ------------------------------------------------------
 
     /**
@@ -68,6 +105,7 @@ object CatalogRepository {
         if (open.isNotEmpty()) return
         try {
             deleteLegacyCopy(context)
+            loadAuthorMap(context)
 
             val core = corePackFile(context)
             if (core == null) {

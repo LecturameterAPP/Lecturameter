@@ -35,7 +35,11 @@ android {
         //        pantalla, tras "Estadisticas avanzadas" (antes quedaba en medio)
         // 10044: v3.3 — autor de manga en romaji: si el resultado trae el autor en kanji y GB tiene el
         //        mismo libro con autor latino, se adopta el latino (Yukinobu Tatsu en vez de 龍幸伸)
-        versionCode 10044
+        // 10045: v3.3 — catalogo offline: autores de manga/JP romanizados en el asset pack (783 obras en
+        //        core via Wikidata + overrides; FTS reconstruido para buscar por el autor en romaji)
+        // 10046: v3.3 — romanizacion tambien en runtime (assets/author_romaji.json, 256 entradas): los
+        //        resultados de Google Books/OpenLibrary con autor en kanji se muestran en romaji
+        versionCode 10046
         versionName "3.3"
         multiDexEnabled true
 

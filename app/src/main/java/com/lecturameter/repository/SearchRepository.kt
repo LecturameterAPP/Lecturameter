@@ -3203,8 +3203,11 @@ suspend fun searchOpenLibrary(
     // duplicados de la misma edición no aparezcan ni siquiera de forma transitoria.
     fun emitPartial() {
         val cb = onPartial ?: return
+        // Feedback 23-07: el autor de manga suele llegar en kanji (GB/OL con la edicion espanola).
+        // Se romaniza en el ultimo paso (mapa en assets), sin afectar al dedup/orden anteriores.
         cb(collapseByIsbn(results.filter { r -> isMangaSourceKey(r.olKey) || relevance(r) >= 0.34 }
-            .sortedWith(comparator)))
+            .sortedWith(comparator))
+            .map { it.copy(author = CatalogRepository.romanizeAuthor(it.author)) })
     }
 
     // ── Fase 0: catálogo local ────────────────────────────────────────────────
