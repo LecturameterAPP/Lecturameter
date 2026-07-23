@@ -2000,7 +2000,19 @@ class BooksViewModel : ViewModel() {
     fun setWrappedHistory(history: List<YearWrapped>) { _wrappedHistory.value = history }
 
     private fun loadWrapped(prefs: android.content.SharedPreferences) {
-        com.lecturameter.repository.WrappedRepository.loadOrNull(prefs)?.let { _wrappedHistory.value = it }
+        com.lecturameter.repository.WrappedRepository.loadOrNull(prefs)?.let { loaded ->
+            // Guard de integridad (feedback 22-07): un wrapped cuyo año es el ACTUAL (o futuro)
+            // guardado FUERA de su ventana solo puede ser un artefacto de preview -- los guardados
+            // reales solo ocurren dentro de la ventana (WrappedScreen.LaunchedEffect). Se descarta
+            // para que nadie vea un wrapped prematuro; el de la ventana se recalcula y guarda solo.
+            // El Wrapped sigue sin poder borrarse a mano: esto es integridad, no un borrado de usuario.
+            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            val cleaned = loaded.filterNot { it.year >= currentYear && wrappedWindowYear() != it.year }
+            _wrappedHistory.value = cleaned
+            if (cleaned.size != loaded.size) {
+                com.lecturameter.repository.WrappedRepository.save(prefs, cleaned)
+            }
+        }
     }
     private fun saveWrapped(prefs: android.content.SharedPreferences) {
         com.lecturameter.repository.WrappedRepository.save(prefs, _wrappedHistory.value)

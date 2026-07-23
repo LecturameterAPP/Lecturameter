@@ -1045,7 +1045,8 @@ fun GenreSelectorSheet(
     ) {
         // Feedback 11-07: la lista usa weight() dentro del alto acotado del sheet
         // (nada de alturas fijas) para que el pie de botones nunca se salga de pantalla.
-        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp).navigationBarsPadding()) {
+        // P6: en horizontal se acota el alto al ~72% (el weight de la lista sigue funcionando).
+        Column(Modifier.landscapeSheetCap().padding(horizontal = 16.dp).padding(bottom = 16.dp).navigationBarsPadding()) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.genre_sheet_title), color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text(
@@ -1354,7 +1355,7 @@ fun mapApiGenre(raw: String): List<String> {
         r.contains("webtoon")) add("Manga")
     if ((r.contains("comic") && !r.contains("comicbook")) || r.contains("graphic novel") ||
         r.contains("novela gráfica") || r.contains("novela grafica") ||
-        r.contains("bande dessinée") || r.contains("bd")) add("Cómics y novela gráfica")
+        r.contains("bande dessinée") || Regex("\\bbd\\b").containsMatchIn(r)) add("Cómics y novela gráfica")
 
     // ── Costumbrismo ───────────────────────────────────────────────────────
     if (r.contains("costumbris") || r.contains("realismo social") ||
@@ -1439,6 +1440,10 @@ class MainActivity : ComponentActivity() {
 
     // ISBN escaneado — se pasa a LecturaMeterApp como estado observable
     internal var pendingScannedIsbn = androidx.compose.runtime.mutableStateOf<String?>(null)
+    // ISSN escaneado (revista/grapa, prefijo 977): no es un ISBN y ninguna fuente gratuita lo
+    // resuelve, asi que el escaner lo devuelve aparte y la app muestra un aviso claro (ver
+    // dialogo en ListScreen). Estado observable, mismo patron que pendingScannedIsbn.
+    internal var pendingScannedIssn = androidx.compose.runtime.mutableStateOf<String?>(null)
     // ISBN escaneado desde BookSearch — activa dialog directamente en BookSearchScreen
     internal var isbnFromScannerForBookSearch = androidx.compose.runtime.mutableStateOf<String?>(null)
     // Feedback 14-07 (F6): query inicial para BookSearch (CTA «Buscar "X" en internet»).
@@ -1469,6 +1474,14 @@ class MainActivity : ComponentActivity() {
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
+            // Fleco ISSN (22-07): si el escaner devolvio un ISSN (revista, prefijo 977) en vez de
+            // un ISBN, se limpia la marca de escaneo y se muestra el aviso claro en la app.
+            val issn = result.data?.getStringExtra("issn")
+            if (issn != null) {
+                if (isbnFromScannerForBookSearch.value == "__scanning__") isbnFromScannerForBookSearch.value = null
+                pendingScannedIssn.value = issn
+                return@registerForActivityResult
+            }
             val isbn = result.data?.getStringExtra("isbn") ?: return@registerForActivityResult
             if (isbnFromScannerForBookSearch.value == "__scanning__") {
                 // Escaneo iniciado desde BookSearch → dialog directo en BookSearch
@@ -1970,6 +1983,26 @@ fun LecturaMeterTheme(theme: Theme, content: @Composable () -> Unit) {
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 
+// Plan landscape v3.0: helper unico para alternar layout portrait/landscape. Se detecta por
+// ORIENTACION (no por ancho): un movil en horizontal (~360dp de alto) necesita adaptaciones
+// aunque no sea "wide". Complementa a WideScreenCenter (que sigue acotando anchos en tablet).
+@Composable
+fun isLandscape(): Boolean =
+    androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+// Plan landscape v3.0 (P6): en horizontal una hoja inferior puede casi llenar la pantalla y
+// dejar su boton de accion bajo el fold. Se acota el alto al ~72% de la pantalla (en vertical
+// no aplica: la hoja crece con su contenido como siempre). El contenido de cada hoja ya
+// scrollea por su cuenta (verticalScroll propio, o lista con weight); esto solo pone el techo.
+@Composable
+fun Modifier.landscapeSheetCap(): Modifier {
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
+    return if (config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
+        this.heightIn(max = (config.screenHeightDp * 0.72f).dp)
+    else this
+}
+
 // v2.4: centrado de contenido en pantallas anchas (mockup aprobado).
 // ≤600dp deja el contenido tal cual; por encima lo acota a maxWidth y lo centra.
 @Composable
@@ -2067,6 +2100,38 @@ fun LecturaMeterApp(vm: BooksViewModel, prefs: android.content.SharedPreferences
     val sessions by vm.sessions.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? android.app.Activity
+
+    // Fleco ISSN (22-07): aviso a NIVEL RAÍZ cuando se escanea un código ISSN (revista/grapa,
+    // prefijo 977) que no es un ISBN. Va aquí, no en ListScreen, para que salte se haya lanzado
+    // el escáner desde donde sea (home o "Buscar libros"). Ninguna fuente gratuita resuelve un
+    // ISSN de cómic, así que solo se avisa de que se añada a mano. Se lee el estado directo: al
+    // ponerse a null (cerrar) el diálogo desaparece sin estado extra.
+    val issnMainRef = context as? MainActivity
+    val pendingIssn = issnMainRef?.pendingScannedIssn?.value
+    if (issnMainRef != null && !pendingIssn.isNullOrBlank()) {
+        val issnAcc = accentForTheme(theme)
+        AlertDialog(
+            onDismissRequest = { issnMainRef.pendingScannedIssn.value = null },
+            containerColor = theme.bgMid,
+            title = { Text(stringResource(R.string.issn_scanned_title), color = theme.textMain, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
+                        Text("ISSN $pendingIssn", color = issnAcc, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                    }
+                    Text(stringResource(R.string.scanner_issn_detected), color = theme.textMuted, fontSize = 13.sp, lineHeight = 18.sp)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { issnMainRef.pendingScannedIssn.value = null },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = issnAcc, contentColor = onAccentColor(theme))
+                ) { Text(stringResource(R.string.issn_scanned_ok), fontWeight = FontWeight.SemiBold) }
+            }
+        )
+    }
 
     // Lee el bookId del intent: o bien del extra "widget_book_id", o bien de la URI
     // "lecturameter://book/{id}" (Glance preserva la URI pero NO los extras).

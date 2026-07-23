@@ -201,7 +201,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accentForTheme(theme).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                        Text("📚", fontSize = 20.sp)
+                        Icon(Icons.Default.MenuBook, null, tint = accentForTheme(theme), modifier = Modifier.size(22.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -235,13 +235,13 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
         Spacer(Modifier.height(20.dp))
 
         // ── EXPORTAR ─────────────────────────────────────────────────────────
-        Text("📥 " + stringResource(R.string.txt_53d6215e), color = theme.textDim, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp, modifier = Modifier.padding(bottom = 10.dp))
+        Text(stringResource(R.string.txt_53d6215e), color = theme.textDim, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp, modifier = Modifier.padding(bottom = 10.dp))
 
         Surface(shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x1A10B981)), contentAlignment = Alignment.Center) {
-                        Text("📊", fontSize = 20.sp)
+                        Icon(Icons.Default.BarChart, null, tint = Green, modifier = Modifier.size(22.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -323,7 +323,7 @@ fun ImportExportScreen(vm: BooksViewModel, prefs: android.content.SharedPreferen
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
                     Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x1AF59E0B)), contentAlignment = Alignment.Center) {
-                        Text("🔒", fontSize = 20.sp)
+                        Icon(Icons.Default.Lock, null, tint = Amber, modifier = Modifier.size(22.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {

@@ -91,7 +91,7 @@ fun ProUpsellSheet(
             // Review 22-07 (critico): sin scroll, la hoja de Pro (tabla comparativa + prueba +
             // botones) podia dejar el CTA de compra o "Ahora no" fuera de pantalla en moviles
             // bajos o con fuente grande, agravado al abrir completa (skipPartiallyExpanded). Scrollea.
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            Modifier.fillMaxWidth().landscapeSheetCap().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (showCodeEntry) {

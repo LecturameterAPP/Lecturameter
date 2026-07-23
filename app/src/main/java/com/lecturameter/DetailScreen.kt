@@ -120,10 +120,12 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
     val notifPermLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (!isGranted) showNotifPermDeniedDialog = true
-        // Lanzar igualmente — el servicio funciona, solo no habrá notificación visible
-        pendingTimerAction?.invoke()
-        pendingTimerAction = null
+        if (!isGranted) {
+            showNotifPermDeniedDialog = true
+        } else {
+            pendingTimerAction?.invoke()
+            pendingTimerAction = null
+        }
     }
     if (showNotifPermDialog) {
         AlertDialog(
@@ -144,9 +146,6 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 TextButton(onClick = {
                     showNotifPermDialog = false
                     showNotifPermDeniedDialog = true
-                    // Iniciar igualmente sin notificación
-                    pendingTimerAction?.invoke()
-                    pendingTimerAction = null
                 }) { Text(stringResource(R.string.txt_ca8f9bb3), color = Red) }
             }
         )
@@ -159,7 +158,7 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
-                TextButton(onClick = { showNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
+                TextButton(onClick = { showNotifPermDeniedDialog = false; pendingTimerAction?.invoke(); pendingTimerAction = null }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
             }
         )
     }
@@ -719,7 +718,8 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                                     Text(ed.flag, fontSize = 22.sp)
                                                     Column(Modifier.weight(1f)) {
                                                         Text(ed.title.ifBlank { book.title }, color = theme.textMain, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                                        Text("${ed.languageLabel} · ${ed.publisher.ifBlank { "-" }} · ${ed.publishYear.ifBlank { "-" }}", color = theme.textDim, fontSize = 11.sp)
+                                                        val edLangLabel = if (ed.languageLabel == "Edición principal") stringResource(R.string.main_edition) else ed.languageLabel
+                                                        Text("$edLangLabel · ${ed.publisher.ifBlank { "-" }} · ${ed.publishYear.ifBlank { "-" }}", color = theme.textDim, fontSize = 11.sp)
                                                         if (!ed.isbn.isNullOrBlank()) Text("ISBN: ${ed.isbn}", color = theme.textMuted, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                                                         if (ed.pages > 0) Text(stringResource(R.string.search_pages_count, ed.pages), color = theme.textMuted, fontSize = 11.sp)
                                                     }
@@ -973,13 +973,15 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
             dismissButton = { TextButton(onClick = { showCoverDialog = false }) { Text(stringResource(R.string.txt_847607d7), color = Red) } }, containerColor = theme.bgMid)
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 28.dp, bottom = 20.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
-        }
-        Surface(shape = RoundedCornerShape(20.dp), color = theme.surface, border = BorderStroke(1.dp, theme.border)) {
-            Column(Modifier.padding(24.dp)) {
+    // P2 landscape: en horizontal, portada (izquierda ~35%) al lado de la info
+    // (derecha ~65% con scroll propio). En portrait todo queda apilado en un unico
+    // scroll, EXACTAMENTE como antes. Ambos paneles se declaran una sola vez como
+    // lambdas y solo cambia el contenedor que los coloca.
+    val detailLandscape = isLandscape()
+    val rightPaneScroll = rememberScrollState()
 
+    // ── Panel izquierdo: portada (+ mensaje de refresco y, en landscape, la nota) ──
+    val coverPane: @Composable ColumnScope.() -> Unit = {
                 // Cover + Edit + Refresh
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     BookCover(book.coverUrl, book.title, size = 120, onBroken = { vm.markCoverBroken(id, prefs) }, isbnFallback = book.isbn, author = book.author)
@@ -1019,6 +1021,17 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 }
                 if (refreshMsg.isNotBlank()) { Spacer(Modifier.height(6.dp)); Text(refreshMsg, color = if (refreshMsg.startsWith("✅")) Green else Amber, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterHorizontally)) }
 
+                // En landscape la nota/estrellitas viven bajo la portada, en la columna
+                // izquierda. En portrait siguen en su sitio original dentro de la info.
+                if (detailLandscape) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(stringResource(R.string.txt_ec0bec6b), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
+                    RatingSelector(selectedRating) { r -> selectedRating = r; vm.updateRating(id, r, prefs) }
+                }
+    }  // fin coverPane
+
+    // ── Panel derecho: informacion (ediciones, crono, titulo, stats, sesiones…) ──
+    val infoPane: @Composable ColumnScope.() -> Unit = {
                 // ── Ediciones ────────────────────────────────────────────────
                 Spacer(Modifier.height(14.dp))
                 // D-015 (Cuero): nervio de lomo antes de la tarjeta de ediciones
@@ -1541,6 +1554,11 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                                 contentColor = if (isCurrentWidget) Color(0xFF10B981) else acc
                             )
                         ) {
+                            Icon(
+                                if (isCurrentWidget) Icons.Default.CheckCircle else Icons.Default.Cast,
+                                null, modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Text(
                                 if (isCurrentWidget) stringResource(R.string.widget_currently_showing) else stringResource(R.string.widget_show_button),
                                 fontWeight = FontWeight.SemiBold,
@@ -1664,10 +1682,12 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 }
                 Spacer(Modifier.height(20.dp))
 
-                // Rating
-                Text(stringResource(R.string.txt_ec0bec6b), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
-                RatingSelector(selectedRating) { r -> selectedRating = r; vm.updateRating(id, r, prefs) }
-                Spacer(Modifier.height(20.dp))
+                // Rating — en portrait aqui; en landscape se muestra bajo la portada (izq)
+                if (!detailLandscape) {
+                    Text(stringResource(R.string.txt_ec0bec6b), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
+                    RatingSelector(selectedRating) { r -> selectedRating = r; vm.updateRating(id, r, prefs) }
+                    Spacer(Modifier.height(20.dp))
+                }
 
                 // Comment
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -2236,6 +2256,41 @@ fun DetailScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences, t
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { showDeleteDialog = true }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Color(0x33F87171)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Red, containerColor = Color(0x1AF87171))) {
                     Icon(Icons.Default.Delete, null, tint = Red); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_b375487f), fontWeight = FontWeight.SemiBold)
+                }
+    }  // fin infoPane
+
+    // Contenedor: portrait = un unico scroll con todo apilado (identico a antes);
+    // landscape = fila con portada a la izquierda e info scrollable a la derecha.
+    Column(
+        Modifier
+            .fillMaxSize()
+            .then(if (detailLandscape) Modifier else Modifier.verticalScroll(scrollState))
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 28.dp, bottom = 20.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, null, tint = theme.textMain) }
+        }
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = theme.surface,
+            border = BorderStroke(1.dp, theme.border),
+            modifier = if (detailLandscape) Modifier.weight(1f).fillMaxWidth() else Modifier
+        ) {
+            if (detailLandscape) {
+                Row(Modifier.fillMaxSize().padding(24.dp)) {
+                    Column(
+                        modifier = Modifier.weight(0.35f).align(Alignment.CenterVertically),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) { coverPane() }
+                    Spacer(Modifier.width(20.dp))
+                    Column(
+                        modifier = Modifier.weight(0.65f).fillMaxHeight().verticalScroll(rightPaneScroll)
+                    ) { infoPane() }
+                }
+            } else {
+                Column(Modifier.padding(24.dp)) {
+                    coverPane()
+                    infoPane()
                 }
             }
         }

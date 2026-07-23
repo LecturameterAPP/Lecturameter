@@ -30,7 +30,9 @@ fun PrivacyPolicyScreen(theme: Theme, onBack: () -> Unit) {
         PrivacySection(R.string.privacy_policy_section_search_title, R.string.privacy_policy_search_body),
         PrivacySection(R.string.privacy_policy_section_feedback_title, R.string.privacy_policy_feedback_body),
         PrivacySection(R.string.privacy_policy_section_pro_title, R.string.privacy_policy_pro_body),
-        PrivacySection(R.string.privacy_policy_section_contact_title, R.string.privacy_policy_contact_body)
+        PrivacySection(R.string.privacy_policy_section_permissions_title, R.string.privacy_policy_permissions_body),
+        PrivacySection(R.string.privacy_policy_section_contact_title, R.string.privacy_policy_contact_body),
+        PrivacySection(R.string.privacy_policy_section_changes_title, R.string.privacy_policy_changes_body)
     )
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {

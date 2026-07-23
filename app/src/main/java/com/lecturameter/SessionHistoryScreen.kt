@@ -255,7 +255,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
                     Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🔍", fontSize = 14.sp)
+                    Icon(Icons.Default.Search, null, tint = theme.textMuted, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     BasicTextField(
                         value = searchQuery,
@@ -312,7 +312,7 @@ fun SessionHistoryScreen(vm: BooksViewModel, theme: Theme, onClose: () -> Unit, 
         } else if (filteredSessions.isEmpty() && searchQuery.isNotBlank()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🔍", fontSize = 36.sp)
+                    Icon(Icons.Default.SearchOff, null, tint = theme.textDim, modifier = Modifier.size(44.dp))
                     Spacer(Modifier.height(10.dp))
                     Text(stringResource(R.string.txt_57be44d3, searchQuery),
                         color = theme.textDim, fontSize = 14.sp, textAlign = TextAlign.Center)

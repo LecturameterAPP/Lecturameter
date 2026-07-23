@@ -21,8 +21,10 @@ android {
         // 10034: v3.1 — resubida con código de versión corregido
         // 10035: v3.2 — build interino para track interno (verificar Billing 8 + edge-to-edge Android 16)
         // 10036: v3.2 — feedback 22-07 (16 KB, Pro 3/4/5, Apoya el proyecto, Wrapped, toggle Drive)
-        versionCode 10036
-        versionName "3.2"
+        // 10037: v3.3 — fix catalogo offline (listener PAD hasta COMPLETED) + retoques UI (email
+        //        resaltado, "+ Añadir portada", frase precios propinas)
+        versionCode 10037
+        versionName "3.3"
         multiDexEnabled true
 
         // Fase 7: API key de Google Books desde local.properties (GOOGLE_BOOKS_API_KEY).

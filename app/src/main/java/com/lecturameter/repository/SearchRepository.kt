@@ -913,8 +913,18 @@ internal suspend fun fetchIsbnFullMetadata(isbn: String): IsbnFullMetadata {
         val t = title
         fun needCover() = coverUrl == null
         fun needGenre() = bestGenreFromRawCandidates(rawGenres).isEmpty()
-        val looksManga = t != null && (extractVolumeNumber(t) != null ||
-            rawGenres.any { g -> g.contains("manga", true) || g.contains("comic", true) || g.contains("cómic", true) })
+        // Feedback 22-07 (comics P1): NO disparar el enriquecimiento manga solo por genero
+        // "comic"/"cómic". El manga espanol (Norma/Planeta via Google Books) se etiqueta
+        // "Comics & Graphic Novels" SIN "manga", asi que excluir por ese genero lo degradaria;
+        // y a la vez un comic occidental sin patron de tomo colaba a las APIs de manga y se
+        // llevaba portada/genero japones. Se dispara solo con senal manga explicita
+        // (manga/manhwa/manhua/webtoon) o patron de tomo en el titulo (Kitsu/AniList/MangaDex
+        // ya filtran ademas por matchScore >= 0.4, asi que un tomo occidental no casa fuerte).
+        val mangaSignal = rawGenres.any { g ->
+            g.contains("manga", true) || g.contains("manhwa", true) ||
+            g.contains("manhua", true) || g.contains("webtoon", true)
+        }
+        val looksManga = t != null && (mangaSignal || extractVolumeNumber(t) != null)
         if (t != null && looksManga && (needCover() || needGenre())) {
             val (serie, tomo) = extractSeriesAndVolume(t)
             val q = serie.ifBlank { t }
@@ -1639,7 +1649,11 @@ suspend fun fetchBookMetadata(title: String, author: String, isbn: String?): Boo
         // ═════════════════════════════════════════════════════════════════════
         val baseGenres = openLibrary.genres + googleBooks.genres + olBooks.genres
         val volumeNum = extractVolumeNumber(title)
-        val isManga = baseGenres.any { it == "Manga" || it == "Cómics y novela gráfica" } || volumeNum != null
+        // Feedback 22-07 (comics P1): "Cómics y novela gráfica" ya no dispara solo las APIs de
+        // manga. El manga espanol se etiqueta asi (sin "Manga") pero casi siempre trae tomo en
+        // el titulo, asi que se sigue cubriendo por volumeNum; un comic occidental sin tomo deja
+        // de llamar a AniList/MangaDex/MangaUpdates (y de arriesgar genero/portada japones).
+        val isManga = baseGenres.any { it == "Manga" } || volumeNum != null
 
         val aniList: BookMetadata
         val mangaDex: BookMetadata
@@ -3110,12 +3124,46 @@ suspend fun searchOpenLibrary(
             .thenByDescending { it.pages > 1 }                                   // páginas funcionales
             .thenByDescending { it.pages }
 
+    // Fusión por ISBN (fleco Miles Morales, 22-07): el dedup del resto de la función es por
+    // TÍTULO normalizado, así que dos fuentes que devuelven el MISMO libro con títulos distintos
+    // ("Miles Morales: Origen" -> "Origen" en una, "Miles Morales" en otra) NO se unen y salen
+    // duplicados, sobre todo al buscar por ISBN. Colapsa los que comparten ISBN-13 limpio:
+    // conserva el primero (la lista viene ordenada, así que es el mejor rankeado) y le rellena los
+    // huecos con los duplicados descartados. Los que no tienen ISBN se dejan intactos. Se aplica
+    // tanto en los snapshots parciales como en el final, para que el duplicado NO llegue a verse.
+    fun collapseByIsbn(list: List<OpenLibraryResult>): List<OpenLibraryResult> {
+        val idxByIsbn = HashMap<String, Int>()
+        val collapsed = ArrayList<OpenLibraryResult>(list.size)
+        for (r in list) {
+            // canonicalIsbn (no cleanIsbn): normaliza ISBN-10 -> ISBN-13, para que dos fuentes que
+            // devuelven la MISMA edición con distinto formato (8427... vs 9788427...) se fusionen.
+            val key = canonicalIsbn(r.isbn)
+            val at = if (key != null) idxByIsbn[key] else null
+            if (at == null) {
+                if (key != null) idxByIsbn[key] = collapsed.size
+                collapsed.add(r)
+            } else {
+                val prev = collapsed[at]
+                collapsed[at] = prev.copy(
+                    author      = prev.author.ifBlank { r.author },
+                    pages       = if (prev.pages > 1) prev.pages else r.pages,
+                    coverUrl    = prev.coverUrl ?: r.coverUrl,
+                    genre       = prev.genre.ifBlank { r.genre },
+                    publishYear = prev.publishYear.ifBlank { r.publishYear },
+                    language    = prev.language.ifBlank { r.language }
+                )
+            }
+        }
+        return collapsed
+    }
+
     // Feedback 2.6: snapshot filtrado y ordenado tras cada fase → la lista va creciendo
-    // en pantalla en vez de aparecer entera al final.
+    // en pantalla en vez de aparecer entera al final. Se colapsa por ISBN para que los
+    // duplicados de la misma edición no aparezcan ni siquiera de forma transitoria.
     fun emitPartial() {
         val cb = onPartial ?: return
-        cb(results.filter { r -> isMangaSourceKey(r.olKey) || relevance(r) >= 0.34 }
-            .sortedWith(comparator))
+        cb(collapseByIsbn(results.filter { r -> isMangaSourceKey(r.olKey) || relevance(r) >= 0.34 }
+            .sortedWith(comparator)))
     }
 
     // ── Fase 0: catálogo local ────────────────────────────────────────────────
@@ -3495,6 +3543,11 @@ suspend fun searchOpenLibrary(
         results.removeAll { r -> !isMangaSourceKey(r.olKey) && relevance(r) < 0.34 }
         results.sortWith(comparator)
     }
+
+    // Fusión por ISBN (fleco Miles Morales, 22-07): último paso, para que el resultado final
+    // tampoco traiga duplicados de la misma edición. Ver collapseByIsbn más arriba.
+    val mergedFinal = collapseByIsbn(results)
+    results.clear(); results.addAll(mergedFinal)
 
     results.take(20)
 }

@@ -23,6 +23,7 @@ class TimerService : Service() {
 
     private val binder = LocalBinder()
     private var tickJob: Job? = null
+    private var lastStartId: Int = 0
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // v1.4: el Service corre con el locale del sistema; fuerza el idioma elegido en la app
@@ -41,6 +42,7 @@ class TimerService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
         when (intent?.action) {
             ACTION_START  -> {
                 val bookId = intent.getLongExtra(EXTRA_BOOK_ID, -1L)
@@ -67,7 +69,7 @@ class TimerService : Service() {
                 if (runPrefs.getBoolean("is_running", false)) {
                     val savedBook = runPrefs.getLong("running_book_id", -1L)
                     val savedSecs = runPrefs.getLong("running_seconds", 0L)
-                    if (savedBook > 0L && savedSecs > 0L) {
+                    if (savedBook > 0L) {
                         TimerStateHolder.activeBookId = savedBook
                         TimerStateHolder.seconds = savedSecs
                         TimerStateHolder.activeBookTitle = runPrefs.getString("running_book_title", "") ?: ""
@@ -196,7 +198,7 @@ class TimerService : Service() {
         }
 
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        stopSelf(lastStartId)
     }
 
     private fun ensureForeground() {

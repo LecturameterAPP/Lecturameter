@@ -101,7 +101,7 @@ fun ChallengeContributionSheet(
     frozen: List<com.lecturameter.model.FrozenContribution>? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 28.dp)) {
+        Column(Modifier.landscapeSheetCap().padding(start = 20.dp, end = 20.dp, bottom = 28.dp)) {
             Text(title, color = theme.textMain, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(stringResource(R.string.challenge_contrib_title), color = theme.textMuted, fontSize = 12.sp)
@@ -178,6 +178,65 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
     @Composable
     fun challengeDisplayName(challenge: Challenge): String =
         if (challenge.isDefault) challengeDefaultName(challenge.type) else challenge.name
+
+    // P7 landscape: la tarjeta de reto activo se extrae para reutilizarla en portrait
+    // (1 columna) y landscape (grid de 2 columnas) sin duplicar el composable. El
+    // `modifier` permite darle weight(1f) dentro de una fila en landscape.
+    @Composable
+    fun ChallengeCard(challenge: Challenge, modifier: Modifier = Modifier) {
+        val (current, target) = vm.challengeProgress(challenge)
+        val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
+        val done = current >= target
+        // P-026: tocar la tarjeta abre el desglose de libros que aportan
+        Surface(onClick = { contribTarget = challenge }, shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, if (done) Green.copy(alpha = 0.5f) else theme.border), modifier = modifier) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        // v2.5 + Feedback 14-07: los retos predeterminados se traducen
+                        // al idioma actual (los 5, no solo libros/racha)
+                        val displayName = challengeDisplayName(challenge)
+                        Text(displayName, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        val meta = buildString {
+                            append(if (challenge.isDefault) stringResource(R.string.challenge_meta_default) else stringResource(R.string.challenge_meta_custom))
+                            append(" · ").append(challengeTypeLabel(challenge.type))
+                            challenge.startDate?.let { append(" · ").append(stringResource(R.string.challenge_meta_from, fmtDate(it))) }
+                            challenge.endDate?.let { append(" · ").append(stringResource(R.string.challenge_meta_until, fmtDate(it))) }
+                            challenge.titleFilter?.takeIf { it.isNotBlank() }?.let { append(" · «").append(it).append("»") }
+                        }
+                        Text(meta, color = theme.textMuted, fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Surface(shape = RoundedCornerShape(20.dp), color = if (done) Green.copy(alpha = 0.15f) else acc.copy(alpha = 0.12f)) {
+                        Text(
+                            stringResource(R.string.challenge_progress, current, target),
+                            color = if (done) Green else acc,
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    IconButton(onClick = { deleteTarget = challenge }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Delete, stringResource(R.string.txt_5b5c9f9d), tint = Red.copy(alpha = 0.6f), modifier = Modifier.size(15.dp))
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                // P-027: el porcentaje va junto a la barra (antes solo el absoluto arriba)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LinearProgressBar(ratio, if (done) Green else acc, Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "${(ratio * 100).toInt()}%",
+                        color = if (done) Green else theme.textMuted,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                if (done) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(stringResource(R.string.challenge_completed), color = Green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
 
     // ── Diálogo crear reto ────────────────────────────────────────────────────
     if (showCreateDialog) {
@@ -434,60 +493,23 @@ fun ChallengesScreen(vm: BooksViewModel, prefs: android.content.SharedPreference
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 ) {
-                    pageItems.forEach { challenge ->
-                val (current, target) = vm.challengeProgress(challenge)
-                val ratio = (current.toFloat() / target.coerceAtLeast(1)).coerceIn(0f, 1f)
-                val done = current >= target
-                // P-026: tocar la tarjeta abre el desglose de libros que aportan
-                Surface(onClick = { contribTarget = challenge }, shape = RoundedCornerShape(16.dp), color = theme.surface, border = BorderStroke(1.dp, if (done) Green.copy(alpha = 0.5f) else theme.border)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                // v2.5 + Feedback 14-07: los retos predeterminados se traducen
-                                // al idioma actual (los 5, no solo libros/racha)
-                                val displayName = challengeDisplayName(challenge)
-                                Text(displayName, color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                val meta = buildString {
-                                    append(if (challenge.isDefault) stringResource(R.string.challenge_meta_default) else stringResource(R.string.challenge_meta_custom))
-                                    append(" · ").append(challengeTypeLabel(challenge.type))
-                                    challenge.startDate?.let { append(" · ").append(stringResource(R.string.challenge_meta_from, fmtDate(it))) }
-                                    challenge.endDate?.let { append(" · ").append(stringResource(R.string.challenge_meta_until, fmtDate(it))) }
-                                    challenge.titleFilter?.takeIf { it.isNotBlank() }?.let { append(" · «").append(it).append("»") }
+                    // P7 landscape: en horizontal las tarjetas van en grid de 2 columnas para
+                    // aprovechar el ancho; en portrait se mantiene EXACTAMENTE la columna única.
+                    if (isLandscape()) {
+                        pageItems.chunked(2).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                rowItems.forEach { challenge ->
+                                    ChallengeCard(challenge, Modifier.weight(1f))
                                 }
-                                Text(meta, color = theme.textMuted, fontSize = 11.sp)
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Surface(shape = RoundedCornerShape(20.dp), color = if (done) Green.copy(alpha = 0.15f) else acc.copy(alpha = 0.12f)) {
-                                Text(
-                                    stringResource(R.string.challenge_progress, current, target),
-                                    color = if (done) Green else acc,
-                                    fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-                            Spacer(Modifier.width(4.dp))
-                            IconButton(onClick = { deleteTarget = challenge }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.Delete, stringResource(R.string.txt_5b5c9f9d), tint = Red.copy(alpha = 0.6f), modifier = Modifier.size(15.dp))
+                                // Fila impar: hueco para que la última tarjeta no ocupe todo el ancho
+                                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
-                        Spacer(Modifier.height(10.dp))
-                        // P-027: el porcentaje va junto a la barra (antes solo el absoluto arriba)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            LinearProgressBar(ratio, if (done) Green else acc, Modifier.weight(1f))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "${(ratio * 100).toInt()}%",
-                                color = if (done) Green else theme.textMuted,
-                                fontSize = 11.sp, fontWeight = FontWeight.Bold
-                            )
-                        }
-                        if (done) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(stringResource(R.string.challenge_completed), color = Green, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    } else {
+                        pageItems.forEach { challenge ->
+                            ChallengeCard(challenge)
                         }
                     }
-                }
-                    } // forEach pageItems
                 } // Column página
             } // HorizontalPager
             // Dot-pagination (solo con más de una página)
@@ -1724,7 +1746,7 @@ fun StatsChartsView(
                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     // startActivity siempre en el hilo principal — en IO crashea en MIUI
-                    context.startActivity(android.content.Intent.createChooser(intent, "Exportar estadísticas"))
+                    context.startActivity(android.content.Intent.createChooser(intent, context.getString(R.string.chooser_export_stats)))
                     exportError = null
                 } catch (e: Exception) {
                     exportError = "❌ Error al exportar: ${e.message}"

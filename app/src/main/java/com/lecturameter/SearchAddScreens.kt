@@ -181,7 +181,7 @@ fun BookSearchScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
-                    ) { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_69e20782), fontWeight = FontWeight.Bold) }
+                    ) { Icon(Icons.Default.TravelExplore, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.txt_69e20782), fontWeight = FontWeight.Bold) }
                     OutlinedButton(
                         onClick = {
                             showScanDialog = false
@@ -439,12 +439,14 @@ fun BookSearchScreen(
             // Feedback 2.6: spinner a pantalla completa solo mientras no hay NINGÚN
             // resultado; con parciales se muestra la lista con un indicador pequeño.
             isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(color = acc); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_65dc881f), color = theme.textMuted, fontSize = 14.sp) } }
-            errorMsg.isNotBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(if (networkError) "📡" else "🔍", fontSize = 40.sp); Spacer(Modifier.height(12.dp)); Text(errorMsg, color = if (networkError) Red else theme.textMuted, fontSize = 14.sp, fontWeight = if (networkError) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)); Text(if (networkError) stringResource(R.string.err_check_wifi_retry) else stringResource(R.string.err_try_other_language), color = if (networkError) Red.copy(alpha = 0.7f) else theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
-            // Onboarding de la búsqueda sin conexión (1 de 3): este estado vacío lo ve todo
-            // el que entra a buscar, no interrumpe a nadie y aparece justo cuando la
-            // información sirve. Los otros dos sitios son la hoja de añadir libro y la
-            // slide 4 del tutorial. Se descartaron una pantalla dedicada y una slide nueva.
-            !searched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("🔎", fontSize = 48.sp); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_af80d2f5), color = theme.textMain, fontSize = 16.sp); Spacer(Modifier.height(6.dp)); Text(stringResource(R.string.search_empty_offline_hint), color = theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
+            errorMsg.isNotBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(if (networkError) "📡" else "🔍", fontSize = 40.sp); Spacer(Modifier.height(12.dp)); Text(errorMsg, color = if (networkError) Red else theme.textMuted, fontSize = 14.sp, fontWeight = if (networkError) FontWeight.Bold else FontWeight.Normal, textAlign = TextAlign.Center); Spacer(Modifier.height(8.dp)); Text(if (networkError) stringResource(R.string.err_check_wifi_retry) else stringResource(R.string.err_try_other_language), color = if (networkError) Red.copy(alpha = 0.7f) else theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center); Spacer(Modifier.height(16.dp)); OutlinedButton(onClick = { selectedResult = OpenLibraryResult(title = query.trim(), author = "", pages = 0, coverUrl = null, isbn = null, genre = "", publishYear = "") }, shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, acc)) { Text(stringResource(R.string.search_add_manually), color = acc, fontSize = 13.sp) } } }
+            // Onboarding de la búsqueda sin conexión: este estado vacío lo ve todo el que entra
+            // a buscar, no interrumpe a nadie y aparece justo cuando la información sirve.
+            // Feedback 22-07 (punto 11): el hint "funciona sin conexión" se prometía SIEMPRE,
+            // pero sin catálogo descargado y sin red la búsqueda falla; contradecía al usuario
+            // nuevo. Ahora se condiciona a que el catálogo esté disponible; si no, se avisa de
+            // que hace falta una primera conexión (misma idea que err_no_internet_search, corta).
+            !searched -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.TravelExplore, null, tint = theme.textDim, modifier = Modifier.size(56.dp)); Spacer(Modifier.height(12.dp)); Text(stringResource(R.string.txt_af80d2f5), color = theme.textMain, fontSize = 16.sp); Spacer(Modifier.height(6.dp)); Text(if (com.lecturameter.CatalogRepository.isAvailable) stringResource(R.string.search_empty_offline_hint) else stringResource(R.string.search_empty_offline_pending), color = theme.textDim, fontSize = 12.sp, textAlign = TextAlign.Center) } }
             else -> {
                 if (isLoading) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
@@ -696,9 +698,9 @@ fun AddScreen(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                FormField("Title *", title, "The book's name", theme) { title = it }
-                FormField(stringResource(R.string.txt_c481b00a), author, "Author name", theme) { author = it }
-                FormField("Pages *", pages, "350", theme, KeyboardType.Number) { pages = it }
+                FormField(stringResource(R.string.add_field_title_label), title, stringResource(R.string.add_field_title_hint), theme) { title = it }
+                FormField(stringResource(R.string.txt_c481b00a), author, stringResource(R.string.add_field_author_hint), theme) { author = it }
+                FormField(stringResource(R.string.add_field_pages_label), pages, "350", theme, KeyboardType.Number) { pages = it }
                 // Páginas funcionales (opcionales) — entre páginas y género
                 Text(stringResource(R.string.txt_066bbf84), color = theme.textMuted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 4.dp))
                 Text(stringResource(R.string.txt_3d8b847e), color = theme.textDim, fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -1055,8 +1057,9 @@ fun EditionsSection(
                             // take(4)); mostrar "Inglés, Oct" cantaba. Si el valor no es un año de
                             // 4 cifras, no se enseña. El parser también se arregló para futuras altas.
                             val yearShown = ed.publishYear.takeIf { Regex("^\\d{4}$").matches(it) }
+                            val edLangLabel = if (ed.languageLabel == "Edición principal") stringResource(R.string.main_edition) else ed.languageLabel
                             val head = listOfNotNull(
-                                ed.languageLabel.ifBlank { null },
+                                edLangLabel.ifBlank { null },
                                 yearShown
                             ).joinToString(", ").ifBlank { ed.title.ifBlank { book.title } }
                             Text(head, color = theme.textMain, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)

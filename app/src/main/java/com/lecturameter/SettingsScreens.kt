@@ -416,6 +416,13 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
             Column {
                 Text(stringResource(R.string.survey_privacy), color = theme.textMuted, fontSize = 12.sp)
                 Spacer(Modifier.height(10.dp))
+                // Biblioteca conserva su emoji 📚 (decisión de Víctor); el resto pasa a Material Icons.
+                val surveyIcons = mapOf(
+                    "stats" to Icons.Default.BarChart,
+                    "challenges" to Icons.Default.EmojiEvents,
+                    "bingo" to Icons.Default.GridOn,
+                    "wrapped" to Icons.Default.CardGiftcard,
+                )
                 options.forEach { (key, res) ->
                     val sel = selected == key
                     Surface(
@@ -425,12 +432,20 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                         border = BorderStroke(1.dp, if (sel) acc else theme.border),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
                     ) {
-                        Text(
-                            stringResource(res),
-                            color = if (sel) acc else theme.textMain, fontSize = 13.sp,
-                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                        )
+                        ) {
+                            surveyIcons[key]?.let { icon ->
+                                Icon(icon, null, tint = if (sel) acc else theme.textMuted, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(
+                                stringResource(res),
+                                color = if (sel) acc else theme.textMain, fontSize = 13.sp,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -438,8 +453,7 @@ fun SurveyDialog(theme: Theme, prefs: android.content.SharedPreferences, onDismi
                 OutlinedTextField(
                     value = openAnswer,
                     onValueChange = { openAnswer = it },
-                    label = { Text(stringResource(R.string.survey_open_label), color = theme.textMuted, fontSize = 12.sp) },
-                    placeholder = { Text(stringResource(R.string.survey_open_placeholder), color = theme.textDim, fontSize = 12.sp) },
+                    placeholder = { Text(stringResource(R.string.survey_open_label), color = theme.textDim, fontSize = 12.sp) },
                     singleLine = false,
                     minLines = 2, maxLines = 4,
                     enabled = !sending,
@@ -563,14 +577,18 @@ fun FeedbackDialog(theme: Theme, onDismiss: () -> Unit, onSent: () -> Unit = {})
                 Text(stringResource(R.string.txt_a5389e2a), color = theme.textMuted, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("bug" to "🐛 Bug", "suggestion" to "💡 Suggestion", "other" to "📝 Other")
-                        .forEach { (type, label) ->
-                            FilterChip(
-                                selected = feedbackType == type,
-                                onClick = { feedbackType = type },
-                                label = { Text(label, fontSize = 11.sp) }
-                            )
-                        }
+                    listOf(
+                        Triple("bug", Icons.Default.BugReport, R.string.feedback_type_bug),
+                        Triple("suggestion", Icons.Default.Lightbulb, R.string.feedback_type_suggestion),
+                        Triple("other", Icons.Default.EditNote, R.string.feedback_type_other)
+                    ).forEach { (type, icon, labelRes) ->
+                        FilterChip(
+                            selected = feedbackType == type,
+                            onClick = { feedbackType = type },
+                            leadingIcon = { Icon(icon, null, modifier = Modifier.size(16.dp)) },
+                            label = { Text(stringResource(labelRes), fontSize = 11.sp) }
+                        )
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
@@ -1585,7 +1603,24 @@ fun SettingsScreen(vm: BooksViewModel, prefs: android.content.SharedPreferences,
                 Text(stringResource(R.string.txt_e30acdbb), color = theme.textMuted, fontSize = 11.sp)
                 // C: nota informativa (sin lógica) sobre canjear donaciones por códigos de Pro
                 Spacer(Modifier.height(6.dp))
-                Text(stringResource(R.string.support_code_hint), color = theme.textDim, fontSize = 11.sp, lineHeight = 15.sp)
+                // Feedback 22-07: el email va resaltado en el acento para que se vea que es el
+                // canal de contacto. Se construye el AnnotatedString partiendo por la cadena
+                // literal del email (constante conocida) en vez de meter otro string.
+                val supportHintRaw = stringResource(R.string.support_code_hint)
+                val supportHint = androidx.compose.ui.text.buildAnnotatedString {
+                    val email = "lecturameter.app@gmail.com"
+                    val i = supportHintRaw.indexOf(email)
+                    if (i < 0) {
+                        append(supportHintRaw)
+                    } else {
+                        append(supportHintRaw.substring(0, i))
+                        pushStyle(androidx.compose.ui.text.SpanStyle(color = acc, fontWeight = FontWeight.SemiBold))
+                        append(email)
+                        pop()
+                        append(supportHintRaw.substring(i + email.length))
+                    }
+                }
+                Text(supportHint, color = theme.textDim, fontSize = 11.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(12.dp))
                 // Tip jar
                 TipJarRow(theme = theme)

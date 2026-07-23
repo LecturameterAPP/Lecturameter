@@ -252,27 +252,45 @@ fun StatsScreen(vm: BooksViewModel, _prefs: android.content.SharedPreferences, t
                         Column(Modifier.padding(20.dp)) {
                             Text(stringResource(R.string.txt_316406f4), color = accentForTheme(theme), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
                             Spacer(Modifier.height(14.dp))
-                            Row(Modifier.fillMaxWidth()) {
-                                SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
-                                SummaryCell(totalPages.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f), theme)
-                                // RF-M25: Green crudo como texto no llega a AA en Claro; tinta medida
-                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, wrappedInk(Green, theme))
-                                SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "-", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
-                            }
-                            if (avgRating != null) {
-                                Spacer(Modifier.height(12.dp))
-                                HorizontalDivider(color = theme.border)
-                                Spacer(Modifier.height(12.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.txt_a70ecc0a), color = theme.textMuted, fontSize = 13.sp)
-                                    Spacer(Modifier.width(8.dp))
-                                    val stars = kotlin.math.ceil(avgRating / 2.0).toInt().coerceIn(0, 5)
-                                    Text(
-                                        "★".repeat(stars) + "☆".repeat(5 - stars),
-                                        color = wrappedInk(Gold, theme), fontSize = 15.sp, letterSpacing = 1.sp
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(String.format("%.1f/10", avgRating), color = wrappedInk(Gold, theme), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            // Plan landscape v3.0 (P3): en horizontal el resumen numerico se
+                            // presenta en una unica fila compacta; la puntuacion media, que en
+                            // portrait cuelga como bloque dividido debajo, pasa a ser una celda
+                            // inline mas — asi aprovecha el ancho extra y ahorra alto (escaso en
+                            // landscape). Portrait queda EXACTAMENTE igual (rama else).
+                            if (isLandscape()) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
+                                    SummaryCell(totalPages.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f), theme)
+                                    // RF-M25: Green crudo como texto no llega a AA en Claro; tinta medida
+                                    SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, wrappedInk(Green, theme))
+                                    SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "-", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
+                                    if (avgRating != null) {
+                                        SummaryCell(String.format("%.1f/10", avgRating), stringResource(R.string.txt_a70ecc0a), Modifier.weight(1f), theme, wrappedInk(Gold, theme))
+                                    }
+                                }
+                            } else {
+                                Row(Modifier.fillMaxWidth()) {
+                                    SummaryCell("${filtered.size}", stringResource(R.string.pill_leidos), Modifier.weight(1f), theme)
+                                    SummaryCell(totalPages.toLocaleString(), stringResource(R.string.txt_939f09a3), Modifier.weight(1f), theme)
+                                    // RF-M25: Green crudo como texto no llega a AA en Claro; tinta medida
+                                    SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.1f", avgPpd) else "-", stringResource(R.string.pill_pags_dia), Modifier.weight(1f), theme, wrappedInk(Green, theme))
+                                    SummaryCell(if (speedFiltered.isNotEmpty()) String.format("%.0f d", avgDays) else "-", stringResource(R.string.pill_dias_libro), Modifier.weight(1f), theme)
+                                }
+                                if (avgRating != null) {
+                                    Spacer(Modifier.height(12.dp))
+                                    HorizontalDivider(color = theme.border)
+                                    Spacer(Modifier.height(12.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(stringResource(R.string.txt_a70ecc0a), color = theme.textMuted, fontSize = 13.sp)
+                                        Spacer(Modifier.width(8.dp))
+                                        val stars = kotlin.math.ceil(avgRating / 2.0).toInt().coerceIn(0, 5)
+                                        Text(
+                                            "★".repeat(stars) + "☆".repeat(5 - stars),
+                                            color = wrappedInk(Gold, theme), fontSize = 15.sp, letterSpacing = 1.sp
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(String.format("%.1f/10", avgRating), color = wrappedInk(Gold, theme), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
@@ -375,8 +393,11 @@ fun SpeedBookRow(book: Book, ppd: Double, days: Int, maxPpd: Double, theme: Them
             Spacer(Modifier.height(6.dp))
             // Speed bar — muestra la velocidad de este libro respecto al más rápido leído
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(theme.border)) {
-                    Box(Modifier.fillMaxWidth(fraction).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Brush.horizontalGradient(listOf(accentForTheme(theme), Green))))
+                // Plan landscape v3.0 (P3): la barra ya se expande a lo ancho (weight 1f); en
+                // horizontal gana 2dp de alto para que la barra ancha tenga mas cuerpo.
+                val barH = if (isLandscape()) 6.dp else 4.dp
+                Box(Modifier.weight(1f).height(barH).clip(RoundedCornerShape(2.dp)).background(theme.border)) {
+                    Box(Modifier.fillMaxWidth(fraction).height(barH).clip(RoundedCornerShape(2.dp)).background(Brush.horizontalGradient(listOf(accentForTheme(theme), Green))))
                 }
                 Text(stringResource(R.string.txt_1f750a24), color = theme.textDim, fontSize = 9.sp)
             }

@@ -222,7 +222,7 @@
     <string name="txt_7a9622a0">Puntuación (opcional)</string>
     <string name="txt_7cd6ad03">Nota (opcional)</string>
     <string name="txt_7d6c2883">Período:</string>
-    <string name="txt_7ddf5345">📤 Importar / Exportar</string>
+    <string name="txt_7ddf5345">Importar / Exportar</string>
     <string name="txt_80b7fc7c">Entre el 26 de diciembre y el 26 de enero, visita Estadísticas para generar y guardar el wrapped del año.</string>
     <string name="txt_847607d7">Cancelar</string>
     <string name="txt_8487931b">Confirmar</string>
@@ -273,6 +273,8 @@
     <string name="txt_af80d2f5">Busca por título, autor o ISBN</string>
     <!-- Onboarding busqueda offline (1 de 3): segunda linea del estado vacio de busqueda. -->
     <string name="search_empty_offline_hint">También funciona sin conexión</string>
+    <string name="search_empty_offline_pending">Conéctate una vez y luego podrás buscar sin conexión</string>
+    <string name="search_add_manually">Añadir manualmente</string>
     <string name="txt_af85d57c">Limpiar filtros</string>
     <string name="txt_afe10477">Copia en Google Drive</string>
     <string name="txt_b375487f">Eliminar libro</string>
@@ -325,7 +327,7 @@
     <string name="txt_d8125eae">Cronómetro de lectura</string>
     <string name="txt_db955caf">Carpeta local</string>
     <string name="txt_dcd9cd29">Copia de seguridad de Drive desactivada</string>
-    <string name="txt_def36a08">📤 Exportar estadísticas</string>
+    <string name="txt_def36a08">Exportar estadísticas</string>
     <string name="txt_df94c6d3">p\u00e1gs</string>
     <string name="txt_e30acdbb">Si te gusta Lecturameter, puedes apoyarme invitándome a algo ;)</string>
     <string name="txt_e33e3006">Sin comentario. Toca ✏️ para añadir uno.</string>
@@ -395,7 +397,7 @@
     <string name="word_genre">género</string>
     <string name="word_join_nor">" ni "</string>
     <string name="msg_book_no_longer_widget">%1$s ya no se muestra en el widget</string>
-    <string name="msg_now_displayed_widget">📺 Mostrando en el widget</string>
+    <string name="msg_now_displayed_widget">Mostrando en el widget</string>
     <string name="msg_describe_feedback">Por favor, describe tu feedback</string>
     <string name="msg_thanks_feedback">¡Gracias por tu colaboración! :)</string>
     <string name="widget_added">Widget añadido</string>
@@ -418,8 +420,8 @@
     <string name="empty_shelf_finished">Aún no has terminado ningún libro.</string>
     <string name="empty_shelf_pending">No tienes libros pendientes.\nGuarda los que quieras leer.</string>
     <string name="empty_shelf_dropped">No has dropeado ningún libro. ¡Bien!</string>
-    <string name="widget_currently_showing">✅ Mostrándose en el widget</string>
-    <string name="widget_show_button">📺 Mostrar en widget</string>
+    <string name="widget_currently_showing">Mostrándose en el widget</string>
+    <string name="widget_show_button">Mostrar en widget</string>
     <string name="word_day">día</string>
     <string name="word_days">días</string>
     <string name="session_header_timer">Sesión #%1$d  ·  Fecha: %2$s</string>
@@ -637,12 +639,12 @@
 
     <!-- Política de privacidad (pantalla dedicada, TAREA 1 lanzamiento) -->
     <string name="privacy_policy_title">Política de privacidad</string>
-    <string name="privacy_policy_updated">Última actualización: 16 de julio de 2026</string>
+    <string name="privacy_policy_updated">Última actualización: 22 de julio de 2026</string>
     <string name="privacy_policy_intro">Aquí te explicamos, en lenguaje sencillo, qué datos guarda Lecturameter y qué sale de tu dispositivo. No hay nada oculto ni configurable a tus espaldas: esto es exactamente lo que hace la app, ni más ni menos.</string>
     <string name="privacy_policy_section_storage_title">Dónde viven tus datos</string>
-    <string name="privacy_policy_storage_body">Tus libros, sesiones de lectura, retos y bingo se guardan solo en tu dispositivo. Si activas las copias de seguridad, también se guardan donde tú elijas: un archivo en tu propio dispositivo, o tu Google Drive. En el caso de Drive, la app solo puede ver y tocar los archivos que ella misma ha creado ahí, nada más de tu cuenta.</string>
+    <string name="privacy_policy_storage_body">Tus libros, sesiones de lectura, estadísticas, retos y bingo se guardan solo en tu dispositivo. Si activas las copias de seguridad, también se guardan donde tú elijas: un archivo en tu propio dispositivo, o tu Google Drive. En el caso de Drive, la app solo puede ver y tocar los archivos que ella misma ha creado ahí, nada más de tu cuenta.</string>
     <string name="privacy_policy_section_analytics_title">Sin analíticas ni publicidad</string>
-    <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla.</string>
+    <string name="privacy_policy_analytics_body">Lecturameter no tiene analíticas de uso, no muestra publicidad y no hace falta crear ninguna cuenta para usarla. Nunca vendemos tus datos ni los usamos con fines publicitarios o de perfilado.</string>
     <string name="privacy_policy_section_search_title">Búsqueda y escaneo de libros</string>
     <string name="privacy_policy_search_body">Cuando buscas un libro o escaneas un ISBN, ese texto o código se envía a catálogos públicos de libros (Google Books, Open Library, Wikidata, MangaDex, AniList, MangaUpdates, Kitsu) para traer datos como el título, la portada o el autor. En estas consultas no se envía ningún dato personal tuyo.</string>
     <string name="privacy_policy_section_feedback_title">Feedback y encuestas</string>
@@ -651,6 +653,10 @@
     <string name="privacy_policy_pro_body">Los pagos de Lecturameter Pro los procesa Google Play: la app nunca ve ni guarda tus datos de pago. Si canjeas un código de promoción, ese código y un identificador de tu dispositivo se envían al servidor de canje de Lecturameter, solo para validar el código y controlar cuántos dispositivos pueden usarlo.</string>
     <string name="privacy_policy_section_contact_title">Contacto</string>
     <string name="privacy_policy_contact_body">Si tienes dudas sobre privacidad, escribe a lecturameter.app@gmail.com.</string>
+    <string name="privacy_policy_section_permissions_title">Permisos de la app</string>
+    <string name="privacy_policy_permissions_body">Lecturameter pide solo los permisos que necesita para funcionar: Internet, para buscar libros, hacer copia en Drive, enviar feedback y canjear códigos; almacenamiento e imágenes locales, para guardar y leer tus copias de seguridad y las portadas; cámara, solo para escanear el código de barras (ISBN) de un libro, sin guardar ni enviar fotos; notificaciones, para el cronómetro de la sesión de lectura activa y para avisarte del resumen semanal y de cuando tu Wrapped está disponible; y acceso a tu cuenta de Google, solo si activas la copia en Drive, que puedes revocar cuando quieras desde tu cuenta.</string>
+    <string name="privacy_policy_section_changes_title">Cambios en esta política</string>
+    <string name="privacy_policy_changes_body">Si esta política cambia, actualizaremos este texto dentro de la app y la página equivalente en la web, con la nueva fecha en la parte de arriba.</string>
 
     <!-- Bulk refresh -->
     <string name="bulk_refresh_title_genres">Recarga masiva de Géneros</string>
@@ -953,9 +959,9 @@
     <string name="pro_icon_classic">Clásico</string>
     <string name="pro_icon_gold">Dorado</string>
     <string name="pro_icon_applied">Icono cambiado. Puede tardar unos segundos en refrescar.</string>
-    <string name="support_code_hint">Si tu donación o propina llega al precio de Pro, escríbeme a lecturameter.app@gmail.com y te doy un código Pro (uno por cada múltiplo).</string>
+    <string name="support_code_hint">Si tu donación o propina llega al precio de Pro, escríbeme a lecturameter.app@gmail.com y te doy un código Pro (uno por cada múltiplo). Los precios de las propinas se ajustan a tu país.</string>
     <string name="tip_jar_title">Propinas</string>
-    <string name="tip_jar_subtitle">Si quieres apoyar el desarrollo, elige una propina. Los precios se ajustan a tu país.</string>
+    <string name="tip_jar_subtitle">Si quieres apoyar el desarrollo, elige una propina.</string>
     <string name="tip_coffee">Un café</string>
     <string name="tip_meal">Un refresco</string>
     <string name="tip_generous">Para algo chulo</string>
@@ -1054,7 +1060,7 @@
     <string name="tut_challenges_desc_pre">"Toca el icono del trofeo "</string>
     <string name="tut_challenges_desc_post">" en la pantalla principal para ver tus retos: libros al año, rachas, páginas, sesiones o minutos. Puedes crear retos personalizados con objetivo y fecha límite; el progreso se actualiza solo."</string>
     <!-- v2.4: literales migrados a recursos (auditoría i18n) -->
-    <string name="btn_add_cover">Añadir portada</string>
+    <string name="btn_add_cover">+ Añadir portada</string>
     <string name="btn_change_cover">✏️ Cambiar portada</string>
     <string name="sheet_add_edition">Añadir edición</string>
     <string name="sheet_change_edition">Cambiar edición</string>
@@ -1256,10 +1262,10 @@
     <string name="survey_more_link">¿Algo más que contar? Envía feedback completo</string>
     <string name="survey_q_section">¿Qué sección usas más?</string>
     <string name="survey_o_library">📚 Biblioteca</string>
-    <string name="survey_o_stats">📊 Estadísticas</string>
-    <string name="survey_o_challenges">🎯 Retos</string>
-    <string name="survey_o_bingo">▦ Bingo</string>
-    <string name="survey_o_wrapped">🎁 Wrapped</string>
+    <string name="survey_o_stats">Estadísticas</string>
+    <string name="survey_o_challenges">Retos</string>
+    <string name="survey_o_bingo">Bingo</string>
+    <string name="survey_o_wrapped">Wrapped</string>
     <string name="survey_q_missing">¿Qué echas de menos?</string>
     <string name="survey_o_more_challenges">Más retos</string>
     <string name="survey_o_more_stats">Más estadísticas</string>
@@ -1327,6 +1333,19 @@
     <string name="add_sheet_scan_desc">Apunta al ISBN del libro con la cámara</string>
     <!-- Overlay de la cámara del escáner. Solo ISBN: ninguna fuente gratuita resuelve un ISSN. -->
     <string name="scanner_hint_isbn">📷  Apunta al ISBN del libro</string>
+    <string name="scanner_exit">Salir</string>
+    <string name="feedback_type_bug">Fallo</string>
+    <string name="feedback_type_suggestion">Sugerencia</string>
+    <string name="feedback_type_other">Otro</string>
+    <string name="main_edition">Edición principal</string>
+    <string name="chooser_export_stats">Exportar estadísticas</string>
+    <string name="add_field_title_label">Título *</string>
+    <string name="add_field_title_hint">El nombre del libro</string>
+    <string name="add_field_author_hint">Nombre del autor</string>
+    <string name="add_field_pages_label">Páginas *</string>
+    <string name="scanner_issn_detected">Esto es una revista con ISSN, no un libro con ISBN. Ninguna base de libros la reconoce; puedes añadirla a mano con el botón +.</string>
+    <string name="issn_scanned_title">No es un ISBN</string>
+    <string name="issn_scanned_ok">Entendido</string>
     <!-- P-032: regalo de un tema al acabar la prueba de 7 días (Bloque 4, feature 7) -->
     <string name="trial_gift_title">Se acabó la prueba 🎁</string>
     <string name="trial_gift_body">Elige uno de los tres temas Pro y se queda contigo para siempre, sin pagar nada. Los otros dos vuelven a estar bloqueados.</string>

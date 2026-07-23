@@ -249,7 +249,7 @@ private fun Bingo3GateSheet(theme: Theme, onDismiss: () -> Unit, onSeePro: () ->
     val acc = accentForTheme(theme)
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = theme.bgMid) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
+            Modifier.fillMaxWidth().landscapeSheetCap().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).navigationBarsPadding().padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -349,13 +349,11 @@ private fun BingoCardBody(
                     .format(d!!).replaceFirstChar { it.uppercase() }
             } catch (_: Exception) { c.monthKey }
         }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
+        // Landscape v3.0 (P5): cabecera (subtítulo + progreso), cuadrícula y pie se
+        // extraen a bloques reutilizables para recolocarlos sin duplicar. En PORTRAIT se
+        // apilan igual que siempre; en LANDSCAPE el panel de info va a un lado y la
+        // cuadrícula 1:1 se centra al otro.
+        val bingoHeader: @Composable () -> Unit = {
             Text(
                 stringResource(R.string.bingo_subtitle, if (isEs) c.templateNameEs else c.templateNameEn, monthLabel),
                 color = accent, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
@@ -364,14 +362,23 @@ private fun BingoCardBody(
                 stringResource(R.string.bingo_progress, doneCount, c.cells.size, c.completedLines.size),
                 color = theme.textMuted, fontSize = 12.sp
             )
-            Spacer(Modifier.height(14.dp))
+        }
+        val bingoGrid: @Composable () -> Unit = {
             // Cartón side×side
             for (row in 0 until side) {
+                key(row) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                     for (col in 0 until side) {
                         val cellIdx = row * side + col
-                        // RF-M15: red de seguridad si el cartón trae menos celdas de las esperadas
-                        val cell = c.cells.getOrNull(cellIdx) ?: continue
+                        key(cellIdx) {
+                        // RF-crash: NUNCA 'continue' dentro de un for composable -> deja a medias la
+                        // insercion de nodos de Compose y peta con "Cannot end node insertion" al
+                        // navegar al Bingo (AnimatedContent del NavHost). Se emite SIEMPRE un nodo por
+                        // celda (placeholder si el carton trae menos celdas) envuelto en key(cellIdx).
+                        val cell = c.cells.getOrNull(cellIdx)
+                        if (cell == null) {
+                            Box(Modifier.weight(1f).padding(horizontal = 2.dp).aspectRatio(1f))
+                        } else {
                         // B4: el 3×3 se tiñe de rojo. Sus casillas se rellenan con el MISMO rojo
                         // que el boton (accent == redForTheme) y su texto va en onCardTint
                         // (onRedColor), la tinta legible sobre ese rojo en los cinco temas. El 4×4
@@ -473,10 +480,14 @@ private fun BingoCardBody(
                                 }
                             }
                         }
+                        }
+                        }
                     }
                 }
+                }
             }
-            Spacer(Modifier.height(14.dp))
+        }
+        val bingoFooter: @Composable () -> Unit = {
             if (complete) {
                 Text(stringResource(R.string.bingo_completed), color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
@@ -495,7 +506,67 @@ private fun BingoCardBody(
                 Spacer(Modifier.height(2.dp))
                 Text(stringResource(R.string.bingo_renews), color = theme.textMuted, fontSize = 11.5.sp)
             }
-            Spacer(Modifier.height(24.dp))
+        }
+        // P5: portrait apila (info arriba, cuadrícula debajo); landscape reparte en fila
+        // (info a un lado, cuadrícula 1:1 centrada al otro). Ambas ramas usan los MISMOS
+        // bloques, así que no se duplica ni la cuadrícula ni el pie.
+        if (isLandscape()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // Panel de info (subtítulo, progreso y pie) a un lado, con su propio scroll
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    bingoHeader()
+                    Spacer(Modifier.height(14.dp))
+                    bingoFooter()
+                }
+                // Cuadrícula 1:1 centrada: se dibuja como el cuadrado MÁS GRANDE que cabe en el
+                // hueco derecho, lado = min(ancho, alto). Así encaja en los DOS casos de landscape
+                // sin rebosar por ningún lado: en móviles (hueco ancho y bajo) el lado lo marca el
+                // ALTO, y en tablets/foldables 4:3-3:2 (hueco casi cuadrado o más alto que ancho)
+                // lo marca el ANCHO. Antes con fillMaxSize().aspectRatio(1f) rebosaba hacia ARRIBA
+                // en móviles (tapaba "Reto 3x3"); con fillMaxHeight().aspectRatio(matchHeight...)
+                // rebosaba de LADO en tablets. min(w,h) no depende de las sutilezas de aspectRatio.
+                BoxWithConstraints(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val gridSide = minOf(maxWidth, maxHeight)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.size(gridSide)
+                    ) {
+                        bingoGrid()
+                    }
+                }
+            }
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                bingoHeader()
+                Spacer(Modifier.height(14.dp))
+                bingoGrid()
+                Spacer(Modifier.height(14.dp))
+                bingoFooter()
+                Spacer(Modifier.height(24.dp))
+            }
         }
         // Fase 6.1 (D-008, T5): primer cartón completado — tip de la rotación mensual
         var bingoTipVisible by remember { mutableStateOf(false) }

@@ -78,7 +78,7 @@ class ScannerActivity : ComponentActivity() {
 
         // Botón salir — anclado al fondo, franja propia sin solapar (#5)
         val closeBtn = TextView(this)
-        closeBtn.text = "✕  Salir"   // (#4)
+        closeBtn.text = "✕  " + getString(R.string.scanner_exit)   // (#4)
         closeBtn.setTextColor(0xFFFF4444.toInt())   // rojo (#3)
         closeBtn.textSize = 14f
         closeBtn.setPadding(60, 28, 60, 28)
@@ -123,14 +123,28 @@ class ScannerActivity : ComponentActivity() {
                     .build()
             )
 
-            imageAnalysis.setAnalyzer(cameraExecutor, BarcodeAnalyzer(scanner) { isbn ->
-                if (!scanned) {
-                    scanned = true
-                    val result = Intent().putExtra("isbn", isbn)
-                    setResult(RESULT_OK, result)
-                    finish()
+            imageAnalysis.setAnalyzer(cameraExecutor, BarcodeAnalyzer(
+                scanner,
+                onIsbn = { isbn ->
+                    if (!scanned) {
+                        scanned = true
+                        val result = Intent().putExtra("isbn", isbn)
+                        setResult(RESULT_OK, result)
+                        finish()
+                    }
+                },
+                onIssn = { issn ->
+                    // Codigo ISSN (revista/grapa, prefijo 977): la app escanea ISBN y ninguna
+                    // fuente gratuita resuelve ISSN de comic. Se devuelve a la app (extra "issn")
+                    // para que muestre un aviso CLARO alli, en vez de cambiar el texto del propio
+                    // escaner. El usuario ve el mensaje al volver a la app.
+                    if (!scanned) {
+                        scanned = true
+                        setResult(RESULT_OK, Intent().putExtra("issn", issn))
+                        finish()
+                    }
                 }
-            })
+            ))
 
             try {
                 cameraProvider.unbindAll()
@@ -180,7 +194,8 @@ internal fun isValidIsbn(raw: String): Boolean {
 @androidx.camera.core.ExperimentalGetImage
 private class BarcodeAnalyzer(
     private val scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
-    private val onIsbn: (String) -> Unit
+    private val onIsbn: (String) -> Unit,
+    private val onIssn: (String) -> Unit = {}
 ) : ImageAnalysis.Analyzer {
 
     override fun analyze(imageProxy: ImageProxy) {
@@ -195,10 +210,15 @@ private class BarcodeAnalyzer(
                 // restringir formatos, un código del distribuidor (ITF/Code-128) podía
                 // colarse como ISBN. Ahora: solo códigos de libro, checksum obligatorio, y
                 // si en la contraportada hay varios se elige el que de verdad es un ISBN.
-                val isbn = barcodes
-                    .mapNotNull { it.rawValue?.replace("-", "")?.replace(" ", "") }
-                    .firstOrNull { isValidIsbn(it) }
+                val cleaned = barcodes.mapNotNull { it.rawValue?.replace("-", "")?.replace(" ", "") }
+                val isbn = cleaned.firstOrNull { isValidIsbn(it) }
                 if (isbn != null) onIsbn(isbn)
+                // Fleco ISSN (22-07): un ISSN es un EAN-13 con prefijo 977 que pasa el checksum
+                // pero NO es un ISBN, asi que isValidIsbn lo rechaza. Antes se ignoraba en
+                // silencio; ahora se devuelve a la app para avisar de que se anada a mano.
+                // El EAN de una revista (977) puede venir con suplemento (add-on de 2/5 digitos):
+                // rawValue podria traer mas de 13 chars. Se mira el prefijo 977 y los 13 primeros.
+                else cleaned.firstOrNull { it.startsWith("977") && it.length >= 13 && it.take(13).all { c -> c.isDigit() } }?.let { onIssn(it.take(13)) }
             }
             .addOnCompleteListener { imageProxy.close() }
     }

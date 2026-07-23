@@ -12,6 +12,9 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import com.google.android.play.core.assetpacks.AssetPackManagerFactory
+import com.google.android.play.core.assetpacks.AssetPackState
+import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener
+import com.google.android.play.core.assetpacks.model.AssetPackStatus
 import com.lecturameter.utils.isbn10To13
 import com.lecturameter.utils.isbn13To10
 import kotlinx.coroutines.Dispatchers
@@ -96,12 +99,41 @@ object CatalogRepository {
     }
 
     /**
-     * Fuerza la descarga del pack. Sobre un fast-follow a medias `fetch()` es valido y lo
-     * acelera. No se observa el progreso a proposito: el usuario no tiene que enterarse.
+     * Pide el pack y SE QUEDA ESCUCHANDO su estado hasta COMPLETED. Registrar el listener NO
+     * es opcional: sin un listener activo Play desvincula el AssetModuleService a los ~10 s y
+     * el pack se queda en TRANSFERRING (estado 3) para siempre, con getPackLocation() = null
+     * en cada arranque. Bug del 22-07, reproducido en logcat: la descarga terminaba entera
+     * (size 73865186/73865186, onSuccess) pero nunca pasaba a COMPLETED. Con el listener Play
+     * lleva la transferencia hasta el final y aqui mismo abrimos el catalogo EN CALIENTE, sin
+     * esperar al siguiente arranque. No se muestra progreso: el usuario no tiene que enterarse.
      */
     private fun requestPack(context: Context) {
-        runCatching { AssetPackManagerFactory.getInstance(context).fetch(listOf(PACK_NAME)) }
-            .onFailure { Log.w(TAG, "no se pudo pedir $PACK_NAME", it) }
+        val mgr = AssetPackManagerFactory.getInstance(context)
+        val listener = object : AssetPackStateUpdateListener {
+            override fun onStateUpdate(state: AssetPackState) {
+                if (state.name() != PACK_NAME) return
+                when (state.status()) {
+                    AssetPackStatus.COMPLETED -> {
+                        corePackFile(context)?.let { openIfPresent(it) }
+                        runCatching { mgr.unregisterListener(this) }
+                        Log.i(TAG, "catalog_pack COMPLETED, catalogo abierto en caliente: ${open.keys}")
+                    }
+                    AssetPackStatus.FAILED -> {
+                        runCatching { mgr.unregisterListener(this) }
+                        Log.w(TAG, "catalog_pack FAILED, errorCode=${state.errorCode()}")
+                    }
+                    // PENDING / DOWNLOADING / TRANSFERRING / WAITING_FOR_WIFI: seguir escuchando.
+                    else -> {}
+                }
+            }
+        }
+        runCatching {
+            mgr.registerListener(listener)
+            mgr.fetch(listOf(PACK_NAME)).addOnFailureListener {
+                Log.w(TAG, "no se pudo pedir $PACK_NAME", it)
+                runCatching { mgr.unregisterListener(listener) }
+            }
+        }.onFailure { Log.w(TAG, "no se pudo registrar/pedir $PACK_NAME", it) }
     }
 
     /**
@@ -120,8 +152,10 @@ object CatalogRepository {
     }
 
     fun close() {
-        open.values.forEach { runCatching { it.close() } }
-        open.clear()
+        synchronized(open) {
+            open.values.forEach { runCatching { it.close() } }
+            open.clear()
+        }
     }
 
     /** true si hay al menos un catalogo utilizable. */
@@ -135,7 +169,7 @@ object CatalogRepository {
             val db = SQLiteDatabase.openDatabase(
                 file.absolutePath, null, SQLiteDatabase.OPEN_READONLY
             )
-            open[file.name] = db
+            synchronized(open) { open[file.name] = db }
         } catch (e: Exception) {
             Log.e(TAG, "no se pudo abrir ${file.name}, se ignora", e)
             // Un pack corrupto se borra para que no falle en cada arranque.
@@ -173,7 +207,7 @@ object CatalogRepository {
         val match = ftsQuery(query) ?: return@withContext emptyList()
 
         val out = LinkedHashMap<String, OpenLibraryResult>()
-        for ((name, db) in open) {
+        for ((name, db) in synchronized(open) { open.toList() }) {
             try {
                 queryOne(db, match, preferredLang, limit).forEach { r ->
                     // el primer catalogo que aporta una obra gana (core tiene prioridad)
@@ -289,7 +323,7 @@ object CatalogRepository {
         """.trimIndent()
         val args = arrayOf(i13)
 
-        for ((name, db) in open) {
+        for ((name, db) in synchronized(open) { open.toList() }) {
             try {
                 val hit = db.rawQuery(sql, args).use { c ->
                     if (c.moveToFirst()) readResult(c, preferredLang) else null
@@ -341,8 +375,10 @@ object CatalogRepository {
      * El ISBN queda como respaldo para las obras sin portada registrada.
      */
     private fun coverUrlFor(coverId: Long?, isbn13: String?): String? = when {
-        coverId != null && coverId > 0 -> "https://covers.openlibrary.org/b/id/$coverId-M.jpg"
-        !isbn13.isNullOrBlank() -> "https://covers.openlibrary.org/b/isbn/$isbn13-M.jpg"
+        // Portadas del catalogo en -L (grande, ~500px) y no -M (~180px): -M salia pixelada en la
+        // ficha de detalle. El coste de banda extra es marginal y Coil las cachea igual.
+        coverId != null && coverId > 0 -> "https://covers.openlibrary.org/b/id/$coverId-L.jpg"
+        !isbn13.isNullOrBlank() -> "https://covers.openlibrary.org/b/isbn/$isbn13-L.jpg"
         else -> null
     }
 

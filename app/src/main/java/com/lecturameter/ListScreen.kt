@@ -86,6 +86,9 @@ fun ListScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showIsbnScanDialog by remember { mutableStateOf(false) }
     var scannedIsbnForDialog by remember { mutableStateOf("") }
+    // Plan landscape v3.0 (P1): en horizontal la barra de busqueda se colapsa a una lupa
+    // para no comer alto; se despliega al tocarla. En vertical no aplica (siempre visible).
+    var searchExpanded by rememberSaveable { mutableStateOf(false) }
     // D-002/T1: selector de inicio rápido de sesión desde la barra (⏱️)
     var showQuickStartSheet by remember { mutableStateOf(false) }
     // Mockup 17-07: el icono del crono se pone ámbar cuando hay sesión en curso.
@@ -180,6 +183,9 @@ fun ListScreen(
             showIsbnScanDialog = true
         }
     }
+    // Fleco ISSN (22-07): el aviso de ISSN escaneado (revista/grapa, prefijo 977) se muestra a
+    // NIVEL RAÍZ en LecturaMeterApp, para que salte se haya lanzado el escáner desde home o desde
+    // "Buscar libros". Aquí no hace falta nada.
     // Which tab is active: index into SHELF_ORDER
     var activeTab by rememberSaveable { mutableStateOf(0) }
     // v2.4: grid state — 1 columna en móvil, 2 en ≥840dp (mockup aprobado)
@@ -428,7 +434,6 @@ fun ListScreen(
                 TextButton(onClick = {
                     showQsNotifPermDialog = false
                     showQsNotifPermDeniedDialog = true
-                    qsPendingTimerAction?.invoke(); qsPendingTimerAction = null
                 }) { Text(stringResource(R.string.txt_ca8f9bb3), color = Red) }
             }
         )
@@ -440,7 +445,7 @@ fun ListScreen(
             title = { Text(stringResource(R.string.txt_1fa1de14), color = theme.textMain, fontWeight = FontWeight.Bold) },
             text = { Text(stringResource(R.string.txt_9731be9d), color = theme.textMuted, fontSize = 13.sp) },
             confirmButton = {
-                TextButton(onClick = { showQsNotifPermDeniedDialog = false }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
+                TextButton(onClick = { showQsNotifPermDeniedDialog = false; qsPendingTimerAction?.invoke(); qsPendingTimerAction = null }) { Text(stringResource(R.string.txt_3f346645), color = acc, fontWeight = FontWeight.Bold) }
             }
         )
     }
@@ -549,7 +554,18 @@ fun ListScreen(
             containerColor = theme.bgMid,
             contentColor = theme.textMain
         ) {
-            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+            Column(
+                Modifier
+                    // Plan landscape v3.0 (P0/P6): en horizontal la hoja no puede crecer y las
+                    // filas del crono empujaban el boton Parar bajo el fold. Se acota el alto
+                    // (P6) y con scroll Pausa/Parar quedan siempre alcanzables (en portrait ni
+                    // se acota ni llega a scrollar).
+                    .landscapeSheetCap()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp)
+                    .navigationBarsPadding()
+            ) {
                 Text(
                     stringResource(R.string.quickstart_title),
                     color = theme.textMain, fontSize = 16.sp, fontWeight = FontWeight.Bold,
@@ -694,7 +710,13 @@ fun ListScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-    val gridColumns = if (maxWidth >= 840.dp) 2 else 1
+    // Plan landscape v3.0 (P1): en horizontal el ancho sobra, asi que a partir de 600dp
+    // van 2 columnas. En portrait se mantiene el umbral de tablet (840dp).
+    val gridColumns = when {
+        isLandscape() && maxWidth >= 600.dp -> 2
+        maxWidth >= 840.dp -> 2
+        else -> 1
+    }
     Column(Modifier.fillMaxSize()) {
 
         // ── Header ──────────────────────────────────────────────────────────
@@ -856,18 +878,22 @@ fun ListScreen(
                 ) { Text("+", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
             }
             // ── Contador + eslogan (D-002 v3: se conservan bajo el título) ────
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                Text("📖", fontSize = 13.sp)
-                Text(
-                    stringResource(R.string.label_books_total, booksAll.size) + " · " + stringResource(R.string.txt_e860710c),
-                    color = theme.textMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+            // Plan landscape v3.0 (P1): en horizontal el alto es oro (~360dp); el subtitulo
+            // decorativo se oculta para dejar sitio a las tarjetas. En portrait, intacto.
+            if (!isLandscape()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    Text("📖", fontSize = 13.sp)
+                    Text(
+                        stringResource(R.string.label_books_total, booksAll.size) + " · " + stringResource(R.string.txt_e860710c),
+                        color = theme.textMuted,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
             }
         }
 
@@ -901,79 +927,108 @@ fun ListScreen(
             Column(Modifier.padding(end = 16.dp, start = 10.dp)) {
 
             // Search bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text(stringResource(R.string.txt_84f524c0), color = theme.textDim, fontSize = 13.sp) },
-                leadingIcon  = { Icon(Icons.Default.Search, null, tint = theme.textDim, modifier = Modifier.size(20.dp)) },
-                trailingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, null, tint = theme.textDim, modifier = Modifier.size(18.dp))
-                            }
+            // Feedback 13-07 / 17-07: la busqueda online (antes 🔍 del rail) y la ordenacion
+            // viven en la fila de la barra. Se extraen a controles reutilizables para que
+            // sigan accesibles cuando en horizontal la barra se colapsa a la lupa (P1).
+            val onlineSearchClick: () -> Unit = {
+                // El canal se escribe SIEMPRE (null si la barra está vacía): el back del
+                // sistema no pasa por el onBack que lo limpia, así que dejar aquí un valor
+                // viejo relanzaba solo la búsqueda anterior al volver a entrar.
+                listMainRef?.pendingSearchQuery?.value = searchQuery.takeIf { it.isNotBlank() }
+                searchQuery = ""
+                onSearch()
+            }
+            val sortControl: @Composable () -> Unit = {
+                Box {
+                    IconButton(onClick = { showSortMenu = true }) {
+                        Icon(Icons.Filled.Sort, null, tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
+                    }
+                    DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
+                        SortOrder.entries.forEach { order ->
+                            DropdownMenuItem(
+                                text = { Text(sortLabel(order), color = if (sortOrder == order) acc else theme.textMain) },
+                                onClick = { sortOrderName = order.name; showSortMenu = false }
+                            )
                         }
-                        // Feedback 13-07: la búsqueda online (antes 🔍 del rail) vive aquí,
-                        // junto a la ordenación — buscar libros nuevos en las APIs
-                        // Feedback 17-07: si ya hay texto escrito, se lleva a la búsqueda
-                        // online y la barra local queda limpia al volver
-                        IconButton(onClick = {
-                            // El canal se escribe SIEMPRE (null si la barra está vacía): el back
-                            // del sistema no pasa por el onBack que lo limpia, así que dejar aquí
-                            // un valor viejo relanzaba solo la búsqueda anterior al volver a entrar.
-                            listMainRef?.pendingSearchQuery?.value = searchQuery.takeIf { it.isNotBlank() }
-                            searchQuery = ""
-                            onSearch()
-                        }) {
-                            Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
-                        }
-                        // Sort button inside search row
-                        Box {
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.Filled.Sort, null, tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
-                            }
-                            DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                                SortOrder.entries.forEach { order ->
-                                    DropdownMenuItem(
-                                        text = { Text(sortLabel(order), color = if (sortOrder == order) acc else theme.textMain) },
-                                        onClick = { sortOrderName = order.name; showSortMenu = false }
+                        // v2.4 rework: filtro persistente "Ver solo favoritos"
+                        HorizontalDivider(color = theme.border)
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        stringResource(R.string.show_favorites_only),
+                                        color = if (vm.showFavoritesOnly) FavoriteRed else theme.textMain,
+                                        fontWeight = if (vm.showFavoritesOnly) FontWeight.SemiBold else FontWeight.Normal,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Switch(
+                                        checked = vm.showFavoritesOnly,
+                                        onCheckedChange = { vm.setShowFavoritesOnly(it, prefs) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = FavoriteRed,
+                                            uncheckedTrackColor = theme.border
+                                        )
                                     )
                                 }
-                                // v2.4 rework: filtro persistente "Ver solo favoritos"
-                                HorizontalDivider(color = theme.border)
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                stringResource(R.string.show_favorites_only),
-                                                color = if (vm.showFavoritesOnly) FavoriteRed else theme.textMain,
-                                                fontWeight = if (vm.showFavoritesOnly) FontWeight.SemiBold else FontWeight.Normal,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            Spacer(Modifier.width(10.dp))
-                                            Switch(
-                                                checked = vm.showFavoritesOnly,
-                                                onCheckedChange = { vm.setShowFavoritesOnly(it, prefs) },
-                                                colors = SwitchDefaults.colors(
-                                                    checkedThumbColor = Color.White,
-                                                    checkedTrackColor = FavoriteRed,
-                                                    uncheckedTrackColor = theme.border
-                                                )
-                                            )
-                                        }
-                                    },
-                                    onClick = { vm.setShowFavoritesOnly(!vm.showFavoritesOnly, prefs) }
-                                )
-                            }
-                        }
-                        // (scan ISBN movido a BookSearchScreen)
+                            },
+                            onClick = { vm.setShowFavoritesOnly(!vm.showFavoritesOnly, prefs) }
+                        )
                     }
-                },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 0.dp),
-                colors = fieldColors(theme),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+                }
+            }
+            if (isLandscape() && !searchExpanded) {
+                // Plan landscape v3.0 (P1): en horizontal la barra completa come alto. Se
+                // colapsa a una fila compacta a la derecha; la lupa despliega la barra y el
+                // buscador online y el orden siguen a un toque.
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+                ) {
+                    IconButton(onClick = { searchExpanded = true }) {
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.txt_84f524c0), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = onlineSearchClick) {
+                        Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
+                    }
+                    sortControl()
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    // En horizontal, la ✕ de la izquierda vuelve a colapsar la barra a la lupa.
+                    if (isLandscape()) {
+                        IconButton(onClick = { searchExpanded = false; searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = null, tint = theme.textDim, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(stringResource(R.string.txt_84f524c0), color = theme.textDim, fontSize = 13.sp) },
+                        leadingIcon  = { Icon(Icons.Default.Search, null, tint = theme.textDim, modifier = Modifier.size(20.dp)) },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, null, tint = theme.textDim, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                                IconButton(onClick = onlineSearchClick) {
+                                    Icon(Icons.Default.TravelExplore, contentDescription = stringResource(R.string.txt_113f7428), tint = actionIconTint(theme), modifier = Modifier.size(20.dp))
+                                }
+                                sortControl()
+                                // (scan ISBN movido a BookSearchScreen)
+                            }
+                        },
+                        modifier = Modifier.weight(1f).padding(bottom = 0.dp),
+                        colors = fieldColors(theme),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
+            }
 
             // ── B5 idea 2: sugerencia viva del catálogo, DEBAJO de la barra ───────
             // El sitio importa: la fila del título no admite ni un dp más, así que el chip
@@ -1057,7 +1112,7 @@ fun ListScreen(
                                 shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = acc, contentColor = onAccentColor(theme))
                             ) {
-                                Icon(Icons.Default.Search, null, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.TravelExplore, null, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(stringResource(R.string.txt_69e20782), fontWeight = FontWeight.SemiBold)
                             }
@@ -1107,44 +1162,73 @@ fun ListScreen(
                         onClick  = { activeTab = index },
                         modifier = Modifier.padding(bottom = 0.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp)
-                        ) {
-                            // P-038: icono Material tintado con el color del estado, en vez
-                            // del emoji del sistema (mockup aprobado 18-07)
+                        // P-038: icono Material tintado con el color del estado, en vez
+                        // del emoji del sistema (mockup aprobado 18-07)
+                        val tabIcon = @Composable {
                             Icon(
                                 statusIcon(status),
                                 contentDescription = null,
                                 tint = color,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(if (isLandscape()) 15.dp else 17.dp)
                             )
-                            Spacer(Modifier.height(2.dp))
+                        }
+                        val tabLabel = @Composable {
                             Text(
                                 statusLabel(status),
-                                fontSize = 8.5.sp,
+                                fontSize = if (isLandscape()) 9.5.sp else 8.5.sp,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (selected) color else theme.textDim,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                        }
+                        // QA 12-07 r2: número en textMain — con textDim apenas se leía
+                        // sobre la pill en AMOLED y Aurora.
+                        val tabCount = @Composable {
                             if (count > 0) {
                                 Box(
                                     Modifier
-                                        .padding(top = 2.dp)
                                         .background(
                                             if (selected) color else theme.border,
                                             RoundedCornerShape(50)
                                         )
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
-                                    // QA 12-07 r2: número en textMain — con textDim apenas
-                                    // se leía sobre la pill en AMOLED y Aurora.
                                     Text(
                                         "$count",
                                         fontSize = 8.sp,
                                         color = if (selected) Color.White else theme.textMain,
                                         fontWeight = FontWeight.Bold
                                     )
+                                }
+                            }
+                        }
+                        if (isLandscape()) {
+                            // Plan landscape v3.0 (P1): icono + etiqueta en FILA, para bajar el
+                            // alto de la barra de estanterias (el alto es oro en horizontal).
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+                            ) {
+                                tabIcon()
+                                Spacer(Modifier.width(5.dp))
+                                tabLabel()
+                                if (count > 0) {
+                                    Spacer(Modifier.width(5.dp))
+                                    tabCount()
+                                }
+                            }
+                        } else {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 6.dp)
+                            ) {
+                                tabIcon()
+                                Spacer(Modifier.height(2.dp))
+                                tabLabel()
+                                if (count > 0) {
+                                    Spacer(Modifier.height(2.dp))
+                                    tabCount()
                                 }
                             }
                         }
@@ -1446,7 +1530,7 @@ private fun AddChoiceSheet(
         containerColor = if (theme.bgDark == BgDarkAm) Color(0xFF121212) else theme.bgMid,
         contentColor = theme.textMain
     ) {
-        Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 22.dp).navigationBarsPadding()) {
+        Column(Modifier.landscapeSheetCap().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 22.dp).navigationBarsPadding()) {
             Text(
                 stringResource(R.string.add_sheet_title),
                 color = theme.textMain, fontSize = 15.sp, fontWeight = FontWeight.Bold
